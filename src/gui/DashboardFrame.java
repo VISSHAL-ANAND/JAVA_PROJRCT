@@ -99,7 +99,7 @@ public class DashboardFrame extends JFrame {
         JComboBox<Priority> severity=new JComboBox<>(Priority.values()); JLabel file=new JLabel("No file selected"); File[] selected={null};
         ReportIssuePanel(){super("Report a New Issue"); JPanel form=new JPanel(new GridBagLayout()); GridBagConstraints g=new GridBagConstraints();
             g.insets=new Insets(7,7,7,7);g.fill=GridBagConstraints.HORIZONTAL; int y=0;
-            addRow(form,g,y++,"Category",category);addRow(form,g,y++,"Location",location);addRow(form,g,y++,"Title",title);addRow(form,g,y++,"Description",new JScrollPane(description));addRow(form,g,y++,"Severity",severity);
+            addRow(form,g,y++,"Category",category);addRow(form,g,y++,"Location",location);addRow(form,g,y++,"Title",title);addRow(form,g,y++,"Description",new JScrollPane(description));severity.setEnabled(false); addRow(form,g,y++,"Priority (automatic)",severity);
             JButton upload=new JButton("Upload Photo");upload.addActionListener(e->{JFileChooser c=new JFileChooser();if(c.showOpenDialog(this)==JFileChooser.APPROVE_OPTION){selected[0]=c.getSelectedFile();file.setText(selected[0].getName());}});
             JPanel fp=new JPanel(new BorderLayout(8,0));fp.add(upload,BorderLayout.WEST);fp.add(file,BorderLayout.CENTER);addRow(form,g,y++,"Attachment",fp);
             JButton submit=new JButton("Submit Issue");submit.addActionListener(e->submit());addRow(form,g,y,"",submit);add(form,BorderLayout.CENTER);}
