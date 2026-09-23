@@ -1,30 +1,10 @@
 package service;
-
-import dao.BookingDAO;
-import exception.BookingException;
-
-import java.sql.SQLException;
-import java.time.LocalDateTime;
-
-public class BookingService {
-    private final BookingDAO bookingDAO;
-
-    public BookingService(BookingDAO bookingDAO) {
-        this.bookingDAO = bookingDAO;
-    }
-
-    public void validateBooking(int resourceId, LocalDateTime start, LocalDateTime end)
-            throws BookingException {
-        if (start == null || end == null || !start.isBefore(end)) {
-            throw new BookingException("Invalid booking time range");
-        }
-
-        try {
-            if (bookingDAO.hasConflict(resourceId, start, end)) {
-                throw new BookingException("Resource is already booked for this time");
-            }
-        } catch (SQLException e) {
-            throw new BookingException("Unable to check resource availability");
-        }
-    }
+import dao.BookingDAO; import java.sql.SQLException; import java.time.LocalDateTime;
+public class BookingService{
+ private final BookingDAO dao=new BookingDAO();
+ public int book(int resourceId,int userId,LocalDateTime start,LocalDateTime end)throws SQLException{
+  if(resourceId<=0||userId<=0||start==null||end==null||!start.isBefore(end))throw new IllegalArgumentException("Invalid booking data");
+  if(start.isBefore(LocalDateTime.now()))throw new IllegalArgumentException("Booking must start in the future");
+  return dao.createIfAvailable(resourceId,userId,start,end);
+ }
 }
