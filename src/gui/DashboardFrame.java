@@ -1,9 +1,9 @@
 package gui;
 
 import client.Session;
-import dao.BookingDAO;
-import dao.IssueDAO;
-import dao.TicketDAO;
+import dao.ResourceDAO;
+import service.BookingService;
+import service.IssueService;
 import model.*;
 import service.EmergencyService;
 import service.PriorityService;
@@ -106,7 +106,7 @@ public class DashboardFrame extends JFrame {
         void addRow(JPanel p,GridBagConstraints g,int y,String label,Component c){g.gridx=0;g.gridy=y;g.weightx=0;p.add(new JLabel(label),g);g.gridx=1;g.weightx=1;g.gridwidth=2;p.add(c,g);g.gridwidth=1;}
         void submit(){if(title.getText().isBlank()||location.getText().isBlank()||description.getText().isBlank()){JOptionPane.showMessageDialog(this,"Fill all required fields.");return;}
             try{Priority priority=(Priority)severity.getSelectedItem();Issue issue=new Issue(0,title.getText(),description.getText(),(String)category.getSelectedItem(),location.getText(),selected[0]==null?null:selected[0].getAbsolutePath(),priority);
-                int issueId=new IssueDAO().createIssue(issue);new TicketDAO().createTicket(issueId,user.getId());JOptionPane.showMessageDialog(this,"Issue submitted successfully. Ticket created.");title.setText("");description.setText("");}
+                int ticketId=new IssueService().submit(issue,user.getId());JOptionPane.showMessageDialog(this,"Issue submitted successfully. Ticket #"+ticketId+" created.");title.setText("");description.setText("");}
             catch(Exception ex){JOptionPane.showMessageDialog(this,"Could not submit issue: "+ex.getMessage());}}
     }
 
