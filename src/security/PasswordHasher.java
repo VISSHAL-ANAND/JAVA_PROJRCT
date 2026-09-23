@@ -19,7 +19,7 @@ public final class PasswordHasher {
     public static boolean verify(String password, String stored) {
         if (password == null || stored == null || !stored.startsWith("pbkdf2$")) return false;
         try {
-            String[] p = stored.split("\$");
+            String[] p = stored.split("\\$");
             byte[] actual = derive(password.toCharArray(), Base64.getDecoder().decode(p[2]), Integer.parseInt(p[1]));
             return MessageDigest.isEqual(actual, Base64.getDecoder().decode(p[3]));
         } catch (RuntimeException e) { return false; }
