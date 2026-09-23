@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('STUDENT','TECHNICIAN','ADMIN') NOT NULL,
+    role ENUM('STUDENT','FACULTY','MAINTENANCE','TECHNICIAN','ADMIN') NOT NULL,
     register_number VARCHAR(50),
     department VARCHAR(100),
     specialization VARCHAR(100),
@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS issues (
     title VARCHAR(200) NOT NULL,
     description TEXT NOT NULL,
     category VARCHAR(100) NOT NULL,
+    location VARCHAR(200),
+    attachment_path VARCHAR(500),
     priority ENUM('LOW','MEDIUM','HIGH','CRITICAL') NOT NULL DEFAULT 'LOW',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
