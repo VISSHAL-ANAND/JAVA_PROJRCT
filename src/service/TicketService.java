@@ -27,9 +27,9 @@ public class TicketService {
         Priority priority = priorityService.calculatePriority(issue);
         issue.setPriority(priority);
 
-        Ticket ticket = new Ticket(ticketId, issue, reporter);
+        Ticket ticket = new Ticket(ticketId, issue, reporter.getId());
         assignmentService.findBestTechnician(ticket, technicians)
-                .ifPresent(ticket::assignTechnician);
+                .ifPresent(t -> ticket.assignTechnician(t.getId()));
 
         return ticket;
     }
@@ -41,9 +41,15 @@ public class TicketService {
 
         assignmentService.findBestTechnician(ticket, technicians)
                 .ifPresentOrElse(
-                        ticket::assignTechnician,
+                        t -> ticket.assignTechnician(t.getId()),
                         () -> {
-                            throw new RuntimeException("No available technician found");
+                            throw new TicketServiceException("No available technician found");
                         });
+    }
+
+    private static class TicketServiceException extends RuntimeException {
+        TicketServiceException(String message) {
+            super(message);
+        }
     }
 }
