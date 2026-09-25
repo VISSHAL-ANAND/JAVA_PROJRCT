@@ -15,12 +15,19 @@ public class AuthService {
     public AuthService(UserDAO userDAO){this(userDAO,new RateLimiter(5,java.time.Duration.ofMinutes(5),java.time.Duration.ofMinutes(10)));}
     public AuthService(UserDAO userDAO,RateLimiter loginLimiter){this.userDAO=userDAO;this.loginLimiter=loginLimiter;}
     public User login(String email,String password)throws AuthenticationException{
+        User user = authenticate(email, password);
+        Session.login(user);
+        return user;
+    }
+
+    public User authenticate(String email,String password)throws AuthenticationException{
         if(email==null||email.isBlank()||password==null||password.isBlank())throw new AuthenticationException("Email and password are required");
         if(!loginLimiter.allow(email))throw new AuthenticationException("Too many login attempts. Try again later.");
         try{
             Optional<AuthUser> record=userDAO.findForAuthentication(email);
             if(record.isEmpty()||!PasswordHasher.verify(password,record.get().passwordHash()))throw new AuthenticationException("Invalid email or password");
-            loginLimiter.reset(email); User user=toUser(record.get()); Session.login(user); return user;
+            loginLimiter.reset(email);
+            return toUser(record.get());
         }catch(SQLException|IllegalArgumentException e){throw new AuthenticationException("Authentication failed");}
     }
     public boolean registerEmail(String email)throws AuthenticationException{
