@@ -82,8 +82,8 @@ public class ApiServer {
     }
 
     private void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
-        send(exchange, status, mapper.writeValueAsString(payload));
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        send(exchange, status, mapper.writeValueAsString(payload));
     }
 
     private void send(HttpExchange exchange, int status, String body) throws IOException {
