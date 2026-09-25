@@ -1,163 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-const navItems = [
-  ["Overview", "⌂"],
-  ["Tickets", "✓"],
-  ["Resources", "▣"],
-  ["Notifications", "◌"],
-  ["Emergency", "!"]
-];
-
-const stats = [
-  ["Open tickets", "12", "4 high priority"],
-  ["In progress", "07", "3 assigned to you"],
-  ["Resources", "24", "18 currently available"],
-  ["Alerts", "02", "Requires attention"]
-];
+const navItems = [["Overview","⌂"],["Tickets","✓"],["Report Issue","+"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]];
 
 function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit(event) {
-    event.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      onLogin(data.user);
-    } catch (err) {
-      setError(err.message || "Unable to connect to CAMPUSOS server");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="login-shell">
-      <div className="login-card">
-        <div className="brand login-brand">
-          <div className="brand-mark">C</div>
-          <div><strong>CAMPUSOS</strong><span>Campus Operations</span></div>
-        </div>
-        <p className="eyebrow">SECURE ACCESS</p>
-        <h1>Welcome back.</h1>
-        <p className="login-copy">Sign in to access your campus operations workspace.</p>
-
-        <form onSubmit={submit} className="login-form">
-          <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@campusos.com" required /></label>
-          <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required /></label>
-          {error && <div className="error-message">{error}</div>}
-          <button className="primary-button login-button" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <div className="login-footer">CAMPUSOS • Campus Operations & Emergency Management</div>
-      </div>
-    </div>
-  );
+  const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [loading,setLoading]=useState(false); const [error,setError]=useState("");
+  async function submit(event){event.preventDefault();setError("");setLoading(true);try{
+    const response=await fetch("http://localhost:8080/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const data=await response.json(); if(!response.ok||!data.success) throw new Error(data.message||"Login failed"); onLogin(data.user);
+  }catch(err){setError(err.message||"Unable to connect to CAMPUSOS server");}finally{setLoading(false);}}
+  return <div className="login-shell"><div className="login-card"><div className="brand login-brand"><div className="brand-mark">C</div><div><strong>CAMPUSOS</strong><span>Campus Operations</span></div></div><p className="eyebrow">SECURE ACCESS</p><h1>Welcome back.</h1><p className="login-copy">Sign in to access your campus operations workspace.</p><form onSubmit={submit} className="login-form"><label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@campusos.com" required/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required/></label>{error&&<div className="error-message">{error}</div>}<button className="primary-button login-button" disabled={loading}>{loading?"Signing in...":"Sign in"}</button></form><div className="login-footer">CAMPUSOS • Campus Operations & Emergency Management</div></div></div>;
 }
 
-function Dashboard({ user, onLogout }) {
-  const [active, setActive] = useState("Overview");
-
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">C</div>
-          <div><strong>CAMPUSOS</strong><span>Campus Operations</span></div>
-        </div>
-
-        <nav className="nav-list">
-          {navItems.map(([label, icon]) => (
-            <button key={label} className={active === label ? "nav-item active" : "nav-item"} onClick={() => setActive(label)}>
-              <span className="nav-icon">{icon}</span><span>{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-footer">
-          <span className="status-dot" /> Campus system online
-        </div>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Campus Operations</p>
-            <h1>{active}</h1>
-          </div>
-          <div className="profile">
-            <div className="avatar">{user.name.split(" ").map(x => x[0]).slice(0, 2).join("")}</div>
-            <div><strong>{user.name}</strong><span>{user.role}</span></div>
-            <button className="text-button" onClick={onLogout}>Logout</button>
-          </div>
-        </header>
-
-        <section className="hero-card">
-          <div>
-            <p className="eyebrow">CAMPUSOS CONTROL CENTER</p>
-            <h2>Everything happening on campus, in one place.</h2>
-            <p className="hero-copy">Report issues, track tickets, manage resources and stay informed about campus operations.</p>
-          </div>
-          <div className="hero-orb"><span /><span /><span /></div>
-        </section>
-
-        <section className="stats-grid">
-          {stats.map(([label, value, detail]) => (
-            <article className="stat-card" key={label}>
-              <span>{label}</span><strong>{value}</strong><small>{detail}</small>
-            </article>
-          ))}
-        </section>
-
-        <section className="content-grid">
-          <article className="panel">
-            <div className="panel-heading">
-              <div><p className="eyebrow">Recent activity</p><h3>Latest tickets</h3></div>
-              <button className="text-button">View all</button>
-            </div>
-            <div className="empty-state">
-              <div className="empty-icon">✓</div>
-              <strong>Frontend connected</strong>
-              <span>Authenticated as {user.email}. Live ticket data comes next.</span>
-            </div>
-          </article>
-
-          <article className="panel">
-            <div className="panel-heading">
-              <div><p className="eyebrow">Campus operations</p><h3>System center</h3></div>
-              <span className="badge neutral">Connected</span>
-            </div>
-            <p className="panel-copy">React is now communicating with the Java HTTP API and MySQL authentication layer.</p>
-            <button className="primary-button">Open workspace</button>
-          </article>
-        </section>
-      </main>
-    </div>
-  );
+function ReportIssue({user,onCreated}) {
+  const [form,setForm]=useState({title:"",description:"",category:"Electrical",location:""}); const [loading,setLoading]=useState(false); const [message,setMessage]=useState(""); const [error,setError]=useState("");
+  const change=e=>setForm({...form,[e.target.name]:e.target.value});
+  async function submit(e){e.preventDefault();setLoading(true);setMessage("");setError("");try{
+    const r=await fetch("http://localhost:8080/api/issues",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,reporterId:user.id})});
+    const d=await r.json(); if(!r.ok||!d.success) throw new Error(d.message||"Unable to report issue");
+    setMessage(`Ticket #${d.ticketId} created • Priority: ${d.priority}`); setForm({title:"",description:"",category:"Electrical",location:""}); onCreated();
+  }catch(err){setError(err.message);}finally{setLoading(false);}}
+  return <section className="form-panel"><div className="panel-heading"><div><p className="eyebrow">CAMPUS OPERATIONS</p><h3>Report an issue</h3></div></div><form className="issue-form" onSubmit={submit}><label>Issue title<input name="title" value={form.title} onChange={change} placeholder="e.g. Projector not working" required/></label><div className="form-row"><label>Category<select name="category" value={form.category} onChange={change}><option>Electrical</option><option>Network</option><option>Plumbing</option><option>IT</option><option>Security</option><option>Other</option></select></label><label>Location<input name="location" value={form.location} onChange={change} placeholder="Block / Room"/></label></div><label>Description<textarea name="description" value={form.description} onChange={change} placeholder="Describe the issue..." rows="5" required/></label>{message&&<div className="success-message">{message}</div>}{error&&<div className="error-message">{error}</div>}<button className="primary-button" disabled={loading}>{loading?"Submitting...":"Submit issue"}</button></form></section>;
 }
 
-export default function App() {
-  const [user, setUser] = useState(null);
-
-  return user
-    ? <Dashboard user={user} onLogout={() => setUser(null)} />
-    : <Login onLogin={setUser} />;
+function Dashboard({user,onLogout}){
+  const [active,setActive]=useState("Overview"); const [tickets,setTickets]=useState([]); const [loadingTickets,setLoadingTickets]=useState(false);
+  async function loadTickets(){setLoadingTickets(true);try{const r=await fetch(`http://localhost:8080/api/tickets/reporter/${user.id}`);const d=await r.json();if(d.success)setTickets(d.tickets||[]);}catch{}finally{setLoadingTickets(false);}}
+  useEffect(()=>{loadTickets();},[user.id]);
+  const open=tickets.filter(t=>["OPEN","ASSIGNED","IN_PROGRESS"].includes(t.status)).length;
+  const resolved=tickets.filter(t=>["RESOLVED","CLOSED"].includes(t.status)).length;
+  const page=active==="Report Issue"?<ReportIssue user={user} onCreated={loadTickets}/>:<><section className="stats-grid"><article className="stat-card"><span>My tickets</span><strong>{tickets.length}</strong><small>Total reported</small></article><article className="stat-card"><span>Open</span><strong>{open}</strong><small>Being handled</small></article><article className="stat-card"><span>Resolved</span><strong>{resolved}</strong><small>Completed</small></article><article className="stat-card"><span>Role</span><strong>{user.role}</strong><small>Current access</small></article></section><section className="content-grid"><article className="panel"><div className="panel-heading"><div><p className="eyebrow">MY REQUESTS</p><h3>Latest tickets</h3></div><button className="text-button" onClick={loadTickets}>Refresh</button></div>{loadingTickets?<div className="empty-state">Loading tickets...</div>:tickets.length===0?<div className="empty-state"><div className="empty-icon">+</div><strong>No tickets yet</strong><span>Use Report Issue to create your first campus request.</span></div>:<div className="ticket-list">{tickets.slice(0,8).map(t=><div className="ticket-row" key={t.id}><div><strong>#{t.id} · {t.title}</strong><span>{t.category} · {t.location||"Location not specified"}</span></div><div className="ticket-meta"><span className={`priority ${t.priority.toLowerCase()}`}>{t.priority}</span><span className="badge neutral">{t.status}</span></div></div>)}</div>}</article><article className="panel"><div className="panel-heading"><div><p className="eyebrow">QUICK ACTION</p><h3>Need help?</h3></div></div><p className="panel-copy">Report maintenance, network, electrical, plumbing or security issues. CAMPUSOS automatically assigns a priority and available technician.</p><button className="primary-button" onClick={()=>setActive("Report Issue")}>Report an issue</button></article></section></>;
+  return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand-mark">C</div><div><strong>CAMPUSOS</strong><span>Campus Operations</span></div></div><nav className="nav-list">{navItems.map(([label,icon])=><button key={label} className={active===label?"nav-item active":"nav-item"} onClick={()=>setActive(label)}><span className="nav-icon">{icon}</span><span>{label}</span></button>)}</nav><div className="sidebar-footer"><span className="status-dot"/> Campus system online</div></aside><main className="main-content"><header className="topbar"><div><p className="eyebrow">Campus Operations</p><h1>{active}</h1></div><div className="profile"><div className="avatar">{user.name.split(" ").map(x=>x[0]).slice(0,2).join("")}</div><div><strong>{user.name}</strong><span>{user.role}</span></div><button className="text-button" onClick={onLogout}>Logout</button></div></header>{active==="Overview"&&<section className="hero-card"><div><p className="eyebrow">CAMPUSOS CONTROL CENTER</p><h2>Everything happening on campus, in one place.</h2><p className="hero-copy">Report issues, track tickets, manage resources and stay informed about campus operations.</p></div><div className="hero-orb"><span/><span/><span/></div></section>}{page}</main></div>;
 }
+
+export default function App(){const [user,setUser]=useState(null);return user?<Dashboard user={user} onLogout={()=>setUser(null)}/>:<Login onLogin={setUser}/>;}
