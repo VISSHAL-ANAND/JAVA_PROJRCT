@@ -38,6 +38,26 @@ class ApiServerSmokeTest {
                     HttpRequest.newBuilder(URI.create(base + "/api/tickets/reporter/1")).GET().build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(401, tickets.statusCode());
+
+            HttpResponse<String> staff = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, staff.statusCode());
+
+            HttpResponse<String> notifications = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/notifications/me")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, notifications.statusCode());
+
+            HttpResponse<String> resources = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/resources")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, resources.statusCode());
+
+            HttpResponse<String> admin = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, admin.statusCode());
         } finally {
             server.stop();
         }
