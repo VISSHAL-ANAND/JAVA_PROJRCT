@@ -263,8 +263,7 @@ A phase is complete only when:
 
 - Primary branch: `main`.
 - Keep the Java backend for now; do not rewrite the stack without a measured reason.
-- **Deployment architecture must be resolved before implementation:** Vercel is a natural target for the Vite frontend, but this repository's long-running Java `HttpServer`/TCP server is not a Vercel-native runtime. Supabase uses PostgreSQL, while the current DAO/schema and JDBC driver target MySQL. Do not assume these can be connected by only setting environment variables. Compare (A) Vercel frontend + Java API on a Java-capable host + retain MySQL, versus (B) Vercel frontend + Java API on a Java-capable host + migrate DAO/schema to Supabase PostgreSQL, versus (C) rewrite the API as Vercel serverless functions. Preserve the Java stack unless a conscious decision selects another option.
-- No deployment or hosting changes are authorized until the owner explicitly says to host.
+- **Locked deployment architecture (2026-10-13):** Vercel for the React/Vite frontend; Java API as a separate container/service on a Java-capable host; Supabase PostgreSQL accessed by JDBC. Keep the Java stack. No hosting/deployment changes are authorized until the owner explicitly says to host.
 - React is the primary web interface; the old Swing GUI and TCP server may remain while their long-term role is evaluated.
 - Build a secure, testable product incrementally rather than adding more UI placeholders.
 - Prefer explicit API contracts, database constraints, migration scripts, and tests over hidden behavior.
@@ -356,7 +355,7 @@ A phase is complete only when:
 ### Phase 0 — Repository safety and reproducibility
 - [x] Add/verify `.gitignore` for Maven output, Node dependencies/build output, IDE files, and logs.
 - [x] Add a safe config example and environment-based database credential overrides; document them in README.
-- [ ] Check main-branch tracked files and history for generated artifacts/secrets.
+- [ ] Complete a deeper Git history secret scan; current tracked tree scan did not show obvious credential artifacts.
 - [x] Inspect initial GitHub Actions build steps: Java `mvn clean verify` and frontend `npm ci` + `npm run build` both succeeded on the first workflow run; add actual API/database/security smoke tests next.
 - [x] Remove accidentally tracked `frontend/node_modules`; verify the main tree no longer includes it. Keep checking future diffs because `.gitignore` alone does not untrack existing files.
 - [ ] Scan tracked files and Git history for generated artifacts/secrets; rotate any exposed real credential.
@@ -369,12 +368,12 @@ A phase is complete only when:
 - [x] Derive issue reporter identity from token and verify ticket route ID matches authenticated user.
 - [ ] Ensure users can only read/update tickets they are allowed to access.
 - [x] Add JSON body-size/content-type/malformed-body checks for current routes and safe API errors; further validation and route coverage remain.
-- [x] CI run 38428705148 passed Java verify, frontend production build, and 9 unit/smoke tests (0 failures).
-- [ ] Add wrong-role, wrong-owner, invalid-input, and database-backed success tests.
+- [x] CI run 38433702324 passed Java verification, frontend production build, Docker image build, and PostgreSQL-backed workflow integration tests. Earlier CI run 38428705148 passed Java verify, frontend build, and 9 unit/smoke tests.
+- [x] Add wrong-role, anonymous-access, priority, and PostgreSQL-backed success/workflow tests; expand invalid-input and HTTP authenticated ownership coverage.
 
 ### Phase 2 — Test foundation and API quality
-- [x] Introduce JUnit 5 and the Maven Surefire plugin; add initial unit tests for priority classification (latest CI run pending verification).
-- [x] Add PostgreSQL-backed integration test for authentication, issue priority/assignment/status history, wrong-owner status rejection, notifications, emergency broadcast, booking conflict/cancellation, and admin metrics. Anonymous/wrong-role smoke tests pass.
+- [x] Introduce JUnit 5 and the Maven Surefire plugin; priority classification tests are included in passing CI.
+- [x] Add PostgreSQL-backed integration test for authentication, issue priority/assignment/status history, wrong-owner status rejection, notifications, emergency broadcast, booking conflict/cancellation, and admin metrics. Anonymous/wrong-role smoke tests pass in CI.
 - [ ] Expand integration coverage with parallel concurrent booking attempts and HTTP-level authenticated success/ownership tests.
 - [ ] Define consistent JSON response/error contracts.
 - [x] Add liveness/readiness endpoints and HTTP API executor shutdown hook; structured request IDs/metrics remain.
@@ -393,11 +392,21 @@ A phase is complete only when:
 - [x] Implement authenticated emergency feed and admin-only emergency broadcast; DB-backed verification still required.
 
 ### Phase 5 — Production deployment readiness
-- [ ] Decide deployment architecture: Vercel frontend + Java API on Java-capable host, and choose MySQL vs Supabase PostgreSQL migration.
+- [x] Decide deployment architecture and add resources/supabase_schema.sql; PostgreSQL-backed workflow CI passes. Live Supabase connectivity and existing-data migration remain to be tested.
 - [ ] Review the user's existing Supabase keep-alive GitHub Actions YAML before adopting it; do not assume scheduled pings prevent pausing or replace monitoring.
 - [x] Add initial CI build checks for Java and frontend (first run still needs review).
 - [ ] Add automated API smoke tests, dependency scanning, backups, restore test, monitoring, and rollback plan.
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Confirm the CI run containing JUnit tests passes. Then agree on the Vercel/Supabase/Java hosting architecture before database migration and auth changes. Recommended target: Vercel for React frontend, a Java-capable host for the existing Java API, and Supabase PostgreSQL after a deliberate DAO/schema migration. Do not host until explicitly authorized.
+**Immediate next task:** Verify CI for the frontend request timeout, then continue security hardening and comprehensive acceptance tests. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. The schema and PostgreSQL CI integration exist, but a live Supabase smoke test is not possible until connection details are configured. resources/config.properties was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored resources/config.properties or environment variables. Do not host until explicitly authorized.
+
+
+### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
+- Owner approved: Vercel frontend, Java API on a Java-capable container host, Supabase PostgreSQL. No deployment performed.
+- Confirmed repository includes resources/supabase_schema.sql, PostgreSQL migration scripts, a Dockerfile running as a non-root user, and PostgreSQL-backed integration tests.
+- Confirmed GitHub Actions run 38433702324 succeeded for Java Maven verification, frontend install/build, Docker image build, and PostgreSQL workflow integration tests.
+- Removed resources/config.properties from version control and added it to .gitignore; the remote copy contained only placeholders. LOCAL USER ACTION BEFORE PULLING: back up local resources/config.properties, then pull the deletion and recreate the ignored local config from resources/config.properties.example, or use environment variables.
+- Added a 12-second frontend API request timeout and clearer network/timeout errors in frontend/src/App.jsx (commit f154e04093d59fd457ff319dc44ebca27e778ae5). CI run 38443904644 was pending at last check.
+- Remaining blockers: verify production signing-secret behavior, run CI after latest edits, add HTTP-level valid-token/invalid-input tests, run real Supabase connectivity smoke test when credentials are configured, and inspect/validate the user's Supabase keep-alive workflow before use.
+- Performance principle: keep database credentials server-side, use bounded requests and indexed SQL, keep connection pools small, and avoid unnecessary frontend dependencies.
