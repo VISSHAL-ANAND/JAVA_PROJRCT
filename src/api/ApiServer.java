@@ -35,6 +35,7 @@ public class ApiServer {
     private final int port;
     private final ObjectMapper mapper = new ObjectMapper();
     private final IssueService issueService = new IssueService();
+    private final AuthService authService = new AuthService(new UserDAO());
     private final TicketDAO ticketDAO = new TicketDAO();
     private final AccessTokenService tokens = new AccessTokenService();
     private HttpServer server;
@@ -67,7 +68,7 @@ public class ApiServer {
             JsonNode body = readJson(exchange);
             String email = body.path("email").asText("").trim();
             String password = body.path("password").asText("");
-            User user = new AuthService(new UserDAO()).authenticate(email, password);
+            User user = authService.authenticate(email, password);
             Map<String, Object> userData = new LinkedHashMap<>();
             userData.put("id", user.getId());
             userData.put("name", user.getName());
