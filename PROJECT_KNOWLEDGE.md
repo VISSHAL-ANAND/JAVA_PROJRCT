@@ -49,7 +49,7 @@ Service layer (business rules)
 DAO layer / JDBC
       │
       ▼
-MySQL 8 (local development port 3306)
+MySQL 8 (local) or Supabase PostgreSQL (hosted target)
 
 Separate Java TCP socket server (port 5050)
 ```
@@ -69,7 +69,8 @@ The Java backend is a Maven project. Java source is under `src/`; `resources/` i
 - `src/model/` — domain models and roles.
 - `src/security/` — password hashing, rate limiting, and access-control-related classes.
 - `src/network/` — TCP socket server/client.
-- `resources/campusos.sql` — database schema/setup SQL.
+- `resources/campusos.sql` — MySQL local-development schema/setup SQL.
+- `resources/supabase_schema.sql` — initial PostgreSQL schema for Supabase; must be applied and verified against the connected project before use.
 - `resources/config.properties` — local database configuration. The tracked GitHub version on `main` currently contains a placeholder password; never replace it with a real secret.
 - `pom.xml` — Maven build and dependencies.
 - `README.md` — public setup, feature status, API, and contributor-facing documentation.
@@ -80,8 +81,8 @@ The Java backend is a Maven project. Java source is under `src/`; `resources/` i
 - Java 17
 - Maven 3.9.x
 - React 19, Vite 7
-- MySQL 8
-- MySQL Connector/J 9.4.0
+- MySQL 8 for local development; Supabase PostgreSQL is the selected hosted database target (migration script added, not yet live-verified)
+- MySQL Connector/J 9.4.0 and PostgreSQL JDBC driver 42.7.7
 - Jackson Databind 2.20.0
 - Windows development machine has been used.
 
@@ -146,7 +147,8 @@ CORS currently allows the Vite development origin `http://localhost:5173`, and t
 ### Authentication
 - `AuthService.authenticate` checks blank inputs, uses `UserDAO.findForAuthentication`, verifies passwords with `PasswordHasher.verify`, and applies a rate limiter.
 - The API returns user id, name, email, and role after successful login.
-- **Critical limitation:** the HTTP API does not yet establish a verified server-side session or validate a signed access token on subsequent requests. The frontend sends the reporter ID, which can be spoofed. Login alone is not authorization.
+- **Latest change:** API login now issues a signed HMAC-SHA256 bearer token with a two-hour expiry. Issue creation and ticket listing require a valid token; issue creation is limited to STUDENT/FACULTY, the reporter ID comes from the token, and ticket listing checks the path ID matches the token identity. Frontend sends the bearer token and keeps it in sessionStorage.
+- CAMPUSOS_AUTH_SECRET must be configured to a strong stable value (32+ characters) for hosted use. If absent, a random per-process key is generated for local development, so tokens stop validating after restart. Current stateless tokens cannot be individually revoked before expiry; full route-by-route role coverage and security tests remain required.
 
 ### Issue submission
 - `IssueService.submit` validates the issue/reporter ID, calculates priority, and creates issue + ticket inside a JDBC transaction.
@@ -185,7 +187,7 @@ These are not optional polish. Address them before calling CAMPUSOS production-r
 - Add pagination and predictable sorting for lists; avoid unbounded queries.
 - Define consistent API response/error formats.
 - Add frontend loading, empty, error, retry, and unauthorized states for each workflow.
-- Replace hardcoded API URL with environment configuration (e.g. Vite `VITE_API_BASE_URL`).
+- Frontend API URL is now configurable via VITE_API_BASE_URL; CORS allowlist via CAMPUSOS_CORS_ORIGINS.
 - Use dependency/security scanning and pin reproducible dependency versions.
 
 ### P2 — Product completeness
@@ -296,6 +298,18 @@ A phase is complete only when:
 - This is still not an end-to-end smoke test; DB-backed API, authentication, authorization, and workflow tests remain to be added.
 - No hosting/deployment was performed. Awaiting a deliberate runtime/database architecture choice before changing persistence or auth assumptions.
 
+### 2026-10-13 — Auth foundation, Supabase schema, and frontend performance
+- Locked the target architecture per owner approval: Vercel will host the React/Vite frontend; the existing Java API will run on a Java-capable host; Supabase PostgreSQL is the target hosted database. No hosting/deployment has been performed.
+- Added security.AccessTokenService: HMAC-SHA256 signed bearer tokens with user ID/role claims, two-hour expiry, constant-time signature comparison, and malformed/tampered token rejection. CAMPUSOS_AUTH_SECRET must be a strong stable 32+ character secret in hosted environments. A random per-process secret is generated only as a local-development fallback.
+- Hardened HTTP routes: added GET /api/health; bearer-token requirement for issue creation/ticket listing; reporter ID derived from token for issue creation; own-ticket ID match check; issue-reporting role restriction to STUDENT/FACULTY; 16 KiB JSON body limit; content-type and malformed JSON validation; CORS allowlist configured with CAMPUSOS_CORS_ORIGINS; security/cache headers; bounded executor sizing and stop/getPort hooks for smoke tests.
+- Fixed an existing login rate-limiting flaw: AuthService had been instantiated on each login request, resetting its limiter every time. It is now held by the API server instance.
+- Updated the frontend to send bearer tokens, store the token/user in sessionStorage for the tab session, clear both on logout, and display a retry action when ticket loading fails. Removed the external Google Fonts CSS import to avoid an extra render-blocking network dependency and use local system fonts.
+- Added resources/supabase_schema.sql for PostgreSQL with role/status/priority checks, foreign keys, useful indexes, updated-at trigger, and an exclusion constraint to prevent overlapping bookings for the same resource. Added PostgreSQL JDBC driver while retaining MySQL for local compatibility.
+- Updated README for Supabase schema selection, auth headers, token secret, CORS, and current deployment constraints.
+- Added tests/security/AccessTokenServiceTest.java and tests/api/ApiServerSmokeTest.java; the smoke test covers health plus anonymous rejection for issue/ticket routes. CI run 38428705148 is pending at last inspection. A prior run 38428340545 failed to compile due to an unreachable catch in ApiServer; that catch was removed in commit d32f5155475dabe25b0d5d68c3c0f63774f081ed. Do not mark current Java/tests green until the latest CI result completes.
+- Supabase schema has not been applied to a live Supabase project, and no real database integration test has run. Existing DAO code has not yet been verified against PostgreSQL.
+- Remaining blockers: confirm CI; test JDBC/DAO compatibility against Supabase; expand staff/admin APIs and route-level authorization; fix ticket lifecycle, notifications, resource booking/emergency UI; build comprehensive integration/smoke/security tests; verify final CORS and hosted secrets.
+
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog
@@ -311,12 +325,12 @@ A phase is complete only when:
 - [ ] Review the `side` diff separately; do not merge its generated `target/` files or machine-specific batch paths.
 
 ### Phase 1 — API security foundation (highest priority)
-- [ ] Choose and document a session/token strategy appropriate to this small Java HTTP server.
-- [ ] Implement authenticated request identity and role checks.
-- [ ] Remove trust in client-supplied reporter IDs for issue creation and ticket reads.
+- [x] Choose and document a signed bearer-token strategy with expiry; stable hosted secret required. Individual token revocation is not implemented.
+- [x] Implement token-verified identity for issue submission and reporter ticket reads; role checks for issue creation. Staff/admin route authorization remains to do.
+- [x] Derive issue reporter identity from token and verify ticket route ID matches authenticated user.
 - [ ] Ensure users can only read/update tickets they are allowed to access.
-- [ ] Normalize validation and safe error responses; stop exposing internal exception messages.
-- [ ] Add API tests for unauthenticated, wrong-role, wrong-owner, invalid-input, and success cases.
+- [x] Add JSON body-size/content-type/malformed-body checks for current routes and safe API errors; further validation and route coverage remain.
+- [ ] Confirm CI for token/health smoke tests; add wrong-role, wrong-owner, invalid-input, and database-backed success tests.
 
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; add initial unit tests for priority classification (latest CI run pending verification).
