@@ -290,7 +290,10 @@ A phase is complete only when:
 - Removed the accidentally tracked `frontend/node_modules` tree in commit `4584130797a34efe4c6e73684e21e0cb96381ad9`. A recursive main-branch tree inspection afterward showed 91 entries and no tracked `node_modules`, `target/`, `.class`, `.jar`, `.env`, or obvious key/certificate artifacts. `resources/config.properties` is still tracked (the remote version is a placeholder); remove it safely later with explicit local-config migration guidance.
 - Confirmed the current backend is a long-running Java `HttpServer` plus a separate TCP server and the JDBC/schema layer targets MySQL. Supabase's managed database is PostgreSQL, so using it requires a deliberate database migration or retaining a separate MySQL host. Vercel frontend hosting alone does not host this Java server as-is.
 - Added `.github/workflows/ci.yml` (commit `e076445b66c17273f574f54cb40a1aa42ff2059d`) to run `mvn --batch-mode --no-transfer-progress clean verify` on Java 17 and `npm ci` + `npm run build` on Node 22 for pushes/PRs to `main`.
-- Observed GitHub Actions run `38427076213` completed successfully for the CI/docs tree; frontend `npm ci` + `npm run build` succeeded and Java `mvn clean verify` succeeded. A second run `38427149596` after removing tracked `frontend/node_modules` also showed both Java and frontend build steps successful; the Java job was still transitioning its overall status at last inspection. This is a build gate, not an end-to-end smoke test; database-backed API and authorization tests still need to be added.
+- Observed GitHub Actions run `38427076213` completed successfully for the CI/docs tree; frontend `npm ci` + `npm run build` succeeded and Java `mvn clean verify` succeeded. Run `38427149596` after removing tracked `frontend/node_modules` also completed successfully. The latest frontend API URL configuration passed CI in run `38427412737`.
+- Found a core functional bug during priority review: the API constructed every new issue with `Priority.LOW`, while `PriorityService` preserves any already-set priority. This bypassed keyword priority calculation for all reports. Fixed the API to pass `null` priority so the service calculates it.
+- Added JUnit 5/Surefire and `tests/service/PriorityServiceTest.java` with tests for CRITICAL/HIGH/MEDIUM/LOW classification, precedence, and null input. The CI run that includes these new tests (`38427530826`) is pending at last check; do not claim the tests have passed until the run finishes.
+- This is still not an end-to-end smoke test; DB-backed API, authentication, authorization, and workflow tests remain to be added.
 - No hosting/deployment was performed. Awaiting a deliberate runtime/database architecture choice before changing persistence or auth assumptions.
 
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
@@ -316,7 +319,8 @@ A phase is complete only when:
 - [ ] Add API tests for unauthenticated, wrong-role, wrong-owner, invalid-input, and success cases.
 
 ### Phase 2 — Test foundation and API quality
-- [ ] Introduce a test framework and automated tests.
+- [x] Introduce JUnit 5 and the Maven Surefire plugin; add initial unit tests for priority classification (latest CI run pending verification).
+- [ ] Add service/API integration tests and authenticated/unauthenticated authorization tests.
 - [ ] Define consistent JSON response/error contracts.
 - [ ] Add health/readiness endpoint, structured logging, and graceful shutdown.
 - [x] Move frontend API base URL to `VITE_API_BASE_URL`; document the local example and hosting configuration. (Java API CORS remains fixed to localhost and must be made environment-configurable before hosting.)
@@ -341,4 +345,4 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Inspect the CI run and fix repository hygiene (especially tracked `frontend/node_modules` and tracked config), then agree on the Vercel/Supabase/Java hosting architecture. Implement session/authorization only in a way consistent with the selected deployment/database design; do not host until explicitly authorized.
+**Immediate next task:** Confirm the CI run containing JUnit tests passes. Then agree on the Vercel/Supabase/Java hosting architecture before database migration and auth changes. Recommended target: Vercel for React frontend, a Java-capable host for the existing Java API, and Supabase PostgreSQL after a deliberate DAO/schema migration. Do not host until explicitly authorized.
