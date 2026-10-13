@@ -48,6 +48,29 @@ class ApiServerSmokeTest {
         }
     }
 
+
+    @Test
+    void authenticatedUserCannotReadAnotherUsersTickets() throws Exception {
+        AccessTokenService tokens = new AccessTokenService();
+        String token = tokens.issue(new Student(12, "Student", "student@example.test", "", "S12", "CSE"));
+        ApiServer server = new ApiServer(0, tokens);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            String url = "http://127.0.0.1:" + server.getPort() + "/api/tickets/reporter/13";
+            HttpResponse<String> response = client.send(
+                    HttpRequest.newBuilder(URI.create(url))
+                            .header("Authorization", "Bearer " + token)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+
+            assertEquals(403, response.statusCode());
+            assertTrue(response.body().contains("only view your own tickets"));
+        } finally {
+            server.stop();
+        }
+    }
+
     @Test
     void healthEndpointRespondsAndProtectedRoutesRejectAnonymousRequests() throws Exception {
         ApiServer server = new ApiServer(0);
