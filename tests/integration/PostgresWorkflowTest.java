@@ -51,7 +51,7 @@ class PostgresWorkflowTest {
         assertEquals("TECHNICIAN", authenticatedTechnician.getRole());
 
         Issue criticalIssue = new Issue(0, "Gas leak in lab", "Gas leak reported near the electrical lab",
-                "Electrical", "Block A", null, Priority.LOW);
+                "Electrical", "Block A", null, null);
         int criticalTicketId = new IssueService().submit(criticalIssue, studentId);
         assertEquals(Priority.CRITICAL, criticalIssue.getPriority());
 
@@ -74,7 +74,7 @@ class PostgresWorkflowTest {
 
         users.setStaffAvailability(technicianId, false);
         Issue unassignedIssue = new Issue(0, "Broken chair", "Chair is not working", "Furniture",
-                "Room 101", null, Priority.LOW);
+                "Room 101", null, null);
         int unassignedTicketId = new IssueService().submit(unassignedIssue, studentId);
         assertEquals("OPEN", tickets.findByReporter(studentId).stream()
                 .filter(ticket -> ((Number) ticket.get("id")).intValue() == unassignedTicketId)
