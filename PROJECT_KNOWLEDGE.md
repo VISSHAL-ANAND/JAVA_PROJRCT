@@ -277,8 +277,9 @@ A phase is complete only when:
 - Added `.gitignore` rules for Maven output, Node dependencies/build output, IDE files, logs, and local files.
 - Updated `DBConnection` so `CAMPUSOS_DB_URL`, `CAMPUSOS_DB_USERNAME`, and `CAMPUSOS_DB_PASSWORD` override classpath properties; missing/placeholder values fail with a configuration error. Environment-only configuration is supported when the properties resource is absent.
 - Added `resources/config.properties.example` and documented environment-based database configuration in README.
+- Updated API handlers to log internal failures server-side and return generic 500 messages instead of exposing exception text/stack traces to clients. Ticket lookup now distinguishes invalid IDs (400) from database/server failures (500).
 - **Tests:** No Java build or frontend build was run after these edits; changes were committed remotely through GitHub. Compile and runtime verification remain required.
-- **Status:** Initial repository hygiene and database-secret configuration improvements committed; API session/authorization hardening remains unimplemented.
+- **Status:** Initial repository hygiene, database-secret configuration, and safer API error responses committed; API session/authorization hardening remains unimplemented.
 
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
@@ -289,6 +290,7 @@ A phase is complete only when:
 - [x] Add a safe config example and environment-based database credential overrides; document them in README.
 - [ ] Check main-branch tracked files and history for generated artifacts/secrets.
 - [ ] Run a fresh Java compile and frontend production build; record actual results.
+- [x] Replace raw exception text in API responses with safe messages and log server-side failures (initial pass; malformed JSON/body-size handling still needs work).
 - [ ] Review the `side` diff separately; do not merge its generated `target/` files or machine-specific batch paths.
 
 ### Phase 1 — API security foundation (highest priority)
