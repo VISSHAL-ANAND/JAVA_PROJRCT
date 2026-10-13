@@ -31,4 +31,23 @@ public class UserDAO {
             }
         }
     }
+
+    public java.util.List<java.util.Map<String, Object>> findAssignableStaff() throws SQLException {
+        java.util.List<java.util.Map<String, Object>> staff = new java.util.ArrayList<>();
+        String sql = "SELECT id, name, role, specialization FROM users WHERE role IN ('MAINTENANCE','TECHNICIAN') AND available = TRUE ORDER BY role, name LIMIT 100";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+                item.put("id", rs.getInt("id"));
+                item.put("name", rs.getString("name"));
+                item.put("role", rs.getString("role"));
+                item.put("specialization", rs.getString("specialization"));
+                staff.add(item);
+            }
+        }
+        return staff;
+    }
+
 }
