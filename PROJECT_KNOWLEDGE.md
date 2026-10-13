@@ -419,12 +419,20 @@ A phase is complete only when:
 - Hardened AccessTokenService: when CAMPUSOS_ENV=production, startup now fails unless CAMPUSOS_AUTH_SECRET is configured and contains at least 32 characters. Local development retains the random per-process fallback.
 - Added unit tests for missing/short production secrets, accepted stable secrets, and local fallback behavior.
 - Commits: 23bf4c5f0312d3cbd9c9ac3b65db91c1c57e1fc7 (security guard), 1cd730572debffbb8bebfa49ce4e5956da7b3304 (tests).
-- Verification status: CI for these commits has not yet been observed complete. Do not mark this change verified until the latest run finishes successfully.
+- Verification status: GitHub Actions run 38446105484 completed successfully; Java verification, Docker build, frontend production build, and PostgreSQL workflow integration tests all passed.
 
 
 ### 2026-10-13 — HTTP ownership and request-validation hardening
 - Added an HTTP smoke test proving an authenticated student cannot request another reporter's ticket list (commit 5de930d227b3ffbaca3102131b1ed4a02f7bc85f).
 - Tightened JSON Content-Type validation: only the `application/json` media type is accepted, while valid parameters such as `; charset=UTF-8` remain allowed. This closes the previous prefix-match gap that accepted values such as `application/jsonp` (commit 80f47bb406d1c6d7c961e0ee1c95bb6965f0193e).
 - Added HTTP validation tests rejecting `application/jsonp` and request bodies exceeding the 16 KiB limit (commit 05393e0ba8f144d2228b27578c8a6a31e14e92db).
-- CI for the latest tree is running at https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38445991810; do not treat these changes as verified until all jobs finish successfully.
-- Next: confirm CI, then review remaining API routes for ownership/role checks and prepare a safe live Supabase smoke test. No deployment performed.
+- CI verification passed on the latest tree at https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38446105484 (all four jobs succeeded).
+- Next: continue reviewing API ownership/role boundaries and prepare a safe live Supabase smoke test. No deployment performed.
+
+
+### 2026-10-14 — Expanded HTTP authorization regression coverage
+- Audited API route gates and DAO ownership filters for tickets/history, staff status changes, notifications, bookings, emergency broadcasts, and admin operations.
+- Expanded the HTTP smoke test proving a STUDENT token receives HTTP 403 for staff status changes, admin ticket assignment, staff availability changes, and staff directory access. These checks run before database access, so the regression test does not require a live database.
+- Existing data-access checks remain owner-scoped for notification reads, booking listing/cancellation, and ticket history; staff status changes require assignment unless the actor is an admin.
+- Verification is pending for this commit; wait for all four GitHub Actions jobs before marking it passed.
+- Live Supabase connectivity remains unverified until a dedicated CAMPUSOS project and server-side connection environment are configured. Do not use the unrelated TRAVEL_CRM project or deploy without explicit authorization.

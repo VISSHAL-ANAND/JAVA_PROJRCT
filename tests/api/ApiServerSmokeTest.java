@@ -43,6 +43,36 @@ class ApiServerSmokeTest {
                             .POST(HttpRequest.BodyPublishers.ofString("{\"title\":\"test\",\"message\":\"test\"}")).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(403, emergency.statusCode());
+            
+            HttpResponse<String> staffStatus = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/999/status"))
+                            .header("Authorization", "Bearer " + token)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\\"status\\":\\"RESOLVED\\"}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, staffStatus.statusCode());
+
+            HttpResponse<String> assignTicket = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/tickets/999/assign"))
+                            .header("Authorization", "Bearer " + token)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\\"staffId\\":13}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, assignTicket.statusCode());
+
+            HttpResponse<String> changeAvailability = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users/13/availability"))
+                            .header("Authorization", "Bearer " + token)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\\"available\\":false}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, changeAvailability.statusCode());
+
+            HttpResponse<String> listStaff = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/staff"))
+                            .header("Authorization", "Bearer " + token).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, listStaff.statusCode());
         } finally {
             server.stop();
         }
