@@ -68,6 +68,7 @@ public class ApiServer {
         server.createContext("/api/emergencies", this::handleEmergencies);
         server.createContext("/api/resources", this::handleResources);
         server.createContext("/api/bookings", this::handleBookings);
+        server.createContext("/api/admin", this::handleAdmin);
         executor = Executors.newFixedThreadPool(Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2)));
         server.setExecutor(executor);
         server.start();
@@ -380,6 +381,55 @@ public class ApiServer {
                 LOGGER.log(Level.SEVERE, "Booking request failed", e);
                 sendJson(exchange, 500, Map.of("success", false, "message", "Unable to create booking"));
             }
+        } finally { exchange.close(); }
+    }
+
+
+    private void handleAdmin(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            if (!"ADMIN".equals(principal.role())) {
+                sendJson(exchange, 403, Map.of("success", false, "message", "Administrator access required"));
+                return;
+            }
+            String path = exchange.getRequestURI().getPath();
+            if ("/api/admin/staff".equals(path)) {
+                if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of("success", true, "staff", new UserDAO().findAssignableStaff()));
+                return;
+            }
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("^/api/admin/tickets/(\\d+)/assign$").matcher(path);
+            if (!matcher.matches()) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                return;
+            }
+            int ticketId = Integer.parseInt(matcher.group(1));
+            int staffId = readJson(exchange).path("staffId").asInt(0);
+            ticketDAO.assignTicketToStaff(ticketId, staffId, principal.userId());
+            sendJson(exchange, 200, Map.of("success", true, "message", "Ticket assigned successfully"));
+        } catch (BadRequestException | IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage() == null ? "Invalid request" : e.getMessage()));
+        } catch (java.util.NoSuchElementException e) {
+            sendJson(exchange, 404, Map.of("success", false, "message", "Ticket not found"));
+        } catch (IllegalStateException e) {
+            sendJson(exchange, 409, Map.of("success", false, "message", "Ticket is no longer open or cannot be assigned"));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Admin request failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process administrator request"));
         } finally { exchange.close(); }
     }
 
