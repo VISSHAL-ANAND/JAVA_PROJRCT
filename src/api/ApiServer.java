@@ -606,7 +606,8 @@ public class ApiServer {
 
     private JsonNode readJson(HttpExchange exchange) throws IOException, BadRequestException {
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
-        if (contentType == null || !contentType.toLowerCase(java.util.Locale.ROOT).startsWith("application/json")) {
+        String mediaType = contentType == null ? "" : contentType.split(";", 2)[0].trim();
+        if (!"application/json".equalsIgnoreCase(mediaType)) {
             throw new BadRequestException("Content-Type must be application/json");
         }
         byte[] bytes;
