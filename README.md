@@ -93,11 +93,11 @@ Java socket server (port 5050)
 | Technician selection by availability and specialization | Implemented in issue submission |
 | Student ticket list from MySQL | Implemented |
 | Live student ticket counts | Implemented in the current dashboard |
-| Technician ticket lifecycle UI and API | In progress |
-| Admin management and reporting | In progress |
-| Resource booking UI/API integration | In progress |
-| Notifications UI/API integration | In progress |
-| Emergency broadcast UI/API integration | In progress |
+| Technician ticket lifecycle (assigned → in progress → resolved → closed) | Implemented with role/assignment checks and status history; database integration testing pending |
+| Admin overview, staff assignment, user directory and staff availability | Initial implementation; full user CRUD/export reporting remains incomplete |
+| Resource inventory, reservations, personal booking list and future cancellation | Implemented; live database/concurrency testing pending |
+| Notification inbox and mark-read | Implemented; live database testing pending |
+| Emergency feed and admin-only broadcast | Implemented; live database testing pending |
 | Signed bearer tokens, issue-reporting role checks and ticket ownership checks | Initial implementation; more route/role tests required |
 | Automated full end-to-end test suite | Not yet complete; CI unit tests are being expanded |
 
@@ -222,7 +222,7 @@ The script creates the `campusos` database and the core tables:
 - `notifications`
 - `emergencies`
 
-The database schema does not automatically create a known demo account with a valid password hash. Create a user through a secure registration flow when available, or insert a user whose password was hashed using the application's `PasswordHasher`. Do not store plaintext passwords.
+The schema scripts do not automatically create a known demo account with a valid password hash. Create a user through a secure registration flow when available, or insert a user whose password was hashed using the application's `PasswordHasher`. Do not store plaintext passwords.
 
 ## Configure the backend
 
@@ -327,7 +327,7 @@ Request:
 }
 ```
 
-Success response (example shape; token omitted here for brevity):
+Success response (example shape):
 
 ```json
 {
@@ -407,6 +407,7 @@ This is a keyword-based rule system, not an AI classifier. The current assignmen
 | `bookings` | Resource reservations and time ranges |
 | `notifications` | User notification records |
 | `emergencies` | Emergency messages and creator information |
+| `ticket_history` | Ticket status transitions and audit timestamps |
 
 ## Security notes
 
