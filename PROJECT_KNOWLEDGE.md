@@ -73,6 +73,7 @@ The Java backend is a Maven project. Java source is under `src/`; `resources/` i
 - `resources/config.properties` — local database configuration. The tracked GitHub version on `main` currently contains a placeholder password; never replace it with a real secret.
 - `pom.xml` — Maven build and dependencies.
 - `README.md` — public setup, feature status, API, and contributor-facing documentation.
+- `.github/workflows/ci.yml` — GitHub Actions checks for Java `mvn clean verify` and frontend `npm ci` + `npm run build`.
 
 ## 4. Technology and known local setup
 
@@ -260,6 +261,8 @@ A phase is complete only when:
 
 - Primary branch: `main`.
 - Keep the Java backend for now; do not rewrite the stack without a measured reason.
+- **Deployment architecture must be resolved before implementation:** Vercel is a natural target for the Vite frontend, but this repository's long-running Java `HttpServer`/TCP server is not a Vercel-native runtime. Supabase uses PostgreSQL, while the current DAO/schema and JDBC driver target MySQL. Do not assume these can be connected by only setting environment variables. Compare (A) Vercel frontend + Java API on a Java-capable host + retain MySQL, versus (B) Vercel frontend + Java API on a Java-capable host + migrate DAO/schema to Supabase PostgreSQL, versus (C) rewrite the API as Vercel serverless functions. Preserve the Java stack unless a conscious decision selects another option.
+- No deployment or hosting changes are authorized until the owner explicitly says to host.
 - React is the primary web interface; the old Swing GUI and TCP server may remain while their long-term role is evaluated.
 - Build a secure, testable product incrementally rather than adding more UI placeholders.
 - Prefer explicit API contracts, database constraints, migration scripts, and tests over hidden behavior.
@@ -281,6 +284,14 @@ A phase is complete only when:
 - **Tests:** No Java build or frontend build was run after these edits; changes were committed remotely through GitHub. Compile and runtime verification remain required.
 - **Status:** Initial repository hygiene, database-secret configuration, and safer API error responses committed; API session/authorization hardening remains unimplemented.
 
+### 2026-10-13 — Deployment target review and CI bootstrap
+- Re-inspected `ApiServer.java`, `AuthService.java`, `DBConnection.java`, `frontend/src/App.jsx`, `pom.xml`, the frontend package/lockfile, README, and this log on `main`.
+- Confirmed the browser UI hardcodes `http://localhost:8080` in login, issue submission, and ticket fetching; production API configuration is not implemented.
+- Confirmed the current backend is a long-running Java `HttpServer` plus a separate TCP server and the JDBC/schema layer targets MySQL. Supabase's managed database is PostgreSQL, so using it requires a deliberate database migration or retaining a separate MySQL host. Vercel frontend hosting alone does not host this Java server as-is.
+- Added `.github/workflows/ci.yml` (commit `e076445b66c17273f574f54cb40a1aa42ff2059d`) to run `mvn --batch-mode --no-transfer-progress clean verify` on Java 17 and `npm ci` + `npm run build` on Node 22 for pushes/PRs to `main`.
+- CI workflow has been committed but **its run result has not yet been inspected**. This is a build gate, not an end-to-end smoke test; database-backed API and authorization tests still need to be added.
+- No hosting/deployment was performed. Awaiting a deliberate runtime/database architecture choice before changing persistence or auth assumptions.
+
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog
@@ -289,7 +300,9 @@ A phase is complete only when:
 - [x] Add/verify `.gitignore` for Maven output, Node dependencies/build output, IDE files, and logs.
 - [x] Add a safe config example and environment-based database credential overrides; document them in README.
 - [ ] Check main-branch tracked files and history for generated artifacts/secrets.
-- [ ] Run a fresh Java compile and frontend production build; record actual results.
+- [ ] Inspect the new GitHub Actions run and fix any Java/frontend build failures.
+- [ ] Remove accidentally tracked generated dependencies/artifacts safely; `.gitignore` alone does not untrack existing files.
+- [ ] Scan tracked files and Git history for generated artifacts/secrets; rotate any exposed real credential.
 - [x] Replace raw exception text in API responses with safe messages and log server-side failures (initial pass; malformed JSON/body-size handling still needs work).
 - [ ] Review the `side` diff separately; do not merge its generated `target/` files or machine-specific batch paths.
 
@@ -320,9 +333,11 @@ A phase is complete only when:
 - [ ] Complete emergency creation/broadcast and access rules.
 
 ### Phase 5 — Production deployment readiness
-- [ ] Choose hosting/runtime architecture and production database.
-- [ ] Add CI build/test checks, dependency scanning, backups, restore test, monitoring, and rollback plan.
+- [ ] Decide deployment architecture: Vercel frontend + Java API on Java-capable host, and choose MySQL vs Supabase PostgreSQL migration.
+- [ ] Review the user's existing Supabase keep-alive GitHub Actions YAML before adopting it; do not assume scheduled pings prevent pausing or replace monitoring.
+- [x] Add initial CI build checks for Java and frontend (first run still needs review).
+- [ ] Add automated API smoke tests, dependency scanning, backups, restore test, monitoring, and rollback plan.
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Finish Phase 0 repository hygiene and run current Java/frontend builds. Then implement Phase 1 authentication/authorization before adding more business features.
+**Immediate next task:** Inspect the CI run and fix repository hygiene (especially tracked `frontend/node_modules` and tracked config), then agree on the Vercel/Supabase/Java hosting architecture. Implement session/authorization only in a way consistent with the selected deployment/database design; do not host until explicitly authorized.
