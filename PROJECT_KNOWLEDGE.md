@@ -450,4 +450,4 @@ A phase is complete only when:
 - Extended the PostgreSQL CI job to execute resources/supabase_app_role.sql.example against its disposable PostgreSQL instance.
 - Added a runtime privilege check: the app role can read users and delete bookings, but cannot delete users. This tests the intended table-level permission boundary without touching any real Supabase project.
 - The CI job uses a disposable local database and a placeholder-only password. It does not validate live Supabase connectivity or apply changes to a hosted database; those remain pending a dedicated CAMPUSOS project.
-- Verification for this workflow change is pending.
+- Verification passed in GitHub Actions run 38448857353: all four jobs succeeded, including execution of the role setup SQL and the checks that the app role can delete bookings but cannot delete users. This was an ephemeral CI database only.
