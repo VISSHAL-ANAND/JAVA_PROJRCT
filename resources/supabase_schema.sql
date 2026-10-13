@@ -101,6 +101,8 @@ create index if not exists idx_tickets_assignee_status on public.tickets(assigne
 create index if not exists idx_issues_priority on public.issues(priority);
 create index if not exists idx_notifications_user_read_created on public.notifications(user_id, is_read, created_at desc);
 create index if not exists idx_bookings_resource_start on public.bookings(resource_id, start_time);
+create index if not exists idx_bookings_user_start on public.bookings(booked_by, start_time);
+create index if not exists idx_emergencies_created on public.emergencies(created_at desc);
 
 -- Application access must use a dedicated database role/connection string, not the Supabase service-role API key.
 -- Do not expose CAMPUSOS_DB_PASSWORD or CAMPUSOS_AUTH_SECRET to the browser.
