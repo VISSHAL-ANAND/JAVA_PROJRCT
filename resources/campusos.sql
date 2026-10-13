@@ -38,6 +38,20 @@ CREATE TABLE IF NOT EXISTS tickets (
     CONSTRAINT fk_ticket_technician FOREIGN KEY (assigned_technician_id) REFERENCES users(id)
 );
 
+
+CREATE TABLE IF NOT EXISTS ticket_history (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    ticket_id INT NOT NULL,
+    changed_by INT NOT NULL,
+    previous_status VARCHAR(20) NOT NULL,
+    new_status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_history_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id),
+    CONSTRAINT fk_history_user FOREIGN KEY (changed_by) REFERENCES users(id)
+);
+
+CREATE INDEX idx_ticket_history_ticket_created ON ticket_history(ticket_id, created_at);
+
 CREATE TABLE IF NOT EXISTS resources (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(150) NOT NULL,
