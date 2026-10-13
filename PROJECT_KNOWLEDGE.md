@@ -306,7 +306,7 @@ A phase is complete only when:
 - Updated the frontend to send bearer tokens, store the token/user in sessionStorage for the tab session, clear both on logout, and display a retry action when ticket loading fails. Removed the external Google Fonts CSS import to avoid an extra render-blocking network dependency and use local system fonts.
 - Added resources/supabase_schema.sql for PostgreSQL with role/status/priority checks, foreign keys, useful indexes, updated-at trigger, and an exclusion constraint to prevent overlapping bookings for the same resource. Added PostgreSQL JDBC driver while retaining MySQL for local compatibility.
 - Updated README for Supabase schema selection, auth headers, token secret, CORS, and current deployment constraints.
-- Added tests/security/AccessTokenServiceTest.java and tests/api/ApiServerSmokeTest.java; the smoke test covers health plus anonymous rejection for issue/ticket routes. CI run 38428705148 is pending at last inspection. A prior run 38428340545 failed to compile due to an unreachable catch in ApiServer; that catch was removed in commit d32f5155475dabe25b0d5d68c3c0f63774f081ed. Do not mark current Java/tests green until the latest CI result completes.
+- Added tests/security/AccessTokenServiceTest.java and tests/api/ApiServerSmokeTest.java; the smoke test covers health plus anonymous rejection for issue/ticket routes. CI run 38428705148 completed successfully on commit aa24de0e080f430e3fc85288182b55186a5e3e53: Java mvn clean verify passed, frontend npm ci + npm run build passed; JUnit result was 9 tests, 0 failures, 0 errors, 0 skipped (2 token tests, 6 priority tests, 1 API smoke test). A prior run 38428340545 failed to compile due to an unreachable catch in ApiServer; that catch was removed in commit d32f5155475dabe25b0d5d68c3c0f63774f081ed. The successful run predates only the knowledge-log update commit, not the source/tests included in that run.
 - Supabase schema has not been applied to a live Supabase project, and no real database integration test has run. Existing DAO code has not yet been verified against PostgreSQL.
 - Remaining blockers: confirm CI; test JDBC/DAO compatibility against Supabase; expand staff/admin APIs and route-level authorization; fix ticket lifecycle, notifications, resource booking/emergency UI; build comprehensive integration/smoke/security tests; verify final CORS and hosted secrets.
 
@@ -330,7 +330,8 @@ A phase is complete only when:
 - [x] Derive issue reporter identity from token and verify ticket route ID matches authenticated user.
 - [ ] Ensure users can only read/update tickets they are allowed to access.
 - [x] Add JSON body-size/content-type/malformed-body checks for current routes and safe API errors; further validation and route coverage remain.
-- [ ] Confirm CI for token/health smoke tests; add wrong-role, wrong-owner, invalid-input, and database-backed success tests.
+- [x] CI run 38428705148 passed Java verify, frontend production build, and 9 unit/smoke tests (0 failures).
+- [ ] Add wrong-role, wrong-owner, invalid-input, and database-backed success tests.
 
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; add initial unit tests for priority classification (latest CI run pending verification).
