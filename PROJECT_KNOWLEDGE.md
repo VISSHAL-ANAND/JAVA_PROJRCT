@@ -412,3 +412,11 @@ A phase is complete only when:
 - Added tests/api/ApiInputValidationTest.java to verify authenticated malformed JSON and wrong Content-Type requests return HTTP 400 without needing a database (commit ddce98951383e196faa2af9db98be9d54d5ab581). Latest CI run 38444090971 was pending at last check.
 - Remaining blockers: require a stable signing secret in production, complete CI on latest main, expand HTTP-level authenticated success/ownership tests, run real Supabase connectivity smoke test when credentials are configured, and inspect/validate the user's Supabase keep-alive workflow before use.
 - Performance principle: keep database credentials server-side, use bounded requests and indexed SQL, keep connection pools small, and avoid unnecessary frontend dependencies.
+
+
+### 2026-10-13 — Production token-secret guard
+- Latest CI checkpoint before this change: run 38444181828 completed successfully for commit cd092b2e57b99039f0ab7357c643a11d3ae9c562.
+- Hardened AccessTokenService: when CAMPUSOS_ENV=production, startup now fails unless CAMPUSOS_AUTH_SECRET is configured and contains at least 32 characters. Local development retains the random per-process fallback.
+- Added unit tests for missing/short production secrets, accepted stable secrets, and local fallback behavior.
+- Commits: 23bf4c5f0312d3cbd9c9ac3b65db91c1c57e1fc7 (security guard), 1cd730572debffbb8bebfa49ce4e5956da7b3304 (tests).
+- Verification status: CI for these commits has not yet been observed complete. Do not mark this change verified until the latest run finishes successfully.
