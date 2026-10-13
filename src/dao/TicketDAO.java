@@ -248,4 +248,57 @@ public class TicketDAO {
         }
     }
 
+
+    public void recordStatusChange(Connection connection, int ticketId, Integer changedBy,
+                                   String previousStatus, String newStatus) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO ticket_history(ticket_id, changed_by, previous_status, new_status) VALUES(?,?,?,?)")) {
+            statement.setInt(1, ticketId);
+            if (changedBy == null) statement.setNull(2, java.sql.Types.INTEGER);
+            else statement.setInt(2, changedBy);
+            statement.setString(3, previousStatus);
+            statement.setString(4, newStatus);
+            statement.executeUpdate();
+        }
+    }
+
+    public List<Map<String, Object>> findHistory(int ticketId) throws SQLException {
+        List<Map<String, Object>> items = new ArrayList<>();
+        String sql = """
+                SELECT h.previous_status, h.new_status, h.created_at, u.name AS changed_by_name
+                FROM ticket_history h
+                LEFT JOIN users u ON u.id = h.changed_by
+                WHERE h.ticket_id = ?
+                ORDER BY h.created_at ASC, h.id ASC
+                LIMIT 100
+                """;
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, ticketId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("fromStatus", rs.getString("previous_status"));
+                    item.put("toStatus", rs.getString("new_status"));
+                    item.put("changedBy", rs.getString("changed_by_name") == null ? "CAMPUSOS system" : rs.getString("changed_by_name"));
+                    item.put("createdAt", rs.getTimestamp("created_at").toString());
+                    items.add(item);
+                }
+            }
+        }
+        return items;
+    }
+
+    public boolean canViewTicket(int ticketId, int userId, String role) throws SQLException {
+        if ("ADMIN".equals(role)) return true;
+        String sql = "SELECT 1 FROM tickets WHERE id = ? AND (reported_by = ? OR assigned_technician_id = ?)";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, ticketId);
+            statement.setInt(2, userId);
+            statement.setInt(3, userId);
+            try (ResultSet rs = statement.executeQuery()) { return rs.next(); }
+        }
+    }
+
 }
