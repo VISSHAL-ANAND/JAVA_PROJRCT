@@ -98,8 +98,8 @@ Java socket server (port 5050)
 | Resource inventory, reservations, personal booking list and future cancellation | Implemented; live database/concurrency testing pending |
 | Notification inbox and mark-read | Implemented; live database testing pending |
 | Emergency feed and admin-only broadcast | Implemented; live database testing pending |
-| Signed bearer tokens, issue-reporting role checks and ticket ownership checks | Initial implementation; more route/role tests required |
-| Automated full end-to-end test suite | Not yet complete; CI unit tests are being expanded |
+| API authentication and route authorization | Signed bearer tokens and core role/ownership checks implemented; token revocation and comprehensive security testing remain |
+| Automated tests | 11 Java unit/API smoke tests passed in CI; database-backed end-to-end tests remain |
 
 A menu item or database table does not, by itself, mean its complete workflow is finished. This table is the intended source of truth for the current implementation.
 
@@ -382,6 +382,30 @@ GET /api/tickets/reporter/1
 Returns a JSON object containing the ticket list, including fields such as ID, title, category, location, priority, status and creation time.
 
 The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. Additional role-specific staff/admin routes, revocation/session invalidation, rate-limit hardening across instances, and full integration tests remain release blockers.
+
+### Other authenticated API routes
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/health` | Public liveness check |
+| GET | `/api/tickets/{ticketId}/history` | Ticket reporter, assigned staff, or admin |
+| GET | `/api/staff/tickets` | Maintenance/technician see assigned queue; admin sees all |
+| POST | `/api/staff/tickets/{ticketId}/status` | Assigned staff or admin; forward lifecycle transitions only |
+| GET | `/api/notifications/me` | Authenticated user; own inbox |
+| POST | `/api/notifications/{notificationId}/read` | Authenticated user; own notification |
+| GET | `/api/resources` | Authenticated user; available inventory |
+| GET | `/api/bookings/mine` | Authenticated user; own reservations |
+| POST | `/api/bookings` | Authenticated user; create reservation |
+| POST | `/api/bookings/{bookingId}/cancel` | Owner can cancel future reservation |
+| GET | `/api/emergencies` | Authenticated user |
+| POST | `/api/emergencies` | ADMIN only; creates alert and notifications |
+| GET | `/api/admin/overview` | ADMIN only |
+| GET | `/api/admin/users` | ADMIN only |
+| POST | `/api/admin/users/{userId}/availability` | ADMIN only; staff availability |
+| GET | `/api/admin/staff` | ADMIN only; assignable staff |
+| POST | `/api/admin/tickets/{ticketId}/assign` | ADMIN only; assign an OPEN ticket |
+
+Status changes and assignments are recorded in `ticket_history`. Database-backed behavior still needs verification against the actual selected database.
 
 ## Issue priority and assignment
 
