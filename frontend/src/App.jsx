@@ -88,7 +88,7 @@ function AdminUsers({token}) {
 function Dashboard({user,token,onLogout}){
   const [active,setActive]=useState("Overview"); const [tickets,setTickets]=useState([]); const [loadingTickets,setLoadingTickets]=useState(false); const [ticketError,setTicketError]=useState("");
   async function loadTickets(){setLoadingTickets(true);setTicketError("");try{const r=await fetch(`${API_BASE_URL}/api/tickets/reporter/${user.id}`,{headers:{"Authorization":`Bearer ${token}`}});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||"Unable to load tickets");setTickets(d.tickets||[]);}catch(err){setTicketError(err.message||"Unable to connect to CAMPUSOS");}finally{setLoadingTickets(false);}}
-  useEffect(()=>{loadTickets();},[user.id]);
+  useEffect(()=>{if(["STUDENT","FACULTY"].includes(user.role)) loadTickets();},[user.id,user.role,token]);
   const visibleNavItems = user.role === "ADMIN" ? [["Overview","⌂"],["Tickets","✓"],["Users","♙"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]] : ["MAINTENANCE","TECHNICIAN"].includes(user.role) ? [["Overview","⌂"],["Tickets","✓"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]] : navItems;
   const open=tickets.filter(t=>["OPEN","ASSIGNED","IN_PROGRESS"].includes(t.status)).length;
   const resolved=tickets.filter(t=>["RESOLVED","CLOSED"].includes(t.status)).length;
