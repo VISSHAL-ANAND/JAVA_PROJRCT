@@ -16,6 +16,7 @@ import exception.AuthenticationException;
 import model.Issue;
 import model.User;
 import security.AccessTokenService;
+import security.PasswordHasher;
 import service.AuthService;
 import service.IssueService;
 import service.EmergencyService;
@@ -469,6 +470,33 @@ public class ApiServer {
                 sendJson(exchange, 200, Map.of("success", true, "users", new UserDAO().findUsers()));
                 return;
             }
+            if ("/api/admin/users".equals(path) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                JsonNode body = readJson(exchange);
+                String name = body.path("name").asText("").trim();
+                String email = body.path("email").asText("").trim().toLowerCase(java.util.Locale.ROOT);
+                String password = body.path("password").asText("");
+                String role = body.path("role").asText("").trim().toUpperCase(java.util.Locale.ROOT);
+                String registerNumber = body.path("registerNumber").asText("").trim();
+                String department = body.path("department").asText("").trim();
+                String specialization = body.path("specialization").asText("").trim();
+                if (name.isBlank() || name.length() > 100 || !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$") ||
+                        email.length() > 150 || password.length() < 12 || password.length() > 128 ||
+                        !Set.of("STUDENT","FACULTY","MAINTENANCE","TECHNICIAN","ADMIN").contains(role)) {
+                    throw new BadRequestException("Enter valid user details and a password of at least 12 characters");
+                }
+                if ("STUDENT".equals(role) && registerNumber.isBlank()) {
+                    throw new BadRequestException("Register number is required for students");
+                }
+                if (department.length() > 100 || registerNumber.length() > 50 || specialization.length() > 100) {
+                    throw new BadRequestException("One or more user fields exceed the allowed length");
+                }
+                int userId = new UserDAO().createUser(name, email, PasswordHasher.hash(password), role,
+                        registerNumber.isBlank() ? null : registerNumber,
+                        department.isBlank() ? null : department,
+                        specialization.isBlank() ? null : specialization);
+                sendJson(exchange, 201, Map.of("success", true, "message", "User created", "userId", userId));
+                return;
+            }
             java.util.regex.Matcher availabilityMatcher = java.util.regex.Pattern
                     .compile("^/api/admin/users/(\\d+)/availability$").matcher(path);
             if (availabilityMatcher.matches()) {
@@ -517,6 +545,10 @@ public class ApiServer {
         } catch (IllegalStateException e) {
             sendJson(exchange, 409, Map.of("success", false, "message", "Ticket is no longer open or cannot be assigned"));
         } catch (SQLException e) {
+            if ("23505".equals(e.getSQLState()) || "23000".equals(e.getSQLState())) {
+                sendJson(exchange, 409, Map.of("success", false, "message", "A user with that email already exists"));
+                return;
+            }
             LOGGER.log(Level.SEVERE, "Admin request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process administrator request"));
         } finally { exchange.close(); }
