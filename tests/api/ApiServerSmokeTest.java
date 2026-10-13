@@ -1,6 +1,8 @@
 package api;
 
 import org.junit.jupiter.api.Test;
+import model.Student;
+import security.AccessTokenService;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -12,6 +14,40 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApiServerSmokeTest {
+    @Test
+    void studentTokenCannotAccessAdminOrStaffOperations() throws Exception {
+        AccessTokenService tokens = new AccessTokenService();
+        String token = tokens.issue(new Student(12, "Student", "student@example.test", "", "S12", "CSE"));
+        ApiServer server = new ApiServer(0, tokens);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            String base = "http://127.0.0.1:" + server.getPort();
+
+            HttpResponse<String> admin = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
+                            .header("Authorization", "Bearer " + token).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, admin.statusCode());
+
+            HttpResponse<String> staff = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets"))
+                            .header("Authorization", "Bearer " + token).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, staff.statusCode());
+
+            HttpResponse<String> emergency = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .header("Authorization", "Bearer " + token)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"title\":\"test\",\"message\":\"test\"}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, emergency.statusCode());
+        } finally {
+            server.stop();
+        }
+    }
+
     @Test
     void healthEndpointRespondsAndProtectedRoutesRejectAnonymousRequests() throws Exception {
         ApiServer server = new ApiServer(0);
