@@ -98,4 +98,15 @@ public class BookingDAO {
         }
         return items;
     }
+
+    public boolean cancelFutureBooking(int bookingId, int userId) throws SQLException {
+        String sql = "DELETE FROM bookings WHERE id = ? AND booked_by = ? AND start_time > CURRENT_TIMESTAMP";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, bookingId);
+            statement.setInt(2, userId);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
 }
