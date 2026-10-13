@@ -274,16 +274,19 @@ A phase is complete only when:
 - Identified production-critical gap: API endpoints trust client-supplied reporter IDs and do not verify an authenticated session/token on protected requests.
 - Identified unsafe error handling to review in API handlers; issue handler currently risks returning exception text to clients.
 - Added this knowledge file and repository hygiene rules as the first documentation/engineering baseline.
-- **Tests:** No new build or runtime tests were run during this remote source inspection. The historical Maven compile result is noted above but must be re-run against the current checkout.
-- **Status:** Baseline documentation started; production hardening not yet implemented.
+- Added `.gitignore` rules for Maven output, Node dependencies/build output, IDE files, logs, and local files.
+- Updated `DBConnection` so `CAMPUSOS_DB_URL`, `CAMPUSOS_DB_USERNAME`, and `CAMPUSOS_DB_PASSWORD` override classpath properties; missing/placeholder values fail with a configuration error. Environment-only configuration is supported when the properties resource is absent.
+- Added `resources/config.properties.example` and documented environment-based database configuration in README.
+- **Tests:** No Java build or frontend build was run after these edits; changes were committed remotely through GitHub. Compile and runtime verification remain required.
+- **Status:** Initial repository hygiene and database-secret configuration improvements committed; API session/authorization hardening remains unimplemented.
 
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog
 
 ### Phase 0 — Repository safety and reproducibility
-- [ ] Add/verify `.gitignore` for Maven output, Node dependencies/build output, IDE files, and logs.
-- [ ] Keep real local config out of commits; introduce a documented example config and environment-based secrets.
+- [x] Add/verify `.gitignore` for Maven output, Node dependencies/build output, IDE files, and logs.
+- [x] Add a safe config example and environment-based database credential overrides; document them in README.
 - [ ] Check main-branch tracked files and history for generated artifacts/secrets.
 - [ ] Run a fresh Java compile and frontend production build; record actual results.
 - [ ] Review the `side` diff separately; do not merge its generated `target/` files or machine-specific batch paths.
