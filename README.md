@@ -329,6 +329,18 @@ VITE_API_BASE_URL=http://localhost:8080
 
 Do not commit `.env.local`. For production, set `VITE_API_BASE_URL` in the frontend host's project settings before building. The current Java API still needs a Java-capable host and production CORS configuration; this setting alone does not make the backend deployable on Vercel.
 
+## Hosting preparation (not deployed)
+
+The intended hosting split is:
+
+- **Frontend:** Vercel, with project root set to `frontend`, build command `npm run build`, and output directory `dist`.
+- **Java API:** a Java/container-capable host using the repository's `Dockerfile`. The container runs `api.ApiServerMain` and listens on the host-provided `PORT`.
+- **Database:** a dedicated Supabase PostgreSQL project, using the reviewed schema and a restricted JDBC role.
+
+Before hosting, configure these values on the **Java API host** only: `CAMPUSOS_DB_URL`, `CAMPUSOS_DB_USERNAME`, `CAMPUSOS_DB_PASSWORD`, `CAMPUSOS_DB_POOL_SIZE`, `CAMPUSOS_AUTH_SECRET`, and `CAMPUSOS_CORS_ORIGINS`. Set `VITE_API_BASE_URL` on Vercel to the public Java API origin. Never put database credentials or the auth secret in Vercel's `VITE_*` variables.
+
+Use `/api/health` as a liveness check and `/api/health/ready` as a database-aware readiness check. Hosting has not been configured or deployed; the Supabase schema and connection still require verification against a dedicated CAMPUSOS project.
+
 ## API reference
 
 The current HTTP API accepts and returns JSON. The frontend is configured for local development at `http://localhost:5173`.
