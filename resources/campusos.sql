@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS ticket_history (
 );
 
 CREATE INDEX idx_ticket_history_ticket_created ON ticket_history(ticket_id, created_at);
+ALTER TABLE ticket_history MODIFY changed_by INT NULL;
 
 CREATE TABLE IF NOT EXISTS resources (
     id INT PRIMARY KEY AUTO_INCREMENT,
