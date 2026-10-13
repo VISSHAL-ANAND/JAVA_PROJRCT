@@ -1,6 +1,7 @@
 package network;
 
 import api.ApiServer;
+import database.DBConnection;
 
 public class ServerMain {
     public static void main(String[] args) {
@@ -10,7 +11,7 @@ public class ServerMain {
 
         try {
             ApiServer apiServer = new ApiServer(apiPort);
-            Runtime.getRuntime().addShutdownHook(new Thread(apiServer::stop, "campusos-api-shutdown"));
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> { apiServer.stop(); DBConnection.closePool(); }, "campusos-shutdown"));
             apiServer.start();
             new CampusServer(socketPort, poolSize).start();
         } catch (Exception e) {
