@@ -54,11 +54,16 @@ public class ApiServer {
     private final ResourceDAO resourceDAO = new ResourceDAO();
     private final BookingDAO bookingDAO = new BookingDAO();
     private final BookingService bookingService = new BookingService();
-    private final AccessTokenService tokens = new AccessTokenService();
+    private final AccessTokenService tokens;
     private HttpServer server;
     private ExecutorService executor;
 
-    public ApiServer(int port) { this.port = port; }
+    public ApiServer(int port) { this(port, new AccessTokenService()); }
+
+    public ApiServer(int port, AccessTokenService tokens) {
+        this.port = port;
+        this.tokens = java.util.Objects.requireNonNull(tokens, "tokens");
+    }
 
     public void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress(port), 0);
