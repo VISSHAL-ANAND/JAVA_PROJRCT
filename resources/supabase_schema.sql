@@ -46,6 +46,7 @@ create table if not exists public.ticket_history (
     created_at timestamptz not null default now()
 );
 create index if not exists idx_ticket_history_ticket_created on public.ticket_history(ticket_id, created_at);
+alter table if exists public.ticket_history alter column changed_by drop not null;
 
 create or replace function public.campusos_touch_updated_at()
 returns trigger language plpgsql as $$
