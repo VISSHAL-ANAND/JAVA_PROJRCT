@@ -10,6 +10,7 @@ import dao.NotificationDAO;
 import dao.EmergencyDAO;
 import dao.ResourceDAO;
 import dao.BookingDAO;
+import dao.AdminDAO;
 import exception.AuthenticationException;
 import model.Issue;
 import model.User;
@@ -399,6 +400,33 @@ public class ApiServer {
                 return;
             }
             String path = exchange.getRequestURI().getPath();
+            if ("/api/admin/overview".equals(path) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 200, Map.of("success", true, "overview", new AdminDAO().getOverview()));
+                return;
+            }
+            if ("/api/admin/users".equals(path) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 200, Map.of("success", true, "users", new UserDAO().findUsers()));
+                return;
+            }
+            java.util.regex.Matcher availabilityMatcher = java.util.regex.Pattern
+                    .compile("^/api/admin/users/(\\d+)/availability$").matcher(path);
+            if (availabilityMatcher.matches()) {
+                if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                int userId = Integer.parseInt(availabilityMatcher.group(1));
+                JsonNode body = readJson(exchange);
+                if (!body.has("available") || !body.get("available").isBoolean()) {
+                    throw new BadRequestException("The available field must be true or false");
+                }
+                if (!new UserDAO().setStaffAvailability(userId, body.get("available").asBoolean())) {
+                    sendJson(exchange, 404, Map.of("success", false, "message", "Assignable staff member not found"));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of("success", true, "message", "Staff availability updated"));
+                return;
+            }
             if ("/api/admin/staff".equals(path)) {
                 if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
                     sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
