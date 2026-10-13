@@ -283,7 +283,7 @@ Open the local URL printed by Vite, normally:
 http://localhost:5173
 ```
 
-The Vite development server proxies no API routes by default; the current frontend calls the Java API at `http://localhost:8080`.
+The frontend reads its API origin from `VITE_API_BASE_URL` and defaults to `http://localhost:8080` for local development. Copy `frontend/.env.example` to `frontend/.env.local` if you need to override it locally. For a hosted frontend, configure `VITE_API_BASE_URL` in the frontend host's build environment to the reachable Java API origin. This value is public browser configuration, not a secret. The Java API must separately allow the deployed frontend origin through CORS.
 
 ### Build the frontend for production
 
@@ -294,6 +294,16 @@ npm run build
 ```
 
 This creates the optimized frontend output in `frontend/dist`. A production web server and deployment configuration are still required to serve it and route API requests securely.
+
+### Frontend API URL configuration
+
+The optional file `frontend/.env.example` documents the local default. For local overrides, create `frontend/.env.local`:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Do not commit `.env.local`. For production, set `VITE_API_BASE_URL` in the frontend host's project settings before building. The current Java API still needs a Java-capable host and production CORS configuration; this setting alone does not make the backend deployable on Vercel.
 
 ## API reference
 
