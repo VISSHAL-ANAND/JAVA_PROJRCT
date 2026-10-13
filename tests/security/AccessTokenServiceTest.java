@@ -3,6 +3,8 @@ package security;
 import model.Student;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class AccessTokenServiceTest {
@@ -28,5 +30,21 @@ class AccessTokenServiceTest {
         assertNull(service.verify(modified));
         assertNull(service.verify("not-a-token"));
         assertNull(service.verify(null));
+    }
+
+    @Test
+    void productionRequiresConfiguredSecret() {
+        assertThrows(IllegalStateException.class, () -> AccessTokenService.resolveSecret(null, true));
+        assertThrows(IllegalStateException.class, () -> AccessTokenService.resolveSecret("too-short", true));
+    }
+
+    @Test
+    void acceptsStableProductionSecretAndAllowsLocalFallback() {
+        String configured = "campusos-test-secret-with-at-least-32-characters";
+        assertArrayEquals(
+                configured.getBytes(StandardCharsets.UTF_8),
+                AccessTokenService.resolveSecret(configured, true)
+        );
+        assertEquals(32, AccessTokenService.resolveSecret(null, false).length);
     }
 }
