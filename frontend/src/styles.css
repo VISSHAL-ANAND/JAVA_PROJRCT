@@ -27,3 +27,5 @@
 
 
 .page-stack{display:grid;gap:16px}.compact-button{margin:0;padding:8px 11px;font-size:12px}.emergency-item{padding:17px 0;border-top:1px solid rgba(255,255,255,.08)}.emergency-heading{display:flex;justify-content:space-between;gap:14px;align-items:center}.emergency-heading span,.emergency-item small{color:#8c98aa;font-size:12px}.emergency-item p{color:#d0d8e5;line-height:1.6;white-space:pre-wrap}.emergency-item small{display:block}.ticket-row .primary-button:disabled{opacity:.6;cursor:wait}@media(max-width:700px){.emergency-heading{align-items:flex-start;flex-direction:column}}
+
+.assign-controls{display:flex;align-items:center;gap:6px}.assign-controls select{max-width:190px;padding:8px 9px;border:1px solid #26384c;border-radius:8px;background:#0b1220;color:#e8edf7;font:inherit;font-size:12px}@media(max-width:700px){.assign-controls{flex-wrap:wrap}.assign-controls select{max-width:100%}}
