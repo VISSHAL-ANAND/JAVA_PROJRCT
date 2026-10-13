@@ -4,7 +4,7 @@
 
 CAMPUSOS is a campus operations project designed to bring maintenance issue reporting, ticket tracking, technician assignment, resource booking, notifications, emergency records and administrative workflows into one platform.
 
-The project uses a **React frontend**, a **Java backend**, and **MySQL** for persistent data. It also retains a Java socket-server foundation for networking exercises and future integrations.
+The project uses a **React frontend**, a **Java backend**, and supports **MySQL for local development** plus **PostgreSQL/Supabase** as the planned hosted database. The Java API remains a separate service; Vercel is intended for the frontend only. It also retains a Java socket-server foundation for networking exercises and future integrations.
 
 > **Project status:** Active academic project. React login, issue submission, automatic priority calculation, ticket creation/assignment logic, and a student's own ticket list are implemented. Other areas shown in navigation or represented by backend classes may still be incomplete. See [Feature Status](#feature-status) before treating a workflow as complete.
 
@@ -46,7 +46,7 @@ Java API validates the request
         ↓
 Priority is calculated
         ↓
-Issue and ticket are saved to MySQL
+Issue and ticket are saved to the configured SQL database
         ↓
 An available technician may be assigned
         ↓
@@ -67,7 +67,7 @@ Java HTTP API (port 8080)
 Service layer
         │
         ▼
-DAO layer ── JDBC ── MySQL (port 3306)
+DAO layer ── JDBC ── MySQL (local) / PostgreSQL (Supabase)
 
 Java socket server (port 5050)
         └── Separate networking foundation
@@ -77,7 +77,7 @@ Java socket server (port 5050)
 - **HTTP API:** Java's built-in `HttpServer` exposes JSON endpoints.
 - **Service layer:** Applies application rules such as priority calculation and issue submission.
 - **DAO layer:** Executes parameterized SQL statements through JDBC.
-- **Database:** MySQL stores users, issues, tickets, resources, bookings, notifications and emergencies.
+- **Database:** JDBC connects to MySQL or PostgreSQL depending on `CAMPUSOS_DB_URL`; `resources/supabase_schema.sql` defines the hosted PostgreSQL schema.
 - **Socket layer:** A separate Java TCP server remains available for socket-programming exercises and future integrations.
 
 ## Feature status
@@ -98,8 +98,8 @@ Java socket server (port 5050)
 | Resource booking UI/API integration | In progress |
 | Notifications UI/API integration | In progress |
 | Emergency broadcast UI/API integration | In progress |
-| Production-grade API authorization/session management | Not yet complete |
-| Automated full end-to-end test suite | Not yet complete |
+| Signed bearer tokens, issue-reporting role checks and ticket ownership checks | Initial implementation; more route/role tests required |
+| Automated full end-to-end test suite | Not yet complete; CI unit tests are being expanded |
 
 A menu item or database table does not, by itself, mean its complete workflow is finished. This table is the intended source of truth for the current implementation.
 
@@ -110,7 +110,7 @@ A menu item or database table does not, by itself, mean its complete workflow is
 | Frontend | React 19, JavaScript, HTML, CSS, Vite |
 | Backend | Java 17, Java HTTP Server, Java TCP sockets |
 | API format | HTTP, JSON |
-| Database | MySQL 8, JDBC |
+| Database | MySQL 8 locally; PostgreSQL/Supabase target, JDBC |
 | JSON processing | Jackson Databind |
 | Build | Maven |
 | Version control | Git and GitHub |
@@ -168,7 +168,7 @@ Install the following:
 
 - **JDK 17 or newer**
 - **Maven 3.9 or newer**
-- **MySQL 8.x**
+- **MySQL 8.x** for the current local setup, or a Supabase PostgreSQL project for hosted-database work
 - **Node.js LTS and npm**
 - **Git**
 
@@ -210,7 +210,7 @@ git pull origin main
 mysql -u root -p < resources/campusos.sql
 ```
 
-Alternatively, open `resources/campusos.sql` in MySQL Workbench and execute it.
+Alternatively, open `resources/campusos.sql` in MySQL Workbench and execute it. For Supabase PostgreSQL, use the separate `resources/supabase_schema.sql` script in the Supabase SQL Editor; do not run the MySQL schema there.
 
 The script creates the `campusos` database and the core tables:
 
@@ -232,9 +232,11 @@ For local development, you can copy `resources/config.properties.example` to `re
 
 | Environment variable | Purpose |
 |---|---|
-| `CAMPUSOS_DB_URL` | JDBC URL, e.g. `jdbc:mysql://localhost:3306/campusos` |
+| `CAMPUSOS_DB_URL` | JDBC URL, e.g. `jdbc:mysql://localhost:3306/campusos` locally or `jdbc:postgresql://HOST:5432/postgres?sslmode=require` for PostgreSQL |
 | `CAMPUSOS_DB_USERNAME` | Database username |
 | `CAMPUSOS_DB_PASSWORD` | Database password |
+| `CAMPUSOS_AUTH_SECRET` | At least 32 characters; signs access tokens. Required as a stable secret for hosted/multi-instance use. If omitted locally, a random process-only secret is generated and tokens expire on restart. |
+| `CAMPUSOS_CORS_ORIGINS` | Comma-separated exact allowed frontend origins; defaults to `http://localhost:5173` |
 
 Example PowerShell session for local testing:
 
@@ -325,12 +327,14 @@ Request:
 }
 ```
 
-Success response (example shape):
+Success response (example shape; token omitted here for brevity):
 
 ```json
 {
   "success": true,
   "message": "Login successful",
+  "token": "<signed bearer token>",
+  "expiresIn": 7200,
   "user": {
     "id": 1,
     "name": "Example Student",
@@ -340,12 +344,13 @@ Success response (example shape):
 }
 ```
 
-Invalid credentials return HTTP `401`. This endpoint verifies credentials but the current web implementation does not yet establish a production-grade server-side session or token.
+Invalid credentials return HTTP `401`. The response includes a signed bearer token valid for two hours. Protected requests must send `Authorization: Bearer <token>`. The browser keeps the token in `sessionStorage` for the current tab session. Configure a strong `CAMPUSOS_AUTH_SECRET` for hosted use; without it, the local development token key changes on process restart.
 
 ### Submit an issue
 
 ```http
 POST /api/issues
+Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
@@ -353,7 +358,6 @@ Request:
 
 ```json
 {
-  "reporterId": 1,
   "title": "Projector not working",
   "description": "The projector does not turn on.",
   "category": "Electrical",
@@ -361,12 +365,12 @@ Request:
 }
 ```
 
-The API validates required fields, calculates priority, creates the issue and ticket, and attempts to assign an available technician. The response includes the created ticket ID and calculated priority.
+The API validates required fields, derives the reporter identity from the verified token (it ignores any client-supplied reporter ID), calculates priority, creates the issue and ticket, and attempts to assign an available technician. The response includes the created ticket ID and calculated priority.
 
 ### List tickets reported by a student
 
 ```http
-GET /api/tickets/reporter/{reporterId}
+GET /api/tickets/reporter/{yourUserId}\nAuthorization: Bearer <token>
 ```
 
 Example:
@@ -377,7 +381,7 @@ GET /api/tickets/reporter/1
 
 Returns a JSON object containing the ticket list, including fields such as ID, title, category, location, priority, status and creation time.
 
-> **API security limitation:** The current issue and ticket endpoints accept a client-supplied `reporterId`. They are suitable for local development, not untrusted public deployment. Before production use, derive the user identity from a verified session/token, enforce role and ownership checks on every endpoint, validate all input, and configure appropriate CORS and transport security.
+The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. Additional role-specific staff/admin routes, revocation/session invalidation, rate-limit hardening across instances, and full integration tests remain release blockers.
 
 ## Issue priority and assignment
 
