@@ -67,8 +67,13 @@ class ApiServerSmokeTest {
                     HttpRequest.newBuilder(URI.create(base + "/api/health/ready"))
                             .timeout(Duration.ofSeconds(3)).GET().build(),
                     HttpResponse.BodyHandlers.ofString());
-            assertEquals(503, readiness.statusCode());
-            assertTrue(readiness.body().contains("\"not_ready\""));
+            if ("true".equalsIgnoreCase(System.getenv("CAMPUSOS_IT_ENABLED"))) {
+                assertEquals(200, readiness.statusCode());
+                assertTrue(readiness.body().contains("\"ready\""));
+            } else {
+                assertEquals(503, readiness.statusCode());
+                assertTrue(readiness.body().contains("\"not_ready\""));
+            }
 
             HttpResponse<String> issue = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/issues"))
