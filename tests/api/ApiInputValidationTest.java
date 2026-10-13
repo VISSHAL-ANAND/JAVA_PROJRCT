@@ -37,6 +37,23 @@ class ApiInputValidationTest {
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(400, wrongType.statusCode());
             assertTrue(wrongType.body().contains("Content-Type"));
+
+            HttpResponse<String> jsonpType = client.send(HttpRequest.newBuilder(URI.create(url))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/jsonp")
+                    .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, jsonpType.statusCode());
+            assertTrue(jsonpType.body().contains("Content-Type"));
+
+            String oversizedBody = "{\"title\":\"test\",\"description\":\"" + "x".repeat(17 * 1024) + "\",\"category\":\"test\"}";
+            HttpResponse<String> oversized = client.send(HttpRequest.newBuilder(URI.create(url))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(oversizedBody)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, oversized.statusCode());
+            assertTrue(oversized.body().contains("too large"));
         } finally {
             server.stop();
         }
