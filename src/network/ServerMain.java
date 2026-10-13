@@ -10,6 +10,7 @@ public class ServerMain {
 
         try {
             ApiServer apiServer = new ApiServer(apiPort);
+            Runtime.getRuntime().addShutdownHook(new Thread(apiServer::stop, "campusos-api-shutdown"));
             apiServer.start();
             new CampusServer(socketPort, poolSize).start();
         } catch (Exception e) {
