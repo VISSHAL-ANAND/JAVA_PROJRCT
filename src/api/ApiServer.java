@@ -50,6 +50,7 @@ public class ApiServer {
         server.createContext("/api/auth/login", this::handleLogin);
         server.createContext("/api/issues", this::handleIssues);
         server.createContext("/api/tickets/reporter", this::handleReporterTickets);
+        server.createContext("/api/staff/tickets", this::handleStaffTickets);
         executor = Executors.newFixedThreadPool(Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2)));
         server.setExecutor(executor);
         server.start();
@@ -167,6 +168,67 @@ public class ApiServer {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Ticket retrieval failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to retrieve tickets"));
+        } finally { exchange.close(); }
+    }
+
+
+    private void handleStaffTickets(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            String path = exchange.getRequestURI().getPath();
+            boolean admin = "ADMIN".equals(principal.role());
+            boolean staff = "MAINTENANCE".equals(principal.role()) || "TECHNICIAN".equals(principal.role());
+
+            if ("/api/staff/tickets".equals(path)) {
+                if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                if (!admin && !staff) {
+                    sendJson(exchange, 403, Map.of("success", false, "message", "Staff access required"));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of("success", true,
+                        "tickets", ticketDAO.findAssignedTo(principal.userId(), admin)));
+                return;
+            }
+
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("^/api/staff/tickets/(\\d+)/status$").matcher(path);
+            if (!matcher.matches()) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                return;
+            }
+            if (!admin && !staff) {
+                sendJson(exchange, 403, Map.of("success", false, "message", "Staff access required"));
+                return;
+            }
+            int ticketId = Integer.parseInt(matcher.group(1));
+            JsonNode body = readJson(exchange);
+            String nextStatus = body.path("status").asText("").trim().toUpperCase(java.util.Locale.ROOT);
+            ticketDAO.updateStatus(ticketId, principal.userId(), principal.role(), nextStatus);
+            sendJson(exchange, 200, Map.of("success", true, "message", "Ticket status updated", "status", nextStatus));
+        } catch (BadRequestException | IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage() == null ? "Invalid request" : e.getMessage()));
+        } catch (SecurityException e) {
+            sendJson(exchange, 403, Map.of("success", false, "message", "Ticket is not assigned to your account"));
+        } catch (java.util.NoSuchElementException e) {
+            sendJson(exchange, 404, Map.of("success", false, "message", "Ticket not found"));
+        } catch (IllegalStateException e) {
+            sendJson(exchange, 409, Map.of("success", false, "message", "Invalid ticket status transition"));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Staff ticket request failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process ticket request"));
         } finally { exchange.close(); }
     }
 
