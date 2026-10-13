@@ -15,3 +15,9 @@ create index if not exists idx_tickets_assignee_status on public.tickets(assigne
 create index if not exists idx_bookings_resource_start on public.bookings(resource_id, start_time);
 create index if not exists idx_bookings_user_start on public.bookings(booked_by, start_time);
 create index if not exists idx_emergencies_created on public.emergencies(created_at desc);
+
+-- Keep CAMPUSOS tables inaccessible through Supabase's browser-facing REST roles.
+revoke all privileges on all tables in schema public from anon, authenticated;
+revoke all privileges on all sequences in schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
