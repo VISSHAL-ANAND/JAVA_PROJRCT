@@ -63,6 +63,7 @@ public class ApiServer {
         server.createContext("/api/health", this::handleHealth);
         server.createContext("/api/auth/login", this::handleLogin);
         server.createContext("/api/issues", this::handleIssues);
+        server.createContext("/api/tickets", this::handleTicketHistory);
         server.createContext("/api/tickets/reporter", this::handleReporterTickets);
         server.createContext("/api/staff/tickets", this::handleStaffTickets);
         server.createContext("/api/notifications", this::handleNotifications);
@@ -190,6 +191,33 @@ public class ApiServer {
         } finally { exchange.close(); }
     }
 
+
+
+    private void handleTicketHistory(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if (handleOptionsOrMethod(exchange, "GET")) return;
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("^/api/tickets/(\\d+)/history$").matcher(exchange.getRequestURI().getPath());
+            if (!matcher.matches()) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
+                return;
+            }
+            int ticketId = Integer.parseInt(matcher.group(1));
+            if (ticketId <= 0 || !ticketDAO.canViewTicket(ticketId, principal.userId(), principal.role())) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Ticket not found"));
+                return;
+            }
+            sendJson(exchange, 200, Map.of("success", true, "history", ticketDAO.findHistory(ticketId)));
+        } catch (IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "Invalid ticket ID"));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Ticket history request failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to load ticket history"));
+        } finally { exchange.close(); }
+    }
 
     private void handleStaffTickets(HttpExchange exchange) throws IOException {
         prepare(exchange);
