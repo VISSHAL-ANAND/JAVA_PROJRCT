@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\\/+$/, "");
+
 const navItems = [["Overview","⌂"],["Tickets","✓"],["Report Issue","+"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]];
 
 function Login({ onLogin }) {
   const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [loading,setLoading]=useState(false); const [error,setError]=useState("");
   async function submit(event){event.preventDefault();setError("");setLoading(true);try{
-    const response=await fetch("http://localhost:8080/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const response=await fetch(`${API_BASE_URL}/api/auth/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
     const data=await response.json(); if(!response.ok||!data.success) throw new Error(data.message||"Login failed"); onLogin(data.user);
   }catch(err){setError(err.message||"Unable to connect to CAMPUSOS server");}finally{setLoading(false);}}
   return <div className="login-shell"><div className="login-card"><div className="brand login-brand"><div className="brand-mark">C</div><div><strong>CAMPUSOS</strong><span>Campus Operations</span></div></div><p className="eyebrow">SECURE ACCESS</p><h1>Welcome back.</h1><p className="login-copy">Sign in to access your campus operations workspace.</p><form onSubmit={submit} className="login-form"><label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@campusos.com" required/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required/></label>{error&&<div className="error-message">{error}</div>}<button className="primary-button login-button" disabled={loading}>{loading?"Signing in...":"Sign in"}</button></form><div className="login-footer">CAMPUSOS • Campus Operations & Emergency Management</div></div></div>;
@@ -15,7 +17,7 @@ function ReportIssue({user,onCreated}) {
   const [form,setForm]=useState({title:"",description:"",category:"Electrical",location:""}); const [loading,setLoading]=useState(false); const [message,setMessage]=useState(""); const [error,setError]=useState("");
   const change=e=>setForm({...form,[e.target.name]:e.target.value});
   async function submit(e){e.preventDefault();setLoading(true);setMessage("");setError("");try{
-    const r=await fetch("http://localhost:8080/api/issues",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,reporterId:user.id})});
+    const r=await fetch(`${API_BASE_URL}/api/issues`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,reporterId:user.id})});
     const d=await r.json(); if(!r.ok||!d.success) throw new Error(d.message||"Unable to report issue");
     setMessage(`Ticket #${d.ticketId} created • Priority: ${d.priority}`); setForm({title:"",description:"",category:"Electrical",location:""}); onCreated();
   }catch(err){setError(err.message);}finally{setLoading(false);}}
@@ -24,7 +26,7 @@ function ReportIssue({user,onCreated}) {
 
 function Dashboard({user,onLogout}){
   const [active,setActive]=useState("Overview"); const [tickets,setTickets]=useState([]); const [loadingTickets,setLoadingTickets]=useState(false);
-  async function loadTickets(){setLoadingTickets(true);try{const r=await fetch(`http://localhost:8080/api/tickets/reporter/${user.id}`);const d=await r.json();if(d.success)setTickets(d.tickets||[]);}catch{}finally{setLoadingTickets(false);}}
+  async function loadTickets(){setLoadingTickets(true);try{const r=await fetch(`${API_BASE_URL}/api/tickets/reporter/${user.id}`);const d=await r.json();if(d.success)setTickets(d.tickets||[]);}catch{}finally{setLoadingTickets(false);}}
   useEffect(()=>{loadTickets();},[user.id]);
   const open=tickets.filter(t=>["OPEN","ASSIGNED","IN_PROGRESS"].includes(t.status)).length;
   const resolved=tickets.filter(t=>["RESOLVED","CLOSED"].includes(t.status)).length;
