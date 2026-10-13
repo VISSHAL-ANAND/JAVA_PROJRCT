@@ -290,13 +290,13 @@ public class TicketDAO {
     }
 
     public boolean canViewTicket(int ticketId, int userId, String role) throws SQLException {
-        if ("ADMIN".equals(role)) return true;
-        String sql = "SELECT 1 FROM tickets WHERE id = ? AND (reported_by = ? OR assigned_technician_id = ?)";
+        String sql = "SELECT 1 FROM tickets WHERE id = ? AND (? = 'ADMIN' OR reported_by = ? OR assigned_technician_id = ?)";
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, ticketId);
-            statement.setInt(2, userId);
+            statement.setString(2, role);
             statement.setInt(3, userId);
+            statement.setInt(4, userId);
             try (ResultSet rs = statement.executeQuery()) { return rs.next(); }
         }
     }
