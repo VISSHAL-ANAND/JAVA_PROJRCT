@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Verify CI for the current HTTP ownership and request-validation changes, then continue security hardening and comprehensive acceptance tests. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. The schema and PostgreSQL CI integration exist, but a live Supabase smoke test is not possible until connection details are configured. resources/config.properties was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored resources/config.properties or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Continue the API security/ownership audit, add focused regression tests for any gaps found, and prepare a safe live Supabase smoke test once a dedicated CAMPUSOS project is configured. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. The schema and PostgreSQL CI integration exist, but a live Supabase smoke test is not possible until connection details are configured. resources/config.properties was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored resources/config.properties or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -434,5 +434,5 @@ A phase is complete only when:
 - Audited API route gates and DAO ownership filters for tickets/history, staff status changes, notifications, bookings, emergency broadcasts, and admin operations.
 - Expanded the HTTP smoke test proving a STUDENT token receives HTTP 403 for staff status changes, admin ticket assignment, staff availability changes, and staff directory access. These checks run before database access, so the regression test does not require a live database.
 - Existing data-access checks remain owner-scoped for notification reads, booking listing/cancellation, and ticket history; staff status changes require assignment unless the actor is an admin.
-- Verification is pending for this commit; wait for all four GitHub Actions jobs before marking it passed.
+- Verification passed in GitHub Actions run 38448175228: Java compile/tests, frontend production build, Docker image build, and PostgreSQL workflow integration tests all succeeded. Authorization-test JSON literals were corrected in commit 0799d07e3ad95a89db25895d40604564adb4d940 before this successful run.
 - Live Supabase connectivity remains unverified until a dedicated CAMPUSOS project and server-side connection environment are configured. Do not use the unrelated TRAVEL_CRM project or deploy without explicit authorization.
