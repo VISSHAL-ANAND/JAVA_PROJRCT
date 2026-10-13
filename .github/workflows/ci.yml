@@ -49,3 +49,12 @@ jobs:
         run: npm ci
       - name: Build frontend
         run: npm run build
+
+  container-build:
+    name: Build Java API container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Build container image
+        run: docker build --tag campusos-api:ci .
