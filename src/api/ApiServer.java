@@ -393,6 +393,21 @@ public class ApiServer {
                 sendJson(exchange, 200, Map.of("success", true, "bookings", bookingDAO.findByUser(principal.userId())));
                 return;
             }
+            java.util.regex.Matcher cancelMatcher = java.util.regex.Pattern
+                    .compile("^/api/bookings/(\\d+)/cancel$").matcher(path);
+            if (cancelMatcher.matches()) {
+                if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                int bookingId = Integer.parseInt(cancelMatcher.group(1));
+                if (!bookingDAO.cancelFutureBooking(bookingId, principal.userId())) {
+                    sendJson(exchange, 409, Map.of("success", false, "message", "Booking could not be cancelled; it may have started already or does not belong to you."));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of("success", true, "message", "Booking cancelled"));
+                return;
+            }
             if (!"/api/bookings".equals(path) || !"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
                 return;
