@@ -366,19 +366,19 @@ A phase is complete only when:
 - [x] Choose and document a signed bearer-token strategy with expiry; stable hosted secret required. Individual token revocation is not implemented.
 - [x] Implement token-verified identity for issue submission and reporter ticket reads; role checks for issue creation. Staff/admin route authorization remains to do.
 - [x] Derive issue reporter identity from token and verify ticket route ID matches authenticated user.
-- [ ] Ensure users can only read/update tickets they are allowed to access.
-- [x] Add JSON body-size/content-type/malformed-body checks for current routes and safe API errors; further validation and route coverage remain.
+- [x] Enforce reporter ticket ownership at the HTTP route; add a smoke test for cross-user reporter-ID access (new test commit; latest CI pending). Continue auditing all read/update routes.
+- [x] Enforce a 16 KiB JSON request-body limit and exact application/json media type (parameters such as charset remain accepted); added tests for application/jsonp rejection and oversized bodies. Latest CI pending.
 - [x] CI run 38433702324 passed Java verification, frontend production build, Docker image build, and PostgreSQL-backed workflow integration tests. Earlier CI run 38428705148 passed Java verify, frontend build, and 9 unit/smoke tests.
 - [x] Add wrong-role, anonymous-access, priority, and PostgreSQL-backed success/workflow tests; expand invalid-input and HTTP authenticated ownership coverage.
 
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; priority classification tests are included in passing CI.
 - [x] Add PostgreSQL-backed integration test for authentication, issue priority/assignment/status history, wrong-owner status rejection, notifications, emergency broadcast, booking conflict/cancellation, and admin metrics. Anonymous/wrong-role smoke tests pass in CI.
-- [ ] Expand integration coverage with parallel concurrent booking attempts and HTTP-level authenticated success/ownership tests.
-- [x] Add HTTP validation tests for malformed JSON and wrong Content-Type; CI result pending.
+- [ ] Expand integration coverage with parallel concurrent booking attempts and authenticated HTTP-level successful database-backed workflow tests. Cross-user reporter ownership denial now has an HTTP smoke test.
+- [x] Add HTTP validation tests for malformed JSON, wrong Content-Type, JSONP-like media types, and oversized bodies; CI verification pending.
 - [ ] Define consistent JSON response/error contracts.
 - [x] Add liveness/readiness endpoints and HTTP API executor shutdown hook; structured request IDs/metrics remain.
-- [x] Move frontend API base URL to `VITE_API_BASE_URL`; document the local example and hosting configuration. (Java API CORS remains fixed to localhost and must be made environment-configurable before hosting.)
+- [x] Move frontend API base URL to `VITE_API_BASE_URL`; document the local example and hosting configuration. CORS is environment-configurable via `CAMPUSOS_CORS_ORIGINS`.
 
 ### Phase 3 — Complete student and staff ticket lifecycle
 - [x] Add staff status transitions with transactional ticket_history writes; timeline read API/UI remains to do.
@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Verify CI for the frontend request timeout, then continue security hardening and comprehensive acceptance tests. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. The schema and PostgreSQL CI integration exist, but a live Supabase smoke test is not possible until connection details are configured. resources/config.properties was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored resources/config.properties or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Verify CI for the current HTTP ownership and request-validation changes, then continue security hardening and comprehensive acceptance tests. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. The schema and PostgreSQL CI integration exist, but a live Supabase smoke test is not possible until connection details are configured. resources/config.properties was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored resources/config.properties or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -420,3 +420,11 @@ A phase is complete only when:
 - Added unit tests for missing/short production secrets, accepted stable secrets, and local fallback behavior.
 - Commits: 23bf4c5f0312d3cbd9c9ac3b65db91c1c57e1fc7 (security guard), 1cd730572debffbb8bebfa49ce4e5956da7b3304 (tests).
 - Verification status: CI for these commits has not yet been observed complete. Do not mark this change verified until the latest run finishes successfully.
+
+
+### 2026-10-13 — HTTP ownership and request-validation hardening
+- Added an HTTP smoke test proving an authenticated student cannot request another reporter's ticket list (commit 5de930d227b3ffbaca3102131b1ed4a02f7bc85f).
+- Tightened JSON Content-Type validation: only the `application/json` media type is accepted, while valid parameters such as `; charset=UTF-8` remain allowed. This closes the previous prefix-match gap that accepted values such as `application/jsonp` (commit 80f47bb406d1c6d7c961e0ee1c95bb6965f0193e).
+- Added HTTP validation tests rejecting `application/jsonp` and request bodies exceeding the 16 KiB limit (commit 05393e0ba8f144d2228b27578c8a6a31e14e92db).
+- CI for the latest tree is running at https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38445991810; do not treat these changes as verified until all jobs finish successfully.
+- Next: confirm CI, then review remaining API routes for ownership/role checks and prepare a safe live Supabase smoke test. No deployment performed.
