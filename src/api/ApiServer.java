@@ -11,6 +11,7 @@ import dao.EmergencyDAO;
 import dao.ResourceDAO;
 import dao.BookingDAO;
 import dao.AdminDAO;
+import database.DBConnection;
 import exception.AuthenticationException;
 import model.Issue;
 import model.User;
@@ -61,6 +62,7 @@ public class ApiServer {
     public void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/api/health", this::handleHealth);
+        server.createContext("/api/health/ready", this::handleReadiness);
         server.createContext("/api/auth/login", this::handleLogin);
         server.createContext("/api/issues", this::handleIssues);
         server.createContext("/api/tickets", this::handleTicketHistory);
@@ -85,6 +87,20 @@ public class ApiServer {
     public void stop() {
         if (server != null) server.stop(0);
         if (executor != null) executor.shutdownNow();
+    }
+
+
+    private void handleReadiness(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if (handleOptionsOrMethod(exchange, "GET")) return;
+            try (java.sql.Connection ignored = DBConnection.getConnection()) {
+                sendJson(exchange, 200, Map.of("success", true, "status", "ready", "database", "connected"));
+            } catch (SQLException e) {
+                LOGGER.log(Level.WARNING, "CAMPUSOS readiness check failed: database unavailable");
+                sendJson(exchange, 503, Map.of("success", false, "status", "not_ready", "database", "unavailable"));
+            }
+        } finally { exchange.close(); }
     }
 
     private void handleHealth(HttpExchange exchange) throws IOException {
