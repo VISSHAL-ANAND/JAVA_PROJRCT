@@ -8,6 +8,8 @@ import dao.TicketDAO;
 import dao.UserDAO;
 import dao.NotificationDAO;
 import dao.EmergencyDAO;
+import dao.ResourceDAO;
+import dao.BookingDAO;
 import exception.AuthenticationException;
 import model.Issue;
 import model.User;
@@ -15,6 +17,7 @@ import security.AccessTokenService;
 import service.AuthService;
 import service.IssueService;
 import service.EmergencyService;
+import service.BookingService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,6 +26,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,6 +49,9 @@ public class ApiServer {
     private final NotificationDAO notificationDAO = new NotificationDAO();
     private final EmergencyDAO emergencyDAO = new EmergencyDAO();
     private final EmergencyService emergencyService = new EmergencyService();
+    private final ResourceDAO resourceDAO = new ResourceDAO();
+    private final BookingDAO bookingDAO = new BookingDAO();
+    private final BookingService bookingService = new BookingService();
     private final AccessTokenService tokens = new AccessTokenService();
     private HttpServer server;
     private ExecutorService executor;
@@ -59,6 +67,8 @@ public class ApiServer {
         server.createContext("/api/staff/tickets", this::handleStaffTickets);
         server.createContext("/api/notifications", this::handleNotifications);
         server.createContext("/api/emergencies", this::handleEmergencies);
+        server.createContext("/api/resources", this::handleResources);
+        server.createContext("/api/bookings", this::handleBookings);
         executor = Executors.newFixedThreadPool(Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2)));
         server.setExecutor(executor);
         server.start();
@@ -317,6 +327,60 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Emergency request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process emergency request"));
+        } finally { exchange.close(); }
+    }
+
+
+    private void handleResources(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if (handleOptionsOrMethod(exchange, "GET")) return;
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            sendJson(exchange, 200, Map.of("success", true, "resources", resourceDAO.findAvailableResources()));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Resource inventory request failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to load resources"));
+        } finally { exchange.close(); }
+    }
+
+    private void handleBookings(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            String path = exchange.getRequestURI().getPath();
+            if ("/api/bookings/mine".equals(path)) {
+                if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of("success", true, "bookings", bookingDAO.findByUser(principal.userId())));
+                return;
+            }
+            if (!"/api/bookings".equals(path) || !"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
+                return;
+            }
+            JsonNode body = readJson(exchange);
+            int resourceId = body.path("resourceId").asInt(0);
+            LocalDateTime start = LocalDateTime.parse(body.path("startTime").asText(""));
+            LocalDateTime end = LocalDateTime.parse(body.path("endTime").asText(""));
+            int bookingId = bookingService.book(resourceId, principal.userId(), start, end);
+            sendJson(exchange, 201, Map.of("success", true, "message", "Resource booked successfully", "bookingId", bookingId));
+        } catch (BadRequestException | IllegalArgumentException | DateTimeParseException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "Invalid booking data. Check the resource and start/end times."));
+        } catch (SQLException e) {
+            if ("23P01".equals(e.getSQLState()) || (e.getMessage() != null && e.getMessage().contains("already booked"))) {
+                sendJson(exchange, 409, Map.of("success", false, "message", "This resource has reached its booking capacity for that time."));
+            } else {
+                LOGGER.log(Level.SEVERE, "Booking request failed", e);
+                sendJson(exchange, 500, Map.of("success", false, "message", "Unable to create booking"));
+            }
         } finally { exchange.close(); }
     }
 
