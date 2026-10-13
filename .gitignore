@@ -14,6 +14,7 @@ frontend/.vite/
 .env
 .env.*
 !.env.example
+resources/config.properties
 resources/config.local.properties
 *.local.properties
 
