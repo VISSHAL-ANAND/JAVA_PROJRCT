@@ -37,6 +37,7 @@ public class AuthService {
     private User toUser(AuthUser u){return switch(u.role()){
         case STUDENT->new Student(u.id(),u.name(),u.email(),"",u.registerNumber(),u.department());
         case FACULTY->new FacultyStaff(u.id(),u.name(),u.email(),"",u.department());
-        case MAINTENANCE,TECHNICIAN->new MaintenanceStaff(u.id(),u.name(),u.email(),"",u.specialization(),u.available());
+        case MAINTENANCE->new MaintenanceStaff(u.id(),u.name(),u.email(),"",u.specialization(),u.available());
+        case TECHNICIAN->new Technician(u.id(),u.name(),u.email(),"",u.specialization(),u.available());
         case ADMIN->new Admin(u.id(),u.name(),u.email(),"");};}
 }
