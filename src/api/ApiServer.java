@@ -287,6 +287,8 @@ public class ApiServer {
                 return;
             }
             sendJson(exchange, 200, Map.of("success", true, "message", "Notification marked as read"));
+        } catch (IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "Invalid notification ID"));
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Notification request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to load notifications"));
