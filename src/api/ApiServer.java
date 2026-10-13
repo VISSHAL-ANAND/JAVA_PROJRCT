@@ -147,8 +147,6 @@ public class ApiServer {
                 return;
             }
             sendJson(exchange, 200, Map.of("success", true, "tickets", ticketDAO.findByReporter(principal.userId())));
-        } catch (BadRequestException e) {
-            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage()));
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Unable to retrieve reporter tickets", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to retrieve tickets"));
