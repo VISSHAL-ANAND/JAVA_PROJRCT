@@ -322,6 +322,15 @@ A phase is complete only when:
 - Latest observed CI run 38430261685 succeeded on commit bb73ce9802c66cc12f7a399afebcf4f5a32696b6: Java mvn clean verify passed, frontend npm ci + npm run build passed, and 11 JUnit/smoke tests passed (0 failures/errors/skips). Tests cover priority rules, signed-token tampering/validation, lifecycle transitions, health endpoint, and anonymous rejection on protected routes. They do not yet test live database operations.
 - Remaining high-risk gaps: Supabase schema has not been applied to a live project; no live PostgreSQL JDBC test exists; no DB-backed end-to-end tests; tokens cannot be revoked before expiry; user role/availability changes do not invalidate existing tokens; admin can view users but cannot create/edit user identity; staff ticket history is stored but not yet exposed as a timeline UI; booking cancellation is not implemented; test coverage for wrong-role/ownership/assignment/concurrent booking still needed.
 
+### 2026-10-13 — User administration, ticket timeline, booking cancellation, readiness
+- Added admin-only user creation API and UI. Server validates role/email/field lengths, requires a 12+ character initial password, hashes it with the existing PBKDF2 PasswordHasher, and handles duplicate email as HTTP 409. Admin can list users and toggle maintenance/technician availability; full identity editing/deletion remains unimplemented.
+- Added ticket-history query with access checks for the reporter, assigned staff, or admin, and a student-facing timeline UI. System-generated assignments are recorded with a nullable changed_by (shown as CAMPUSOS system); the MySQL and PostgreSQL schema scripts now support this.
+- Added future-booking cancellation restricted to the booking owner. Reservation capacity checks lock the resource row before counting overlapping reservations, so concurrent requests serialize against resource quantity.
+- Added database readiness endpoint GET /api/health/ready, which returns 503 when JDBC cannot connect, and a JVM shutdown hook to stop the HTTP API executor gracefully.
+- Added an API test that issues a real signed STUDENT token to verify ADMIN and staff routes reject the wrong role. Expanded smoke checks to include ticket history and database readiness.
+- CI run 38431267760 completed successfully on source commit 94ac69d57dbecd5b65fb2f72314470b191c013e3: Java Maven verify succeeded, Vite production build succeeded, and 12 tests passed with 0 failures/errors/skips. The readiness test intentionally observes 503 in CI because no database service is configured. This does not verify live Supabase connectivity.
+- README now documents implemented routes and updated feature status. No hosting has occurred.
+- Still unverified: apply resources/supabase_schema.sql to a real Supabase project; confirm JDBC connectivity and generated-key behavior with PostgreSQL; run DB-backed tests for all DAO operations and concurrent booking; review the Supabase role revocations on the actual project; add token revocation/role freshness and cross-instance rate limiting; complete history UI for staff/admin, full admin CRUD/report exports, and release security review.
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog
@@ -347,9 +356,9 @@ A phase is complete only when:
 
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; add initial unit tests for priority classification (latest CI run pending verification).
-- [ ] Add service/API integration tests and database-backed authorization tests. (Current anonymous-route smoke tests pass; wrong-role/ownership cases remain.)
+- [ ] Add database-backed integration tests for login, issue creation, ticket ownership/assignment, status history, notifications, emergency broadcast, and concurrent bookings. Anonymous and wrong-role API smoke tests now pass.
 - [ ] Define consistent JSON response/error contracts.
-- [ ] Add health/readiness endpoint, structured logging, and graceful shutdown.
+- [x] Add liveness/readiness endpoints and HTTP API executor shutdown hook; structured request IDs/metrics remain.
 - [x] Move frontend API base URL to `VITE_API_BASE_URL`; document the local example and hosting configuration. (Java API CORS remains fixed to localhost and must be made environment-configurable before hosting.)
 
 ### Phase 3 — Complete student and staff ticket lifecycle
