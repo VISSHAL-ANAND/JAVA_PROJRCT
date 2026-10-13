@@ -1,0 +1,19 @@
+-- Example only: replace the placeholder with a unique, strong password before running.
+-- Run this in the CAMPUSOS Supabase project's SQL Editor as an administrator.
+-- Never commit the replaced password or put it in frontend/Vercel browser variables.
+CREATE ROLE campusos_app LOGIN PASSWORD 'REPLACE_WITH_A_LONG_RANDOM_PASSWORD';
+
+GRANT CONNECT ON DATABASE postgres TO campusos_app;
+GRANT USAGE ON SCHEMA public TO campusos_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO campusos_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO campusos_app;
+
+-- Future tables/sequences created by the postgres role should remain accessible to the app role.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO campusos_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+    GRANT USAGE, SELECT ON SEQUENCES TO campusos_app;
+
+-- When using the Supabase session pooler, the username is typically:
+-- campusos_app.<project-ref>
+-- Use port 5432 with sslmode=require for this persistent Java JDBC backend.
