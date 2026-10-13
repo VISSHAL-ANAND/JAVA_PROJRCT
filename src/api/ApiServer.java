@@ -122,7 +122,7 @@ public class ApiServer {
         try {
             if (handleOptionsOrMethod(exchange, "POST")) return;
             JsonNode body = readJson(exchange);
-            String email = body.path("email").asText("").trim();
+            String email = body.path("email").asText("").trim().toLowerCase(java.util.Locale.ROOT);
             String password = body.path("password").asText("");
             User user = authService.authenticate(email, password);
             Map<String, Object> userData = new LinkedHashMap<>();
