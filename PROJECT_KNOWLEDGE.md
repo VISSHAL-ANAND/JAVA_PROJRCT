@@ -287,9 +287,10 @@ A phase is complete only when:
 ### 2026-10-13 — Deployment target review and CI bootstrap
 - Re-inspected `ApiServer.java`, `AuthService.java`, `DBConnection.java`, `frontend/src/App.jsx`, `pom.xml`, the frontend package/lockfile, README, and this log on `main`.
 - Confirmed the browser UI hardcodes `http://localhost:8080` in login, issue submission, and ticket fetching; production API configuration is not implemented.
+- Removed the accidentally tracked `frontend/node_modules` tree in commit `4584130797a34efe4c6e73684e21e0cb96381ad9`. A recursive main-branch tree inspection afterward showed 91 entries and no tracked `node_modules`, `target/`, `.class`, `.jar`, `.env`, or obvious key/certificate artifacts. `resources/config.properties` is still tracked (the remote version is a placeholder); remove it safely later with explicit local-config migration guidance.
 - Confirmed the current backend is a long-running Java `HttpServer` plus a separate TCP server and the JDBC/schema layer targets MySQL. Supabase's managed database is PostgreSQL, so using it requires a deliberate database migration or retaining a separate MySQL host. Vercel frontend hosting alone does not host this Java server as-is.
 - Added `.github/workflows/ci.yml` (commit `e076445b66c17273f574f54cb40a1aa42ff2059d`) to run `mvn --batch-mode --no-transfer-progress clean verify` on Java 17 and `npm ci` + `npm run build` on Node 22 for pushes/PRs to `main`.
-- Observed GitHub Actions run `38426946767` for workflow commit `e076445b66c17273f574f54cb40a1aa42ff2059d`: frontend `npm ci` and `npm run build` succeeded; Java `mvn clean verify` step succeeded. At inspection time the Java job was completing post-job cleanup. This is a build gate, not an end-to-end smoke test; database-backed API and authorization tests still need to be added.
+- Observed GitHub Actions run `38427076213` completed successfully for the CI/docs tree; frontend `npm ci` + `npm run build` succeeded and Java `mvn clean verify` succeeded. A second run `38427149596` after removing tracked `frontend/node_modules` also showed both Java and frontend build steps successful; the Java job was still transitioning its overall status at last inspection. This is a build gate, not an end-to-end smoke test; database-backed API and authorization tests still need to be added.
 - No hosting/deployment was performed. Awaiting a deliberate runtime/database architecture choice before changing persistence or auth assumptions.
 
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
@@ -301,7 +302,7 @@ A phase is complete only when:
 - [x] Add a safe config example and environment-based database credential overrides; document them in README.
 - [ ] Check main-branch tracked files and history for generated artifacts/secrets.
 - [x] Inspect initial GitHub Actions build steps: Java `mvn clean verify` and frontend `npm ci` + `npm run build` both succeeded on the first workflow run; add actual API/database/security smoke tests next.
-- [ ] Remove accidentally tracked generated dependencies/artifacts safely; `.gitignore` alone does not untrack existing files.
+- [x] Remove accidentally tracked `frontend/node_modules`; verify the main tree no longer includes it. Keep checking future diffs because `.gitignore` alone does not untrack existing files.
 - [ ] Scan tracked files and Git history for generated artifacts/secrets; rotate any exposed real credential.
 - [x] Replace raw exception text in API responses with safe messages and log server-side failures (initial pass; malformed JSON/body-size handling still needs work).
 - [ ] Review the `side` diff separately; do not merge its generated `target/` files or machine-specific batch paths.
