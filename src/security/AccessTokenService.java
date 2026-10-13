@@ -17,17 +17,29 @@ public final class AccessTokenService {
     private final byte[] secret;
 
     public AccessTokenService() {
-        String configured = System.getenv("CAMPUSOS_AUTH_SECRET");
+        this.secret = resolveSecret(
+                System.getenv("CAMPUSOS_AUTH_SECRET"),
+                "production".equalsIgnoreCase(System.getenv("CAMPUSOS_ENV"))
+        );
+    }
+
+    static byte[] resolveSecret(String configured, boolean production) {
         if (configured != null && !configured.isBlank()) {
             if (configured.length() < 32) {
                 throw new IllegalStateException("CAMPUSOS_AUTH_SECRET must contain at least 32 characters");
             }
-            this.secret = configured.getBytes(StandardCharsets.UTF_8);
-        } else {
-            // Safe for local development only; tokens become invalid when this process restarts.
-            this.secret = new byte[32];
-            new SecureRandom().nextBytes(this.secret);
+            return configured.getBytes(StandardCharsets.UTF_8);
         }
+        if (production) {
+            throw new IllegalStateException(
+                    "CAMPUSOS_AUTH_SECRET must be configured with at least 32 characters in production"
+            );
+        }
+
+        // Local development only; tokens become invalid when this process restarts.
+        byte[] generated = new byte[32];
+        new SecureRandom().nextBytes(generated);
+        return generated;
     }
 
     public String issue(User user) {
