@@ -1,9 +1,7 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
-
-:root{font-family:"DM Sans",system-ui,sans-serif;color:#e8edf7;background:#070b14;font-synthesis:none;text-rendering:optimizeLegibility}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#e8edf7;background:#070b14;font-synthesis:none;text-rendering:optimizeLegibility}
 *{box-sizing:border-box}body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(circle at 75% 0%,rgba(52,91,171,.16),transparent 28rem),#070b14}button{font:inherit}
 .app-shell{display:flex;min-height:100vh}.sidebar{width:250px;min-height:100vh;padding:26px 16px 20px;display:flex;flex-direction:column;border-right:1px solid #182131;background:rgba(9,14,25,.94)}
-.brand{display:flex;align-items:center;gap:12px;padding:0 10px 28px}.brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(135deg,#5b8cff,#3159c7);color:#fff;font-family:"Space Grotesk";font-weight:700;box-shadow:0 10px 30px rgba(61,103,221,.28)}
+.brand{display:flex;align-items:center;gap:12px;padding:0 10px 28px}.brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(135deg,#5b8cff,#3159c7);color:#fff;font-family:ui-sans-serif,system-ui,sans-serif;font-weight:700;box-shadow:0 10px 30px rgba(61,103,221,.28)}
 .brand strong,.brand span,.profile strong,.profile span{display:block}.brand strong{font-family:"Space Grotesk";letter-spacing:.04em}.brand span,.profile span{margin-top:2px;color:#7f8ba1;font-size:12px}
 .nav-list{display:grid;gap:6px}.nav-item{border:0;background:transparent;color:#8d98ab;width:100%;padding:12px 13px;border-radius:10px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;transition:.2s}.nav-item:hover{color:#e8edf7;background:#111827}.nav-item.active{color:#fff;background:#17243c}.nav-icon{width:23px;text-align:center;font-weight:700}
 .sidebar-footer{margin-top:auto;padding:13px;display:flex;align-items:center;gap:9px;color:#718097;font-size:12px}.status-dot{width:8px;height:8px;border-radius:50%;background:#45d483;box-shadow:0 0 12px rgba(69,212,131,.65)}
