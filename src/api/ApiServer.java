@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,6 +40,7 @@ public class ApiServer {
     private final TicketDAO ticketDAO = new TicketDAO();
     private final AccessTokenService tokens = new AccessTokenService();
     private HttpServer server;
+    private ExecutorService executor;
 
     public ApiServer(int port) { this.port = port; }
 
@@ -48,9 +50,20 @@ public class ApiServer {
         server.createContext("/api/auth/login", this::handleLogin);
         server.createContext("/api/issues", this::handleIssues);
         server.createContext("/api/tickets/reporter", this::handleReporterTickets);
-        server.setExecutor(Executors.newFixedThreadPool(Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2))));
+        executor = Executors.newFixedThreadPool(Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2)));
+        server.setExecutor(executor);
         server.start();
-        LOGGER.info("CAMPUSOS HTTP API started on port " + port);
+        LOGGER.info("CAMPUSOS HTTP API started on port " + server.getAddress().getPort());
+    }
+
+    public int getPort() {
+        if (server == null) throw new IllegalStateException("API server has not started");
+        return server.getAddress().getPort();
+    }
+
+    public void stop() {
+        if (server != null) server.stop(0);
+        if (executor != null) executor.shutdownNow();
     }
 
     private void handleHealth(HttpExchange exchange) throws IOException {
