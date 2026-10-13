@@ -23,7 +23,7 @@ class AccessTokenServiceTest {
     void rejectsModifiedAndMalformedTokens() {
         AccessTokenService service = new AccessTokenService();
         String token = service.issue(new Student(7, "Test", "test@example.test", "", "T7", "CSE"));
-        String modified = token.substring(0, token.length() - 1) + (token.endsWith("A") ? "B" : "A");
+        String modified = (token.startsWith("A") ? "B" : "A") + token.substring(1);
 
         assertNull(service.verify(modified));
         assertNull(service.verify("not-a-token"));
