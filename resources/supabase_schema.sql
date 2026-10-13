@@ -103,3 +103,11 @@ create index if not exists idx_bookings_resource_start on public.bookings(resour
 
 -- Application access must use a dedicated database role/connection string, not the Supabase service-role API key.
 -- Do not expose CAMPUSOS_DB_PASSWORD or CAMPUSOS_AUTH_SECRET to the browser.
+
+-- The browser must never query these tables directly. The Java API uses JDBC.
+-- Remove direct table/sequence grants from Supabase's public API roles.
+revoke all privileges on all tables in schema public from anon, authenticated;
+revoke all privileges on all sequences in schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
+
