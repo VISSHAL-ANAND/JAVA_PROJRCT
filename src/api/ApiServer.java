@@ -27,7 +27,6 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -372,7 +371,7 @@ public class ApiServer {
             LocalDateTime end = LocalDateTime.parse(body.path("endTime").asText(""));
             int bookingId = bookingService.book(resourceId, principal.userId(), start, end);
             sendJson(exchange, 201, Map.of("success", true, "message", "Resource booked successfully", "bookingId", bookingId));
-        } catch (BadRequestException | IllegalArgumentException | DateTimeParseException e) {
+        } catch (BadRequestException | IllegalArgumentException e) {
             sendJson(exchange, 400, Map.of("success", false, "message", "Invalid booking data. Check the resource and start/end times."));
         } catch (SQLException e) {
             if ("23P01".equals(e.getSQLState()) || (e.getMessage() != null && e.getMessage().contains("already booked"))) {
