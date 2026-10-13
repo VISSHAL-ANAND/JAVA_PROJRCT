@@ -375,6 +375,7 @@ A phase is complete only when:
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; priority classification tests are included in passing CI.
 - [x] Add PostgreSQL-backed integration test for authentication, issue priority/assignment/status history, wrong-owner status rejection, notifications, emergency broadcast, booking conflict/cancellation, and admin metrics. Anonymous/wrong-role smoke tests pass in CI.
 - [ ] Expand integration coverage with parallel concurrent booking attempts and HTTP-level authenticated success/ownership tests.
+- [x] Add HTTP validation tests for malformed JSON and wrong Content-Type; CI result pending.
 - [ ] Define consistent JSON response/error contracts.
 - [x] Add liveness/readiness endpoints and HTTP API executor shutdown hook; structured request IDs/metrics remain.
 - [x] Move frontend API base URL to `VITE_API_BASE_URL`; document the local example and hosting configuration. (Java API CORS remains fixed to localhost and must be made environment-configurable before hosting.)
@@ -407,6 +408,7 @@ A phase is complete only when:
 - Confirmed repository includes resources/supabase_schema.sql, PostgreSQL migration scripts, a Dockerfile running as a non-root user, and PostgreSQL-backed integration tests.
 - Confirmed GitHub Actions run 38433702324 succeeded for Java Maven verification, frontend install/build, Docker image build, and PostgreSQL workflow integration tests.
 - Removed resources/config.properties from version control and added it to .gitignore; the remote copy contained only placeholders. LOCAL USER ACTION BEFORE PULLING: back up local resources/config.properties, then pull the deletion and recreate the ignored local config from resources/config.properties.example, or use environment variables.
-- Added a 12-second frontend API request timeout and clearer network/timeout errors in frontend/src/App.jsx (commit f154e04093d59fd457ff319dc44ebca27e778ae5). CI run 38443904644 was pending at last check.
-- Remaining blockers: verify production signing-secret behavior, run CI after latest edits, add HTTP-level valid-token/invalid-input tests, run real Supabase connectivity smoke test when credentials are configured, and inspect/validate the user's Supabase keep-alive workflow before use.
+- Added a 12-second frontend API request timeout and clearer network/timeout errors in frontend/src/App.jsx (commit f154e04093d59fd457ff319dc44ebca27e778ae5). Its CI run was superseded/cancelled by subsequent commits before final verification.
+- Added tests/api/ApiInputValidationTest.java to verify authenticated malformed JSON and wrong Content-Type requests return HTTP 400 without needing a database (commit ddce98951383e196faa2af9db98be9d54d5ab581). Latest CI run 38444090971 was pending at last check.
+- Remaining blockers: require a stable signing secret in production, complete CI on latest main, expand HTTP-level authenticated success/ownership tests, run real Supabase connectivity smoke test when credentials are configured, and inspect/validate the user's Supabase keep-alive workflow before use.
 - Performance principle: keep database credentials server-side, use bounded requests and indexed SQL, keep connection pools small, and avoid unnecessary frontend dependencies.
