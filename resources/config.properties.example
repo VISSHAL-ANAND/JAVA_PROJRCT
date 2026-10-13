@@ -1,0 +1,6 @@
+# Copy to config.properties for local development, or set environment variables.
+# Environment variables take precedence over these values.
+db.url=jdbc:mysql://localhost:3306/campusos
+db.username=campusos_app
+db.password=CHANGE_ME
+db.pool.size=10
