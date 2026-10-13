@@ -9,7 +9,6 @@ import dao.TicketDAO;
 import dao.UserDAO;
 import exception.AuthenticationException;
 import model.Issue;
-import model.Priority;
 import model.User;
 import service.AuthService;
 import service.IssueService;
@@ -90,7 +89,7 @@ public class ApiServer {
                 return;
             }
 
-            Issue issue = new Issue(0, title, description, category, location, null, Priority.LOW);
+            Issue issue = new Issue(0, title, description, category, location, null, null);
             int ticketId = issueService.submit(issue, reporterId);
 
             sendJson(exchange, 201, Map.of(
