@@ -99,7 +99,7 @@ Java socket server (port 5050)
 | Notification inbox and mark-read | Implemented; live database testing pending |
 | Emergency feed and admin-only broadcast | Implemented; live database testing pending |
 | API authentication and route authorization | Signed bearer tokens and core role/ownership checks implemented; token revocation and comprehensive security testing remain |
-| Automated tests | 11 Java unit/API smoke tests passed in CI; database-backed end-to-end tests remain |
+| Automated tests | 15 tests pass in CI, including a PostgreSQL 17 workflow integration test; live Supabase verification remains |
 
 A menu item or database table does not, by itself, mean its complete workflow is finished. This table is the intended source of truth for the current implementation.
 
@@ -274,6 +274,16 @@ CAMPUSOS_DB_POOL_SIZE=5
 5. Test `/api/health/ready` after configuration; it must return HTTP 200 before database-backed workflows can work.
 
 The JDBC connection pool is bounded to protect the database. Keep the pool size small enough for the Supabase project's connection limit and the number of Java API instances.
+
+### Continuous integration
+
+GitHub Actions currently verifies:
+- Java 17 compilation, unit tests, and packaging.
+- React dependency installation and Vite production build.
+- Docker image build for the HTTP-only Java API.
+- PostgreSQL 17 schema application and database-backed workflow test (user creation/authentication, issue priority, assignment/status transitions/history, notifications, emergency broadcast, and booking capacity/cancellation).
+
+The PostgreSQL service test is a clean local PostgreSQL compatibility check, **not** a connection test against the actual Supabase project.
 
 ## Run the application
 
