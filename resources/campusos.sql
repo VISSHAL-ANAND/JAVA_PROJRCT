@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE TABLE IF NOT EXISTS ticket_history (
     id INT PRIMARY KEY AUTO_INCREMENT,
     ticket_id INT NOT NULL,
-    changed_by INT NOT NULL,
+    changed_by INT,
     previous_status VARCHAR(20) NOT NULL,
     new_status VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
