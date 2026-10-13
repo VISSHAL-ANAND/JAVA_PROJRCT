@@ -226,25 +226,26 @@ The database schema does not automatically create a known demo account with a va
 
 ## Configure the backend
 
-Open `resources/config.properties`. Set the values for your local MySQL instance:
+For local development, you can copy `resources/config.properties.example` to `resources/config.properties` and set your local values. The tracked `resources/config.properties` on GitHub contains only a placeholder.
 
-```properties
-db.url=jdbc:mysql://localhost:3306/campusos
-db.username=root
-db.password=YOUR_LOCAL_MYSQL_PASSWORD
-db.pool.size=10
-```
+**Preferred for deployment:** supply credentials through environment variables. The Java backend reads these variables first and falls back to `resources/config.properties`:
 
-Replace `YOUR_LOCAL_MYSQL_PASSWORD` with your own MySQL password.
+| Environment variable | Purpose |
+|---|---|
+| `CAMPUSOS_DB_URL` | JDBC URL, e.g. `jdbc:mysql://localhost:3306/campusos` |
+| `CAMPUSOS_DB_USERNAME` | Database username |
+| `CAMPUSOS_DB_PASSWORD` | Database password |
 
-**Never commit your real database password, API keys, or other secrets to GitHub.** Keep machine-specific configuration local. Before pushing changes, check:
+Example PowerShell session for local testing:
 
 ```powershell
-git status
-git diff -- resources/config.properties
+$env:CAMPUSOS_DB_URL = "jdbc:mysql://localhost:3306/campusos"
+$env:CAMPUSOS_DB_USERNAME = "root"
+$env:CAMPUSOS_DB_PASSWORD = "YOUR_LOCAL_PASSWORD"
+mvn exec:java "-Dexec.mainClass=network.ServerMain"
 ```
 
-The repository's tracked configuration is intended as a template. If your local file contains real credentials, do not overwrite it without first backing it up.
+Use a dedicated least-privilege database account outside local development; do not use the MySQL root account in production. Never commit real passwords, API keys, or other secrets. Before pushing, inspect `git status` and `git diff`, especially changes to configuration files.
 
 ## Run the application
 
