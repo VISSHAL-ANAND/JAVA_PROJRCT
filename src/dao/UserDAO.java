@@ -50,4 +50,37 @@ public class UserDAO {
         return staff;
     }
 
+
+    public java.util.List<java.util.Map<String, Object>> findUsers() throws SQLException {
+        java.util.List<java.util.Map<String, Object>> users = new java.util.ArrayList<>();
+        String sql = "SELECT id, name, email, role, department, specialization, available, created_at FROM users ORDER BY role, name LIMIT 200";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+                item.put("id", rs.getInt("id"));
+                item.put("name", rs.getString("name"));
+                item.put("email", rs.getString("email"));
+                item.put("role", rs.getString("role"));
+                item.put("department", rs.getString("department"));
+                item.put("specialization", rs.getString("specialization"));
+                item.put("available", rs.getBoolean("available"));
+                item.put("createdAt", rs.getTimestamp("created_at").toString());
+                users.add(item);
+            }
+        }
+        return users;
+    }
+
+    public boolean setStaffAvailability(int userId, boolean available) throws SQLException {
+        String sql = "UPDATE users SET available = ? WHERE id = ? AND role IN ('MAINTENANCE','TECHNICIAN')";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setBoolean(1, available);
+            statement.setInt(2, userId);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
 }
