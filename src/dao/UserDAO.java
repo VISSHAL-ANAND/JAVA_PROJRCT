@@ -83,4 +83,25 @@ public class UserDAO {
         }
     }
 
+
+    public int createUser(String name, String email, String passwordHash, String role,
+                          String registerNumber, String department, String specialization) throws SQLException {
+        String sql = "INSERT INTO users(name,email,password,role,register_number,department,specialization,available) VALUES(?,?,?,?,?,?,?,TRUE)";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            statement.setString(1, name);
+            statement.setString(2, email);
+            statement.setString(3, passwordHash);
+            statement.setString(4, role);
+            statement.setString(5, registerNumber);
+            statement.setString(6, department);
+            statement.setString(7, specialization);
+            statement.executeUpdate();
+            try (ResultSet rs = statement.getGeneratedKeys()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        throw new SQLException("Unable to create user");
+    }
+
 }
