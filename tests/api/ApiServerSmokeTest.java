@@ -39,6 +39,11 @@ class ApiServerSmokeTest {
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(401, tickets.statusCode());
 
+            HttpResponse<String> history = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/tickets/1/history")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, history.statusCode());
+
             HttpResponse<String> staff = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets")).GET().build(),
                     HttpResponse.BodyHandlers.ofString());
