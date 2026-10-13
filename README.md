@@ -2,272 +2,524 @@
 
 **Campus Operations & Emergency Management System**
 
-CAMPUSOS is a Java-based campus operations platform for issue reporting, ticket management, smart technician assignment, maintenance work, resource booking, notifications, emergency operations and administrative reporting.
+CAMPUSOS is a campus operations project designed to bring maintenance issue reporting, ticket tracking, technician assignment, resource booking, notifications, emergency records and administrative workflows into one platform.
 
-## 1. Architecture
+The project uses a **React frontend**, a **Java backend**, and **MySQL** for persistent data. It also retains a Java socket-server foundation for networking exercises and future integrations.
 
-Swing GUI → Java Socket / Network Layer → Service Layer → DAO → JDBC → MySQL
+> **Project status:** Active academic project. React login, issue submission, automatic priority calculation, ticket creation/assignment logic, and a student's own ticket list are implemented. Other areas shown in navigation or represented by backend classes may still be incomplete. See [Feature Status](#feature-status) before treating a workflow as complete.
 
-Core workflow: Report Issue → Priority Detection → Ticket Creation → Smart Assignment → Maintenance Work → Status Updates → Notifications → Reports.
+---
 
-## 2. Main Features
+## Table of contents
 
-- Secure authentication with PBKDF2-HMAC-SHA256 password hashing.
-- Role-based access control.
-- Login rate limiting and request-rate-limiter foundation.
-- Student, Faculty/Staff, Maintenance, Technician and Admin workflows.
-- Issue reporting with category, location, severity, description and attachment path.
-- Automatic priority detection: LOW, MEDIUM, HIGH, CRITICAL.
-- Smart technician assignment using availability and specialization.
-- Ticket states: OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED.
-- Resource availability and booking.
-- Notifications and emergency records.
-- Swing desktop interface.
-- Java Socket server and multithreaded client handling.
-- JDBC/MySQL persistence.
-- Admin dashboard and reporting.
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Feature status](#feature-status)
+- [Technology stack](#technology-stack)
+- [Roles](#roles)
+- [Repository structure](#repository-structure)
+- [Prerequisites](#prerequisites)
+- [Getting started](#getting-started)
+- [Database setup](#database-setup)
+- [Configure the backend](#configure-the-backend)
+- [Run the application](#run-the-application)
+- [API reference](#api-reference)
+- [Issue priority and assignment](#issue-priority-and-assignment)
+- [Database tables](#database-tables)
+- [Security notes](#security-notes)
+- [Testing and verification](#testing-and-verification)
+- [Troubleshooting](#troubleshooting)
+- [Development roadmap](#development-roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
-## 3. User Roles
+## Overview
 
-| Role | Main access |
+Campus maintenance requests are often scattered across messages, calls, and informal follow-ups. CAMPUSOS provides a shared workflow where a campus user can report an issue and track its progress.
+
+### Core workflow
+
+```text
+Student reports an issue
+        ↓
+Java API validates the request
+        ↓
+Priority is calculated
+        ↓
+Issue and ticket are saved to MySQL
+        ↓
+An available technician may be assigned
+        ↓
+Ticket is visible in the student's ticket list
+```
+
+The longer-term workflow includes technician status updates, resource reservations, notifications, emergency broadcasts and administration.
+
+## Architecture
+
+```text
+React + Vite (frontend)
+        │ HTTP / JSON
+        ▼
+Java HTTP API (port 8080)
+        │
+        ▼
+Service layer
+        │
+        ▼
+DAO layer ── JDBC ── MySQL (port 3306)
+
+Java socket server (port 5050)
+        └── Separate networking foundation
+```
+
+- **Frontend:** React components provide login, the dashboard, issue reporting and ticket listing.
+- **HTTP API:** Java's built-in `HttpServer` exposes JSON endpoints.
+- **Service layer:** Applies application rules such as priority calculation and issue submission.
+- **DAO layer:** Executes parameterized SQL statements through JDBC.
+- **Database:** MySQL stores users, issues, tickets, resources, bookings, notifications and emergencies.
+- **Socket layer:** A separate Java TCP server remains available for socket-programming exercises and future integrations.
+
+## Feature status
+
+| Feature | Current status |
 |---|---|
-| STUDENT | Dashboard, report issue, own tickets, resource booking, notifications, emergency |
-| FACULTY | Dashboard, report issue, tickets, resource booking, notifications, emergency |
-| MAINTENANCE | Dashboard, maintenance tasks, notifications, emergency |
-| TECHNICIAN | Assigned technical work, ticket workflow, notifications, emergency |
-| ADMIN | Dashboard, all tickets, resources, reports, notifications, emergency |
+| React + Vite frontend | Implemented |
+| Login against MySQL user records | Implemented |
+| PBKDF2 password verification and login rate limiting | Implemented in the authentication service |
+| Submit an issue from React | Implemented |
+| Automatic priority calculation | Implemented |
+| Persist issue and create ticket in one transaction | Implemented |
+| Technician selection by availability and specialization | Implemented in issue submission |
+| Student ticket list from MySQL | Implemented |
+| Live student ticket counts | Implemented in the current dashboard |
+| Technician ticket lifecycle UI and API | In progress |
+| Admin management and reporting | In progress |
+| Resource booking UI/API integration | In progress |
+| Notifications UI/API integration | In progress |
+| Emergency broadcast UI/API integration | In progress |
+| Production-grade API authorization/session management | Not yet complete |
+| Automated full end-to-end test suite | Not yet complete |
+
+A menu item or database table does not, by itself, mean its complete workflow is finished. This table is the intended source of truth for the current implementation.
+
+## Technology stack
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React 19, JavaScript, HTML, CSS, Vite |
+| Backend | Java 17, Java HTTP Server, Java TCP sockets |
+| API format | HTTP, JSON |
+| Database | MySQL 8, JDBC |
+| JSON processing | Jackson Databind |
+| Build | Maven |
+| Version control | Git and GitHub |
+
+## Roles
+
+CAMPUSOS defines the following user roles:
+
+| Role | Intended responsibility |
+|---|---|
+| `STUDENT` | Report campus issues and track submitted tickets |
+| `FACULTY` | Report and track campus issues |
+| `MAINTENANCE` | Handle maintenance work |
+| `TECHNICIAN` | Handle assigned technical tickets |
+| `ADMIN` | Oversee tickets and campus operations |
+
+Role-specific workflows are being developed incrementally. Do not assume every role already has a complete, independently authorized web dashboard.
+
+## Repository structure
+
+```text
+JAVA_PROJRCT/
+├── frontend/
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       └── styles.css
+├── resources/
+│   ├── campusos.sql
+│   └── config.properties
+├── src/
+│   ├── api/          # Java HTTP API
+│   ├── client/       # Client session and socket client code
+│   ├── dao/          # JDBC data-access classes
+│   ├── database/     # Database connection and initialization
+│   ├── exception/    # Application-specific exceptions
+│   ├── gui/          # Legacy Swing interface
+│   ├── model/        # Domain models and enums
+│   ├── network/      # TCP server/client classes
+│   ├── security/     # Password hashing, access control, rate limiters
+│   ├── service/      # Application and business logic
+│   └── util/         # Validation utilities
+├── pom.xml
+└── README.md
+```
+
+Some classes belong to the earlier Swing version and remain in the repository while the React web interface is being built.
+
+## Prerequisites
+
+Install the following:
+
+- **JDK 17 or newer**
+- **Maven 3.9 or newer**
+- **MySQL 8.x**
+- **Node.js LTS and npm**
+- **Git**
+
+Check your installation:
+
+```powershell
+java -version
+mvn -version
+mysql --version
+node --version
+npm --version
+git --version
+```
+
+## Getting started
 
-Role access is enforced through the authenticated session and `AccessControl`.
+Clone the repository and enter its root directory:
 
-## 4. Project Structure
+```powershell
+git clone https://github.com/VISSHAL-ANAND/JAVA_PROJRCT.git
+cd JAVA_PROJRCT
+```
 
-- `src/model` — users, roles, issues, tickets, resources, bookings, notifications and emergencies.
-- `src/service` — authentication, priority, assignment, ticket and emergency business logic.
-- `src/dao` — JDBC data-access classes.
-- `src/database` — database connection and initialization.
-- `src/gui` — Login and role-aware Swing screens.
-- `src/network` — socket server, client and connection management.
-- `src/security` — password hashing, role access and rate limiting.
-- `src/exception` — application-specific exceptions.
-- `resources/campusos.sql` — MySQL schema.
-- `resources/config.properties` — local database configuration.
-- `src/test/Phase8SmokeTest.java` — integration smoke test.
+If you already have a local copy, update it with:
 
-## 5. Requirements
+```powershell
+git pull origin main
+```
 
-- JDK 17+
-- Maven 3.9+
-- MySQL 8.x
-- Git
+**Important:** If Git reports that local changes would be overwritten, inspect `git status` first. Preserve your local database configuration before discarding or restoring any configuration file.
 
-Verify with `java -version`, `mvn -version` and `mysql --version`.
+## Database setup
 
-## 6. Clone
+1. Start your MySQL server.
+2. Open MySQL Workbench or the MySQL command-line client.
+3. Run the schema script from the project root:
 
-`git clone https://github.com/VISSHAL-ANAND/JAVA_PROJRCT.git`
+```powershell
+mysql -u root -p < resources/campusos.sql
+```
 
-`cd JAVA_PROJRCT`
+Alternatively, open `resources/campusos.sql` in MySQL Workbench and execute it.
 
-## 7. Database Setup
+The script creates the `campusos` database and the core tables:
 
-1. Start MySQL.
-2. Execute `resources/campusos.sql` using MySQL CLI or MySQL Workbench.
-3. Open `resources/config.properties`.
-4. Set your local credentials:
+- `users`
+- `issues`
+- `tickets`
+- `resources`
+- `bookings`
+- `notifications`
+- `emergencies`
 
-`db.url=jdbc:mysql://localhost:3306/campusos`
+The database schema does not automatically create a known demo account with a valid password hash. Create a user through a secure registration flow when available, or insert a user whose password was hashed using the application's `PasswordHasher`. Do not store plaintext passwords.
 
-`db.username=root`
+## Configure the backend
 
-`db.password=YOUR_MYSQL_PASSWORD`
+Open `resources/config.properties`. Set the values for your local MySQL instance:
 
-`db.pool.size=10`
+```properties
+db.url=jdbc:mysql://localhost:3306/campusos
+db.username=root
+db.password=YOUR_LOCAL_MYSQL_PASSWORD
+db.pool.size=10
+```
 
-Never commit a real database password to GitHub.
+Replace `YOUR_LOCAL_MYSQL_PASSWORD` with your own MySQL password.
 
-## 8. Build
+**Never commit your real database password, API keys, or other secrets to GitHub.** Keep machine-specific configuration local. Before pushing changes, check:
 
-Run from the project root:
+```powershell
+git status
+git diff -- resources/config.properties
+```
 
-`mvn clean compile`
+The repository's tracked configuration is intended as a template. If your local file contains real credentials, do not overwrite it without first backing it up.
 
-Package with:
+## Run the application
 
-`mvn clean package`
+Open **three terminals** from the repository root.
 
-## 9. Start the Socket Server
+### 1. Compile the Java backend
 
-Terminal 1:
+```powershell
+mvn clean compile
+```
 
-`mvn exec:java -Dexec.mainClass=network.ServerMain`
+Continue only if Maven reports `BUILD SUCCESS`.
 
-Default server: `localhost:5050`.
+### 2. Start the Java servers
 
-Custom port and thread pool:
+```powershell
+mvn exec:java "-Dexec.mainClass=network.ServerMain"
+```
 
-`mvn exec:java -Dexec.mainClass=network.ServerMain -Dexec.args="5050 10"`
+By default, the HTTP API listens on port **8080** and the TCP socket server listens on port **5050**. Keep this terminal running.
 
-Arguments are `<port> <thread-pool-size>`.
+### 3. Install frontend dependencies and start React
 
-## 10. Start the CAMPUSOS GUI
+In another terminal:
 
-Terminal 2:
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
-`mvn exec:java -Dexec.mainClass=gui.LoginFrame`
+Open the local URL printed by Vite, normally:
 
-The split-screen CAMPUSOS login opens. Authentication is performed against MySQL and the user is routed to the role-specific dashboard.
+```text
+http://localhost:5173
+```
 
-## 11. Login Access
+The Vite development server proxies no API routes by default; the current frontend calls the Java API at `http://localhost:8080`.
 
-The login role selector supports `AUTO`, `STUDENT`, `FACULTY`, `MAINTENANCE` and `ADMIN`.
+### Build the frontend for production
 
-`AUTO` lets the database account determine the role. If a role is manually selected, it must match the authenticated account.
+From the `frontend` directory:
 
-There are currently no guaranteed default/demo credentials in the repository. Create database users with passwords stored in the PBKDF2 format expected by `PasswordHasher`.
+```powershell
+npm run build
+```
 
-Do not insert plaintext passwords and expect secure authentication to work.
+This creates the optimized frontend output in `frontend/dist`. A production web server and deployment configuration are still required to serve it and route API requests securely.
 
-## 12. Security
+## API reference
 
-### Password hashing
+The current HTTP API accepts and returns JSON. The frontend is configured for local development at `http://localhost:5173`.
 
-`PBKDF2WithHmacSHA256`, 120,000 iterations, 16-byte random salt and 256-bit derived key.
+### Login
 
-Stored format: `pbkdf2$iterations$salt$hash`.
+```http
+POST /api/auth/login
+Content-Type: application/json
+```
 
-### Login rate limiting
+Request:
 
-Current configuration: 5 attempts within 5 minutes, followed by a 10-minute temporary block.
+```json
+{
+  "email": "student@example.com",
+  "password": "your-password"
+}
+```
 
-### Request rate limiting
+Success response (example shape):
 
-`RequestRateLimiter` provides a 60 requests/minute foundation for network/API operations.
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "id": 1,
+    "name": "Example Student",
+    "email": "student@example.com",
+    "role": "STUDENT"
+  }
+}
+```
 
-### Role-based access
+Invalid credentials return HTTP `401`. This endpoint verifies credentials but the current web implementation does not yet establish a production-grade server-side session or token.
 
-`AccessControl` checks the current authenticated user's role before protected operations are exposed.
+### Submit an issue
 
-### Database security
+```http
+POST /api/issues
+Content-Type: application/json
+```
 
-DAO operations use `PreparedStatement` rather than concatenating user input into SQL.
+Request:
 
-## 13. UI Screens
+```json
+{
+  "reporterId": 1,
+  "title": "Projector not working",
+  "description": "The projector does not turn on.",
+  "category": "Electrical",
+  "location": "AB1 Room 204"
+}
+```
 
-1. Login
-2. Student Dashboard
-3. Faculty / Staff Dashboard
-4. Report Issue
-5. Ticket Management
-6. Resource Booking
-7. Emergency Report
-8. Maintenance Staff Dashboard
-9. Admin Dashboard
-10. Notifications
-11. Reports
+The API validates required fields, calculates priority, creates the issue and ticket, and attempts to assign an available technician. The response includes the created ticket ID and calculated priority.
 
-The dashboard navigation changes according to the authenticated role.
+### List tickets reported by a student
 
-## 14. Issue and Ticket Logic
+```http
+GET /api/tickets/reporter/{reporterId}
+```
 
-Priority detection currently recognizes examples such as:
+Example:
 
-- CRITICAL: fire, gas leak, electric shock, security breach.
-- HIGH: server down, network down, water leak, power failure.
-- MEDIUM: not working, broken, urgent.
-- Otherwise LOW.
+```http
+GET /api/tickets/reporter/1
+```
 
-Technician assignment filters available technicians, prefers specialization matching the issue category, and uses technician name as the deterministic tie-breaker.
+Returns a JSON object containing the ticket list, including fields such as ID, title, category, location, priority, status and creation time.
 
-## 15. Socket Layer
+> **API security limitation:** The current issue and ticket endpoints accept a client-supplied `reporterId`. They are suitable for local development, not untrusted public deployment. Before production use, derive the user identity from a verified session/token, enforce role and ownership checks on every endpoint, validate all input, and configure appropriate CORS and transport security.
 
-Important network classes:
+## Issue priority and assignment
 
-- `CampusServer`
-- `ClientHandler`
-- `CampusClient`
-- `ConnectionManager`
-- `ServerMain`
-- `ClientMain`
+Priority is calculated from keywords in the issue title and description. Current rules include:
 
-Basic socket test:
+| Priority | Example keywords |
+|---|---|
+| `CRITICAL` | `fire`, `gas leak`, `electric shock`, `security breach` |
+| `HIGH` | `server down`, `network down`, `water leak`, `power failure` |
+| `MEDIUM` | `not working`, `broken`, `urgent` |
+| `LOW` | Default when no higher-priority rule matches |
 
-Terminal 1: `mvn exec:java -Dexec.mainClass=network.ServerMain`
+This is a keyword-based rule system, not an AI classifier. The current assignment query prefers an available maintenance/technician user whose specialization matches the issue category; otherwise, it can select another available user. Assignment is skipped if no suitable available user is found.
 
-Terminal 2: `mvn exec:java -Dexec.mainClass=network.ClientMain`
+## Database tables
 
-Expected basic response: `Server response: PONG`.
+| Table | Purpose |
+|---|---|
+| `users` | User identity, role, department and technician availability |
+| `issues` | Issue description, category, location, attachment path and priority |
+| `tickets` | Issue tracking, reporter, assigned technician and lifecycle status |
+| `resources` | Campus resources and availability |
+| `bookings` | Resource reservations and time ranges |
+| `notifications` | User notification records |
+| `emergencies` | Emergency messages and creator information |
 
-## 16. Testing
+## Security notes
 
-Compile:
+The codebase includes security-related foundations:
 
-`mvn clean compile`
+- **Password hashing:** PBKDF2-HMAC-SHA256 with a random salt and a stored hash format of `pbkdf2$iterations$salt$hash`.
+- **Login rate limiting:** The authentication service limits repeated login attempts.
+- **Prepared statements:** DAO queries use parameterized SQL for database operations.
+- **Role and access-control classes:** Role checks are represented in the security layer.
 
-Run the Phase 8 smoke test:
+These foundations do **not** mean the web application is production-secure. The current React login stores the returned user only in frontend state; API requests are not yet protected by a verified session/token. There is also no complete CSRF/session lifecycle, deployment hardening, audit trail, or comprehensive authorization test suite. Do not expose this development server to the public internet with real campus or personal data.
 
-`mvn exec:java -Dexec.mainClass=test.Phase8SmokeTest`
+## Testing and verification
 
-Expected output: `PHASE_8_SMOKE_TEST_PASSED`.
+Run the backend compilation check:
 
-The smoke test checks priority calculation, technician assignment, ticket creation and ticket status.
+```powershell
+mvn clean compile
+```
 
-## 17. Recommended Full Demo
+Run the frontend production build:
 
-1. Start MySQL.
-2. Start the CAMPUSOS socket server.
-3. Open the GUI.
-4. Login as Student.
-5. Report an issue.
-6. Verify ticket creation and priority.
-7. Login as Technician/Maintenance.
-8. Process the assigned ticket.
-9. Login as Admin.
-10. Review tickets and reports.
-11. Demonstrate resource booking, notifications and emergency workflow.
+```powershell
+cd frontend
+npm run build
+```
 
-## 18. Java Concepts Demonstrated
+Manual end-to-end check for the currently implemented student workflow:
 
-OOP, inheritance, abstraction, encapsulation, polymorphism, enums, collections, generics, streams, lambdas, exceptions, custom exceptions, JDBC, MySQL, Swing, socket programming, multithreading, ExecutorService, synchronization, ConcurrentHashMap, authentication, password hashing, RBAC and rate limiting.
+1. Confirm MySQL is running and `resources/config.properties` is correct.
+2. Start the Java servers.
+3. Start the Vite frontend.
+4. Log in with a database account whose password is stored in the expected PBKDF2 format.
+5. Open **Report Issue** and submit a test issue.
+6. Confirm a ticket ID and priority are returned.
+7. Confirm the ticket appears in the student's ticket list.
+8. Check the `issues`, `tickets`, and, where assignment occurs, `notifications` tables in MySQL.
 
-## 19. Development Phases
+Do not mark a workflow as tested until it has been run against the local database.
 
-1. Core Foundation
-2. Database Layer
-3. Authentication
-4. Ticket System
-5. Socket Server + Multithreaded Clients
-6. Resources + Bookings + Notifications + Emergency
-7. Swing GUI
-8. Integration + Testing + Security Hardening
+## Troubleshooting
 
-## 20. Current Status
+### Maven says `BUILD FAILURE`
 
-The repository contains the project foundation, database layer, services, networking layer, role-aware Swing UI and security foundation.
+Read the first compiler error, fix that issue, and run:
 
-Before calling the system production-ready, run the complete compile, database integration, socket integration, authentication, RBAC, rate-limit and end-to-end tests. This is currently an academic/client-project implementation and is not security-certified production software.
+```powershell
+mvn clean compile
+```
 
-## 21. Troubleshooting
+Do not start the server until compilation succeeds.
 
-### MySQL connection error
+### MySQL connection fails
 
-Check that MySQL is running, the `campusos` database exists, credentials in `resources/config.properties` are correct and port 3306 is available.
+- Confirm the MySQL service is running.
+- Verify the database name, username, password and port in `resources/config.properties`.
+- Confirm the schema script was executed.
+- Check that port `3306` is available.
 
-### Login failure
+### Login returns “Invalid email or password”
 
-Check that the user exists, the role is valid, the password is stored using the PBKDF2 format expected by `PasswordHasher`, and the account has not been temporarily rate-limited.
+- Confirm the user exists in the `users` table.
+- Confirm the role matches one of the supported role values.
+- Ensure the database password column contains a valid PBKDF2 hash created by the application, not plaintext.
+- Check whether the login rate limiter temporarily blocked repeated attempts.
 
-### GUI does not start
+### The frontend cannot reach the API
 
-Run `mvn clean compile`, then `mvn exec:java -Dexec.mainClass=gui.LoginFrame`.
+- Confirm the Java server started and printed that the HTTP API is listening on port `8080`.
+- Open the frontend at `http://localhost:5173`.
+- Check the browser developer console and terminal for CORS or connection errors.
+- Ensure no other application is occupying port `8080`.
 
-### Port 5050 is busy
+### Port is already in use
 
-Use another port, for example `mvn exec:java -Dexec.mainClass=network.ServerMain -Dexec.args="6060 10"`.
+Stop the process using the port or change the server arguments. The current argument order for `ServerMain` is:
 
-## 22. Repository
+```text
+<socket-port> <thread-pool-size> <http-api-port>
+```
 
-https://github.com/VISSHAL-ANAND/JAVA_PROJRCT
+For example:
 
-## 23. Project Goal
+```powershell
+mvn exec:java "-Dexec.mainClass=network.ServerMain" "-Dexec.args=5051 10 8081"
+```
 
-CAMPUSOS brings campus issues, ticket management, smart assignment, maintenance, resource booking, notifications, emergency operations, administration and reporting into one Java-based platform.
+If you change the HTTP API port, update the frontend API URLs as well.
+
+### Git warns about local changes
+
+Run `git status` and review the affected files. Do not use `git restore` on `resources/config.properties` unless you have saved your local credentials elsewhere.
+
+## Development roadmap
+
+Development is intended to proceed in small, testable phases:
+
+1. **Core foundation:** domain models, enums and validation.
+2. **Database layer:** schema, JDBC connection and DAOs.
+3. **Authentication:** password hashing, login and role model.
+4. **Ticket foundation:** priority calculation, ticket creation and technician assignment.
+5. **Networking:** socket server and client handling.
+6. **Campus operations:** resources, bookings, notifications and emergency records.
+7. **Interface:** original Swing interface and React web frontend.
+8. **Integration and hardening:** end-to-end testing, authorization, lifecycle enforcement and reliability.
+9. **Technician workflow:** technician dashboard, assigned ticket list and controlled status transitions.
+10. **Admin workflow:** user/ticket oversight and operational reports.
+
+The roadmap may change as features are implemented and verified.
+
+## Contributing
+
+For each change:
+
+1. Pull the latest `main` branch.
+2. Make one focused change.
+3. Run `mvn clean compile` for backend changes.
+4. Run `npm run build` for frontend changes.
+5. Test the affected workflow manually or with automated tests.
+6. Review `git diff` and confirm no secrets or generated folders are included.
+7. Commit with a clear message.
+
+Do not commit `node_modules/`, `target/`, `frontend/dist/`, local credentials, or other machine-specific files.
+
+## License
+
+No license has been specified in this repository yet. Unless a license is added, reuse and redistribution are not automatically granted.
+
+## Repository
+
+[VISSHAL-ANAND/JAVA_PROJRCT on GitHub](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT)
