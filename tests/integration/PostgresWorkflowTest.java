@@ -10,7 +10,7 @@ import model.Issue;
 import model.Priority;
 import model.User;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import security.PasswordHasher;
 import service.AuthService;
 import service.EmergencyService;
@@ -28,7 +28,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@EnabledIfSystemProperty(named = "campusos.it", matches = "true")
+@EnabledIfEnvironmentVariable(named = "CAMPUSOS_IT_ENABLED", matches = "true")
 class PostgresWorkflowTest {
     @Test
     void postgresSupportsAuthTicketsNotificationsEmergenciesAndBookings() throws Exception {
