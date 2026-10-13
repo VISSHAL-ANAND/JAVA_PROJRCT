@@ -310,6 +310,18 @@ A phase is complete only when:
 - Supabase schema has not been applied to a live Supabase project, and no real database integration test has run. Existing DAO code has not yet been verified against PostgreSQL.
 - Remaining blockers: confirm CI; test JDBC/DAO compatibility against Supabase; expand staff/admin APIs and route-level authorization; fix ticket lifecycle, notifications, resource booking/emergency UI; build comprehensive integration/smoke/security tests; verify final CORS and hosted secrets.
 
+### 2026-10-13 — Ticket lifecycle, notifications, resources, and admin operations
+- Added staff ticket queue API (assigned-to-self for MAINTENANCE/TECHNICIAN; all tickets for ADMIN) and role-checked status updates. Valid transitions are ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED; transitions are recorded in ticket_history and the reporter receives a notification in the same database transaction.
+- Added admin-only staff lookup and transactional ticket assignment for OPEN tickets. Assignment validates the target's role and availability, updates status, records history, and notifies both staff and reporter.
+- Added admin overview metrics (users, total/active/resolved tickets, critical issues, available staff), user directory, and staff availability toggles. The directory is read-only for general user data; only staff availability is editable.
+- Added per-user notification inbox and mark-read endpoint; added emergency feed for authenticated users and admin-only emergency broadcast that writes an emergency record and sends notifications.
+- Added authenticated resource inventory, personal bookings list, and reservation creation. Booking logic locks the resource row before counting overlapping reservations so concurrent requests respect resource quantity; PostgreSQL schema no longer uses an over-restrictive no-overlap exclusion that would block quantities greater than one.
+- Updated frontend navigation by role; students/faculty can report issues, staff get a work queue, admins get overview/users/all-ticket assignment, and notifications/resources/emergency views now call APIs with loading/error/empty states. Added responsive admin assignment and user-directory styling.
+- Fixed authentication role mapping: TECHNICIAN previously became a MaintenanceStaff model and could receive a MAINTENANCE token. AuthService now returns a Technician model for TECHNICIAN users.
+- Added Supabase schema privilege revocations for Supabase REST roles anon/authenticated so browser-side REST access to CAMPUSOS tables is not assumed; the intended data path is Java JDBC only. Review this against the connected project's exact role/privilege defaults before applying.
+- Latest observed CI run 38430261685 succeeded on commit bb73ce9802c66cc12f7a399afebcf4f5a32696b6: Java mvn clean verify passed, frontend npm ci + npm run build passed, and 11 JUnit/smoke tests passed (0 failures/errors/skips). Tests cover priority rules, signed-token tampering/validation, lifecycle transitions, health endpoint, and anonymous rejection on protected routes. They do not yet test live database operations.
+- Remaining high-risk gaps: Supabase schema has not been applied to a live project; no live PostgreSQL JDBC test exists; no DB-backed end-to-end tests; tokens cannot be revoked before expiry; user role/availability changes do not invalidate existing tokens; admin can view users but cannot create/edit user identity; staff ticket history is stored but not yet exposed as a timeline UI; booking cancellation is not implemented; test coverage for wrong-role/ownership/assignment/concurrent booking still needed.
+
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog
@@ -335,22 +347,22 @@ A phase is complete only when:
 
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; add initial unit tests for priority classification (latest CI run pending verification).
-- [ ] Add service/API integration tests and authenticated/unauthenticated authorization tests.
+- [ ] Add service/API integration tests and database-backed authorization tests. (Current anonymous-route smoke tests pass; wrong-role/ownership cases remain.)
 - [ ] Define consistent JSON response/error contracts.
 - [ ] Add health/readiness endpoint, structured logging, and graceful shutdown.
 - [x] Move frontend API base URL to `VITE_API_BASE_URL`; document the local example and hosting configuration. (Java API CORS remains fixed to localhost and must be made environment-configurable before hosting.)
 
 ### Phase 3 — Complete student and staff ticket lifecycle
-- [ ] Add ticket details and status timeline/audit history.
+- [x] Add staff status transitions with transactional ticket_history writes; timeline read API/UI remains to do.
 - [ ] Add authorized technician queue and status transitions.
-- [ ] Ensure assignment concurrency and notification behavior are safe.
+- [x] Admin assignment and status transitions use transactions and notify affected users. Concurrency/load tests remain to do.
 - [ ] Add empty/loading/error/retry states and integration tests.
 
 ### Phase 4 — Role-specific product modules
-- [ ] Complete admin dashboard, user management, ticket reporting.
+- [x] Add admin overview metrics, user directory, staff availability toggles, and open-ticket assignment. Full user CRUD/report exports remain incomplete.
 - [ ] Complete notification inbox/read status.
-- [ ] Complete resources/reservations and concurrency-safe booking.
-- [ ] Complete emergency creation/broadcast and access rules.
+- [x] Implement resource inventory and personal booking UI/API; booking checks serialize on the resource row. Live DB/concurrency tests still required.
+- [x] Implement authenticated emergency feed and admin-only emergency broadcast; DB-backed verification still required.
 
 ### Phase 5 — Production deployment readiness
 - [ ] Decide deployment architecture: Vercel frontend + Java API on Java-capable host, and choose MySQL vs Supabase PostgreSQL migration.
