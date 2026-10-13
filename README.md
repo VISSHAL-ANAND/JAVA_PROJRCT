@@ -235,6 +235,7 @@ For local development, you can copy `resources/config.properties.example` to `re
 | `CAMPUSOS_DB_URL` | JDBC URL, e.g. `jdbc:mysql://localhost:3306/campusos` locally or `jdbc:postgresql://HOST:5432/postgres?sslmode=require` for PostgreSQL |
 | `CAMPUSOS_DB_USERNAME` | Database username |
 | `CAMPUSOS_DB_PASSWORD` | Database password |
+| `CAMPUSOS_DB_POOL_SIZE` | Optional JDBC connection-pool maximum (1–30; defaults to `db.pool.size` or 10) |
 | `CAMPUSOS_AUTH_SECRET` | At least 32 characters; signs access tokens. Required as a stable secret for hosted/multi-instance use. If omitted locally, a random process-only secret is generated and tokens expire on restart. |
 | `CAMPUSOS_CORS_ORIGINS` | Comma-separated exact allowed frontend origins; defaults to `http://localhost:5173` |
 
@@ -248,6 +249,27 @@ mvn exec:java "-Dexec.mainClass=network.ServerMain"
 ```
 
 Use a dedicated least-privilege database account outside local development; do not use the MySQL root account in production. Never commit real passwords, API keys, or other secrets. Before pushing, inspect `git status` and `git diff`, especially changes to configuration files.
+
+### Supabase JDBC connection notes
+
+For the persistent Java API, use the **Supabase session pooler** (port `5432`) if the hosting network is IPv4-only, and require TLS. The direct database host may require IPv6. Avoid the transaction pooler (port `6543`) for the current JDBC implementation because it uses prepared statements.
+
+Example environment values (use the actual host and project-specific username from Supabase's Connect dialog):
+
+```text
+CAMPUSOS_DB_URL=jdbc:postgresql://<session-pooler-host>:5432/postgres?sslmode=require
+CAMPUSOS_DB_USERNAME=campusos_app.<project-ref>
+CAMPUSOS_DB_PASSWORD=<database-role-password>
+CAMPUSOS_DB_POOL_SIZE=5
+```
+
+1. Apply `resources/supabase_schema.sql` to a **dedicated CAMPUSOS Supabase project**, not an unrelated project.
+2. Review and run `resources/supabase_app_role.sql.example` with a strong password placeholder replaced in the Supabase SQL Editor. Do not commit the real password.
+3. Configure these values only on the Java API host, not as `VITE_` frontend variables.
+4. Set `CAMPUSOS_AUTH_SECRET` to a separate stable random secret and set `CAMPUSOS_CORS_ORIGINS` to the exact deployed Vercel origin.
+5. Test `/api/health/ready` after configuration; it must return HTTP 200 before database-backed workflows can work.
+
+The JDBC connection pool is bounded to protect the database. Keep the pool size small enough for the Supabase project's connection limit and the number of Java API instances.
 
 ## Run the application
 
