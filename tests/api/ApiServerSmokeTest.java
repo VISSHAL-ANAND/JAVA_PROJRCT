@@ -27,6 +27,13 @@ class ApiServerSmokeTest {
             assertEquals(200, health.statusCode());
             assertTrue(health.body().contains("\"status\":\"ok\""));
 
+            HttpResponse<String> readiness = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/health/ready"))
+                            .timeout(Duration.ofSeconds(3)).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(503, readiness.statusCode());
+            assertTrue(readiness.body().contains("\"not_ready\""));
+
             HttpResponse<String> issue = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/issues"))
                             .header("Content-Type", "application/json")
