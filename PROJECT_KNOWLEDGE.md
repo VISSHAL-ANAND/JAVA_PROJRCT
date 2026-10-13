@@ -444,3 +444,10 @@ A phase is complete only when:
 - Kept sequence permissions needed for PostgreSQL identity-generated IDs. New tables require explicit grants in their migration.
 - This changes only the setup example; it has not been applied to any Supabase project. Live verification still requires a dedicated CAMPUSOS project and its server-side connection settings. Never use the unrelated TRAVEL_CRM project.
 - CI verification for this change is pending.
+
+
+### 2026-10-14 — CI verifies least-privilege database role
+- Extended the PostgreSQL CI job to execute resources/supabase_app_role.sql.example against its disposable PostgreSQL instance.
+- Added a runtime privilege check: the app role can read users and delete bookings, but cannot delete users. This tests the intended table-level permission boundary without touching any real Supabase project.
+- The CI job uses a disposable local database and a placeholder-only password. It does not validate live Supabase connectivity or apply changes to a hosted database; those remain pending a dedicated CAMPUSOS project.
+- Verification for this workflow change is pending.

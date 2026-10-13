@@ -100,5 +100,21 @@ jobs:
         run: |
           psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 -c "CREATE ROLE anon; CREATE ROLE authenticated;"
           psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 --file=resources/supabase_schema.sql
+      - name: Configure least-privilege CAMPUSOS app role
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 --file=resources/supabase_app_role.sql.example
+      - name: Verify app role table privileges
+        env:
+          PGPASSWORD: REPLACE_WITH_A_LONG_RANDOM_PASSWORD
+        run: |
+          psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "SELECT id FROM public.users LIMIT 0"
+          psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "DELETE FROM public.bookings WHERE false"
+          if psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "DELETE FROM public.users WHERE false"; then
+            echo "::error::campusos_app unexpectedly has DELETE privilege on public.users"
+            exit 1
+          else
+            echo "Confirmed campusos_app cannot DELETE from public.users."
+          fi
       - name: Run PostgreSQL-backed workflow tests
         run: mvn --batch-mode --no-transfer-progress clean verify
