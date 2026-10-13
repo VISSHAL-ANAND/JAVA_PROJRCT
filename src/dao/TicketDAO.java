@@ -180,4 +180,72 @@ public class TicketDAO {
         }
     }
 
+
+    public void assignTicketToStaff(int ticketId, int staffId, int adminId) throws SQLException {
+        if (ticketId <= 0 || staffId <= 0 || adminId <= 0) {
+            throw new IllegalArgumentException("Invalid ticket assignment");
+        }
+        try (Connection connection = DBConnection.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                int reporterId;
+                String status;
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "SELECT status, reported_by FROM tickets WHERE id = ? FOR UPDATE")) {
+                    statement.setInt(1, ticketId);
+                    try (ResultSet rs = statement.executeQuery()) {
+                        if (!rs.next()) throw new java.util.NoSuchElementException("Ticket not found");
+                        status = rs.getString("status");
+                        reporterId = rs.getInt("reported_by");
+                    }
+                }
+                if (!"OPEN".equals(status)) throw new IllegalStateException("Only open tickets can be assigned");
+
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "SELECT role, available FROM users WHERE id = ? FOR UPDATE")) {
+                    statement.setInt(1, staffId);
+                    try (ResultSet rs = statement.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Staff member not found");
+                        String role = rs.getString("role");
+                        if (!"MAINTENANCE".equals(role) && !"TECHNICIAN".equals(role)) {
+                            throw new IllegalArgumentException("Selected user is not assignable staff");
+                        }
+                        if (!rs.getBoolean("available")) throw new IllegalArgumentException("Selected staff member is unavailable");
+                    }
+                }
+
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE tickets SET assigned_technician_id = ?, status = 'ASSIGNED', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'OPEN'")) {
+                    statement.setInt(1, staffId);
+                    statement.setInt(2, ticketId);
+                    if (statement.executeUpdate() != 1) throw new IllegalStateException("Ticket assignment conflict");
+                }
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO ticket_history(ticket_id, changed_by, previous_status, new_status) VALUES(?,?,?,?)")) {
+                    statement.setInt(1, ticketId);
+                    statement.setInt(2, adminId);
+                    statement.setString(3, "OPEN");
+                    statement.setString(4, "ASSIGNED");
+                    statement.executeUpdate();
+                }
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO notifications(user_id, message) VALUES(?,?), (?,?)")) {
+                    statement.setInt(1, staffId);
+                    statement.setString(2, "Ticket #" + ticketId + " has been assigned to you.");
+                    statement.setInt(3, reporterId);
+                    statement.setString(4, "Ticket #" + ticketId + " has been assigned to a staff member.");
+                    statement.executeUpdate();
+                }
+                connection.commit();
+            } catch (Exception e) {
+                connection.rollback();
+                if (e instanceof SQLException sqlException) throw sqlException;
+                if (e instanceof RuntimeException runtimeException) throw runtimeException;
+                throw new SQLException("Unable to assign ticket", e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        }
+    }
+
 }
