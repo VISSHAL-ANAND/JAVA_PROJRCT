@@ -8,7 +8,7 @@ public class IssueService {
   issue.setPriority(priorityService.calculatePriority(issue));
   try(Connection c=DBConnection.getConnection()){c.setAutoCommit(false);try{
    int issueId=issueDAO.createIssue(c,issue); int ticketId=ticketDAO.createTicket(c,issueId,reporterId);
-   Integer tech=findTechnician(c,issue.getCategory()); if(tech!=null){ticketDAO.assignTechnician(c,ticketId,tech);notifyUser(c,tech,"New ticket #"+ticketId+" assigned to you.");notifyUser(c,reporterId,"Ticket #"+ticketId+" has been assigned to a technician.");}
+   Integer tech=findTechnician(c,issue.getCategory()); if(tech!=null){ticketDAO.assignTechnician(c,ticketId,tech);ticketDAO.recordStatusChange(c,ticketId,null,"OPEN","ASSIGNED");notifyUser(c,tech,"New ticket #"+ticketId+" assigned to you.");notifyUser(c,reporterId,"Ticket #"+ticketId+" has been assigned to a technician.");}
    c.commit(); return ticketId;
   }catch(Exception e){c.rollback();if(e instanceof SQLException s)throw s;throw new SQLException(e);}finally{c.setAutoCommit(true);}}
  }
