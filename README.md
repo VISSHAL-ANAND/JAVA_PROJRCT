@@ -85,16 +85,16 @@ Java socket server (port 5050)
 | Feature | Current status |
 |---|---|
 | React + Vite frontend | Implemented |
-| Login against MySQL user records | Implemented |
+| Login against the configured SQL database | Implemented with signed bearer tokens |
 | PBKDF2 password verification and login rate limiting | Implemented in the authentication service |
 | Submit an issue from React | Implemented |
 | Automatic priority calculation | Implemented |
 | Persist issue and create ticket in one transaction | Implemented |
 | Technician selection by availability and specialization | Implemented in issue submission |
-| Student ticket list from MySQL | Implemented |
+| User ticket list from the configured SQL database | Implemented with ownership checks |
 | Live student ticket counts | Implemented in the current dashboard |
 | Technician ticket lifecycle (assigned → in progress → resolved → closed) | Implemented with role/assignment checks and status history; database integration testing pending |
-| Admin overview, staff assignment, user directory and staff availability | Initial implementation; full user CRUD/export reporting remains incomplete |
+| Admin overview, account creation, user directory, staff assignment and staff availability | Implemented; editing/deleting user identity and report exports remain incomplete |
 | Resource inventory, reservations, personal booking list and future cancellation | Implemented; live database/concurrency testing pending |
 | Notification inbox and mark-read | Implemented; live database testing pending |
 | Emergency feed and admin-only broadcast | Implemented; live database testing pending |
@@ -381,13 +381,14 @@ GET /api/tickets/reporter/1
 
 Returns a JSON object containing the ticket list, including fields such as ID, title, category, location, priority, status and creation time.
 
-The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. Additional role-specific staff/admin routes, revocation/session invalidation, rate-limit hardening across instances, and full integration tests remain release blockers.
+The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. The API includes staff ticket workflow, ticket history, notifications, resource booking/cancellation, emergency feed/broadcast, and admin user/assignment routes. Token revocation, database-backed integration tests, and rate-limit hardening across instances remain release blockers.
 
 ### Other authenticated API routes
 
 | Method | Route | Access |
 |---|---|---|
 | GET | `/api/health` | Public liveness check |
+| GET | `/api/health/ready` | Public readiness check; returns 503 when the database is unavailable |
 | GET | `/api/tickets/{ticketId}/history` | Ticket reporter, assigned staff, or admin |
 | GET | `/api/staff/tickets` | Maintenance/technician see assigned queue; admin sees all |
 | POST | `/api/staff/tickets/{ticketId}/status` | Assigned staff or admin; forward lifecycle transitions only |
@@ -401,6 +402,7 @@ The ticket endpoint requires a valid bearer token and only returns tickets when 
 | POST | `/api/emergencies` | ADMIN only; creates alert and notifications |
 | GET | `/api/admin/overview` | ADMIN only |
 | GET | `/api/admin/users` | ADMIN only |
+| POST | `/api/admin/users` | ADMIN only; password is hashed server-side and minimum length is 12 characters |
 | POST | `/api/admin/users/{userId}/availability` | ADMIN only; staff availability |
 | GET | `/api/admin/staff` | ADMIN only; assignable staff |
 | POST | `/api/admin/tickets/{ticketId}/assign` | ADMIN only; assign an OPEN ticket |
