@@ -212,6 +212,10 @@ mysql -u root -p < resources/campusos.sql
 
 Alternatively, open `resources/campusos.sql` in MySQL Workbench and execute it. For Supabase PostgreSQL, use the separate `resources/supabase_schema.sql` script in the Supabase SQL Editor; do not run the MySQL schema there.
 
+For an **existing** database, do not blindly rerun the full MySQL schema (its original index statements are not all idempotent). Use the appropriate one-time migration instead:
+- MySQL: `resources/migrations/mysql/001_ticket_history_and_query_indexes.sql` (run in MySQL Workbench or the MySQL CLI; it uses a temporary stored procedure to add indexes only when missing).
+- PostgreSQL: `resources/migrations/postgres/001_ticket_history_and_query_indexes.sql` (review and apply to the existing CAMPUSOS database).
+
 The script creates the `campusos` database and the core tables:
 
 - `users`
