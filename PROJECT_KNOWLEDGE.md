@@ -340,6 +340,15 @@ A phase is complete only when:
 - Supabase connector discovery currently shows only an existing project named TRAVEL_CRM, not a CAMPUSOS project. It has not been inspected or modified for CAMPUSOS. Do not apply CAMPUSOS schema or migrations to that unrelated project; a dedicated project must be connected/created with owner approval.
 - No Vercel project or API container has been deployed. README now documents the intended frontend root/build/output, Java container, environment split, and readiness endpoint.
 
+### 2026-10-13 — PostgreSQL end-to-end verification and final CI checkpoint
+- Added a PostgreSQL 17 service job to CI. It creates the Supabase API roles used by the schema, applies resources/supabase_schema.sql, and runs the gated PostgresWorkflowTest against a real JDBC connection.
+- Integration coverage creates users and authenticates a TECHNICIAN; creates a critical issue and verifies automatic priority/assignment/history; rejects an unauthorized status update; transitions a ticket through IN_PROGRESS → RESOLVED → CLOSED; tests an unassigned ticket and admin assignment; checks/marks notifications; creates and reads an emergency broadcast; books a resource; verifies overlapping capacity conflict; cancels a future booking; and checks admin metrics.
+- First integration attempt failed because the test fixture explicitly pre-set Priority.LOW, which correctly prevents automatic reclassification. Fixed the fixture to pass null priority, matching the real API path. The next full CI run passed.
+- Final verified source run: GitHub Actions run 38433444433, commit 41a2a2fd53e808e973cc41cb362283ca2f843563, conclusion success. Java verification passed, frontend production build passed, Docker image build passed, and the PostgreSQL-backed suite passed all 15 tests with 0 failures/errors/skips.
+- The Postgres 17 integration test validates the schema/DAO behavior against PostgreSQL; it does **not** prove the connection string, role setup, network access, or project-specific configuration on the actual Supabase project. The connected Supabase account currently lists only TRAVEL_CRM; that unrelated project was not modified. A dedicated CAMPUSOS project is still required before live Supabase verification.
+- Added safe MySQL/PostgreSQL migration scripts for ticket history and query indexes. Added rate limiter memory bounds and normalized login keys. Added container build and non-root runtime, with local config excluded from the Docker context.
+- No hosting was performed. Vercel frontend/API environment settings and the Java container are documented but not deployed.
+
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog
@@ -365,7 +374,8 @@ A phase is complete only when:
 
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; add initial unit tests for priority classification (latest CI run pending verification).
-- [ ] Add database-backed integration tests for login, issue creation, ticket ownership/assignment, status history, notifications, emergency broadcast, and concurrent bookings. Anonymous and wrong-role API smoke tests now pass.
+- [x] Add PostgreSQL-backed integration test for authentication, issue priority/assignment/status history, wrong-owner status rejection, notifications, emergency broadcast, booking conflict/cancellation, and admin metrics. Anonymous/wrong-role smoke tests pass.
+- [ ] Expand integration coverage with parallel concurrent booking attempts and HTTP-level authenticated success/ownership tests.
 - [ ] Define consistent JSON response/error contracts.
 - [x] Add liveness/readiness endpoints and HTTP API executor shutdown hook; structured request IDs/metrics remain.
 - [x] Move frontend API base URL to `VITE_API_BASE_URL`; document the local example and hosting configuration. (Java API CORS remains fixed to localhost and must be made environment-configurable before hosting.)
