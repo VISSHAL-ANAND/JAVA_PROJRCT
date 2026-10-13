@@ -6,12 +6,15 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import dao.TicketDAO;
 import dao.UserDAO;
+import dao.NotificationDAO;
+import dao.EmergencyDAO;
 import exception.AuthenticationException;
 import model.Issue;
 import model.User;
 import security.AccessTokenService;
 import service.AuthService;
 import service.IssueService;
+import service.EmergencyService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,6 +41,9 @@ public class ApiServer {
     private final IssueService issueService = new IssueService();
     private final AuthService authService = new AuthService(new UserDAO());
     private final TicketDAO ticketDAO = new TicketDAO();
+    private final NotificationDAO notificationDAO = new NotificationDAO();
+    private final EmergencyDAO emergencyDAO = new EmergencyDAO();
+    private final EmergencyService emergencyService = new EmergencyService();
     private final AccessTokenService tokens = new AccessTokenService();
     private HttpServer server;
     private ExecutorService executor;
@@ -51,6 +57,8 @@ public class ApiServer {
         server.createContext("/api/issues", this::handleIssues);
         server.createContext("/api/tickets/reporter", this::handleReporterTickets);
         server.createContext("/api/staff/tickets", this::handleStaffTickets);
+        server.createContext("/api/notifications", this::handleNotifications);
+        server.createContext("/api/emergencies", this::handleEmergencies);
         executor = Executors.newFixedThreadPool(Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2)));
         server.setExecutor(executor);
         server.start();
@@ -229,6 +237,86 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Staff ticket request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process ticket request"));
+        } finally { exchange.close(); }
+    }
+
+
+    private void handleNotifications(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            String path = exchange.getRequestURI().getPath();
+            if ("/api/notifications/me".equals(path)) {
+                if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of("success", true,
+                        "notifications", notificationDAO.findByUser(principal.userId())));
+                return;
+            }
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("^/api/notifications/(\\d+)/read$").matcher(path);
+            if (!matcher.matches()) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                return;
+            }
+            int notificationId = Integer.parseInt(matcher.group(1));
+            if (!notificationDAO.markRead(principal.userId(), notificationId)) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Notification not found"));
+                return;
+            }
+            sendJson(exchange, 200, Map.of("success", true, "message", "Notification marked as read"));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Notification request failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to load notifications"));
+        } finally { exchange.close(); }
+    }
+
+    private void handleEmergencies(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            String method = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(method)) {
+                sendJson(exchange, 200, Map.of("success", true, "emergencies", emergencyDAO.findRecent()));
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(method)) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                return;
+            }
+            if (!"ADMIN".equals(principal.role())) {
+                sendJson(exchange, 403, Map.of("success", false, "message", "Administrator access required"));
+                return;
+            }
+            JsonNode body = readJson(exchange);
+            String title = body.path("title").asText("").trim();
+            String message = body.path("message").asText("").trim();
+            if (title.isBlank() || message.isBlank() || title.length() > 200 || message.length() > 3000) {
+                throw new BadRequestException("A title and message are required within the allowed length");
+            }
+            int id = emergencyService.createEmergency(principal.userId(), title, message);
+            sendJson(exchange, 201, Map.of("success", true, "message", "Emergency broadcast created", "id", id));
+        } catch (BadRequestException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage()));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Emergency request failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process emergency request"));
         } finally { exchange.close(); }
     }
 
