@@ -436,3 +436,11 @@ A phase is complete only when:
 - Existing data-access checks remain owner-scoped for notification reads, booking listing/cancellation, and ticket history; staff status changes require assignment unless the actor is an admin.
 - Verification passed in GitHub Actions run 38448175228: Java compile/tests, frontend production build, Docker image build, and PostgreSQL workflow integration tests all succeeded. Authorization-test JSON literals were corrected in commit 0799d07e3ad95a89db25895d40604564adb4d940 before this successful run.
 - Live Supabase connectivity remains unverified until a dedicated CAMPUSOS project and server-side connection environment are configured. Do not use the unrelated TRAVEL_CRM project or deploy without explicit authorization.
+
+
+### 2026-10-14 — Supabase database-role least privilege
+- The audit found the example CAMPUSOS application-role script granted DELETE on every table and broad default table privileges, although the API only needs DELETE for a user's own future bookings.
+- Tightened resources/supabase_app_role.sql.example to revoke previous broad grants and grant table-specific operations: DELETE only on bookings; read-only access to resources; no UPDATE/DELETE on issues, ticket history, or emergencies; and no automatic table grants for future tables.
+- Kept sequence permissions needed for PostgreSQL identity-generated IDs. New tables require explicit grants in their migration.
+- This changes only the setup example; it has not been applied to any Supabase project. Live verification still requires a dedicated CAMPUSOS project and its server-side connection settings. Never use the unrelated TRAVEL_CRM project.
+- CI verification for this change is pending.
