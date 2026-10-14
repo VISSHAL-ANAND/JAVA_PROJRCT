@@ -479,3 +479,13 @@ A phase is complete only when:
 - Kept that least-privilege boundary. The integration test now creates its temporary resource fixture through a separate test-only admin JDBC connection, while all application workflow operations still use campusos_app.
 - CI passes the fixture-admin settings only to the test step in the disposable PostgreSQL job; these are test container credentials, not live project secrets. The role-backed suite is being rerun.
 - Previous run 38595625011 failed at the expected fixture permission boundary; do not mark the new run verified until all jobs pass.
+
+
+
+### 2026-10-14 — Revalidate token roles against the database
+- Fixed a stale-privilege gap: signed tokens still carry the role that was assigned at login, so role changes could otherwise take effect only after token expiry.
+- Added a current-role lookup by user ID and made every authenticated API request compare the signed token role with the user's current database role. A deleted account or role mismatch now receives HTTP 401; database lookup failures fail closed with HTTP 503 rather than authorizing from stale claims.
+- Added unit coverage for matching roles, changed roles, missing users, and null principals at the role-comparison boundary.
+- This adds a database read to each authenticated request; monitor latency and connection-pool capacity during live smoke testing.
+- Verification: CI was triggered by these commits; check the latest run before treating this change as verified. No deployment or hosted database change was performed.
+- Next: verify all CI jobs, then audit ticket history, staff ticket actions, emergency reads, and booking ownership at the HTTP/API boundary. Keep rate limiting and distributed-deployment concerns on the release checklist.
