@@ -454,8 +454,12 @@ public class ApiServer {
                 sendJson(exchange, 200, Map.of("success", true, "message", "Booking cancelled"));
                 return;
             }
-            if (!"/api/bookings".equals(path) || !"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            if (!"/api/bookings".equals(path)) {
                 sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
                 return;
             }
             JsonNode body = readJson(exchange);
