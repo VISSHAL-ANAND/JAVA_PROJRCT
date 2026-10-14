@@ -255,6 +255,21 @@ class HttpPostgresWorkflowTest {
             assertEquals(405, wrongMethod.statusCode(),
                     "The booking collection must report unsupported methods as HTTP 405");
 
+            HttpResponse<String> malformedResourceId = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "resourceId", 1.9d,
+                                            "startTime", start.toString(),
+                                            "endTime", end.toString()))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, malformedResourceId.statusCode(),
+                    "A fractional resource ID must be rejected instead of truncated to another resource");
+
             HttpResponse<String> create = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
                             .timeout(Duration.ofSeconds(5))
