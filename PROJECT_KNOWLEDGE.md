@@ -757,3 +757,10 @@ A phase is complete only when:
 - Verified CI: [run 38618404805](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38618404805) completed successfully on `280d962`. All four jobs passed; the frontend security unit tests and production-container fail-closed smoke test both passed.
 - No deployment was performed. The guard intentionally does not solve XSS or replace production TLS/CORS configuration.
 - Next priority: run a final route/authorization and dependency/configuration review; only make further changes for a concrete defect with a verifiable regression test.
+
+### 2026-10-14 — Frontend dependency audit added to CI
+
+- Added `npm audit --audit-level=high` after `npm ci` in the frontend CI job. The verified run reported **0 vulnerabilities** (no advisories at any severity in the installed dependency tree) and passed the audit step.
+- CI run [38618848266](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38618848266) completed successfully on `1bcb15d`; Java verification, frontend dependency audit + five security unit tests + production build, PostgreSQL integration tests, and container fail-closed smoke test all passed.
+- The runner log emitted a maintenance warning that `actions/checkout@v4` and `actions/setup-node@v4` target Node.js 20 and are being forced onto Node.js 24. This did not fail CI, but upgrading the workflow actions to supported Node 24-native versions is the next maintenance task.
+- No deployment or production database access was performed.
