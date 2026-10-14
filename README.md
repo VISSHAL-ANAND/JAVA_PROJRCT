@@ -241,6 +241,7 @@ For local development, you can copy `resources/config.properties.example` to `re
 | `CAMPUSOS_DB_PASSWORD` | Database password |
 | `CAMPUSOS_DB_POOL_SIZE` | Optional JDBC connection-pool maximum (1–30; defaults to `db.pool.size` or 10) |
 | `CAMPUSOS_AUTH_SECRET` | At least 32 characters; signs access tokens. Required as a stable secret for hosted/multi-instance use. If omitted locally, a random process-only secret is generated and tokens expire on restart. |
+| `CAMPUSOS_ENV` | The Docker image sets this to `production`, which makes startup fail if `CAMPUSOS_AUTH_SECRET` is missing or shorter than 32 characters. Leave unset only for local development. |
 | `CAMPUSOS_CORS_ORIGINS` | Comma-separated exact allowed frontend origins; defaults to `http://localhost:5173` |
 
 Example PowerShell session for local testing:
