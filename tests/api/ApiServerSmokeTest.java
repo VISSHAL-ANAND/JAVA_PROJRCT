@@ -87,7 +87,9 @@ class ApiServerSmokeTest {
     void authenticatedUserCannotReadAnotherUsersTickets() throws Exception {
         AccessTokenService tokens = new AccessTokenService();
         String token = tokens.issue(new Student(12, "Student", "student@example.test", "", "S12", "CSE"));
-        ApiServer server = new ApiServer(0, tokens);
+        ApiServer server = new ApiServer(0, tokens, new UserDAO() {
+            @Override public Optional<String> findRoleById(int userId) { return Optional.of("STUDENT"); }
+        });
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();
