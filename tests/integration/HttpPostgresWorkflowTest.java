@@ -334,8 +334,11 @@ class HttpPostgresWorkflowTest {
         String studentEmail = "emergency-student-" + suffix + "@example.test";
         int studentId = users.createUser("Emergency Student " + suffix, studentEmail,
                 PasswordHasher.hash(password), "STUDENT", "EMERG" + suffix, "CSE", null);
+        String otherStudentEmail = "emergency-other-" + suffix + "@example.test";
+        users.createUser("Emergency Other Student " + suffix, otherStudentEmail,
+                PasswordHasher.hash(password), "STUDENT", "OTHEREM" + suffix, "CSE", null);
         String adminEmail = "emergency-admin-" + suffix + "@example.test";
-        int adminId = users.createUser("Emergency Admin " + suffix, adminEmail,
+        users.createUser("Emergency Admin " + suffix, adminEmail,
                 PasswordHasher.hash(password), "ADMIN", null, "CSE", null);
 
         ApiServer server = new ApiServer(0);
@@ -390,10 +393,32 @@ class HttpPostgresWorkflowTest {
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, studentInbox.statusCode(), studentInbox.body());
             long studentMatches = 0;
+            int studentNotificationId = 0;
             for (JsonNode notification : JSON.readTree(studentInbox.body()).path("notifications")) {
-                if (expectedNotification.equals(notification.path("message").asText())) studentMatches++;
+                if (expectedNotification.equals(notification.path("message").asText())) {
+                    studentMatches++;
+                    studentNotificationId = notification.path("id").asInt();
+                }
             }
             assertEquals(1L, studentMatches, "Each non-creator recipient must receive exactly one matching notification");
+            assertTrue(studentNotificationId > 0);
+
+            String otherStudentToken = loginToken(client, base, otherStudentEmail, password);
+            HttpResponse<String> deniedRead = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/notifications/" + studentNotificationId + "/read"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + otherStudentToken)
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(404, deniedRead.statusCode(), deniedRead.body());
+
+            HttpResponse<String> ownerRead = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/notifications/" + studentNotificationId + "/read"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, ownerRead.statusCode(), ownerRead.body());
 
             HttpResponse<String> adminInbox = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/notifications/me"))
