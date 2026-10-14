@@ -543,6 +543,146 @@ class HttpPostgresWorkflowTest {
     }
 
 
+
+    @Test
+    void adminUserAndStaffAvailabilityRoutesEnforceRolesOverHttp() throws Exception {
+        UserDAO users = new UserDAO();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String password = "IntegrationPass!2026";
+        String adminEmail = "manage-admin-" + suffix + "@example.test";
+        users.createUser("Management Admin " + suffix, adminEmail,
+                PasswordHasher.hash(password), "ADMIN", null, "CSE", null);
+        String studentEmail = "manage-student-" + suffix + "@example.test";
+        users.createUser("Management Student " + suffix, studentEmail,
+                PasswordHasher.hash(password), "STUDENT", "MGMT" + suffix, "CSE", null);
+
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(3))
+                    .build();
+            String base = "http://127.0.0.1:" + server.getPort();
+            String adminToken = loginToken(client, base, adminEmail, password);
+            String studentToken = loginToken(client, base, studentEmail, password);
+            String managedEmail = "managed-tech-" + suffix + "@example.test";
+            String managedName = "Managed Technician " + suffix;
+
+            HttpResponse<String> createUser = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "name", managedName,
+                                            "email", managedEmail,
+                                            "password", password,
+                                            "role", "TECHNICIAN",
+                                            "department", "CSE",
+                                            "specialization", "Facilities"))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, createUser.statusCode(), createUser.body());
+            int managedUserId = JSON.readTree(createUser.body()).path("userId").asInt();
+            assertTrue(managedUserId > 0);
+
+            HttpResponse<String> adminUsers = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, adminUsers.statusCode(), adminUsers.body());
+            boolean foundManagedUser = false;
+            for (JsonNode user : JSON.readTree(adminUsers.body()).path("users")) {
+                if (user.path("id").asInt() == managedUserId
+                        && managedEmail.equals(user.path("email").asText())
+                        && "TECHNICIAN".equals(user.path("role").asText())) {
+                    foundManagedUser = true;
+                    assertFalse(user.has("passwordHash"));
+                    assertFalse(user.has("password_hash"));
+                    break;
+                }
+            }
+            assertTrue(foundManagedUser, "Admin user list must expose the created staff member without password hashes");
+
+            HttpResponse<String> unavailable = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users/" + managedUserId + "/availability"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(
+                                    JSON.writeValueAsString(java.util.Map.of("available", false))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, unavailable.statusCode(), unavailable.body());
+
+            HttpResponse<String> studentAvailability = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users/" + managedUserId + "/availability"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(
+                                    JSON.writeValueAsString(java.util.Map.of("available", true))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, studentAvailability.statusCode(), studentAvailability.body());
+
+            HttpResponse<String> staffList = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/staff"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, staffList.statusCode(), staffList.body());
+            boolean foundUnavailableStaff = false;
+            for (JsonNode staff : JSON.readTree(staffList.body()).path("staff")) {
+                if (staff.path("id").asInt() == managedUserId) {
+                    foundUnavailableStaff = !staff.path("available").asBoolean(true);
+                    break;
+                }
+            }
+            assertTrue(foundUnavailableStaff, "Non-admin availability update must not change the staff member");
+
+            HttpResponse<String> studentCreate = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "name", "Unauthorized " + suffix,
+                                            "email", "unauthorized-" + suffix + "@example.test",
+                                            "password", password,
+                                            "role", "TECHNICIAN",
+                                            "department", "CSE",
+                                            "specialization", "Facilities"))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, studentCreate.statusCode(), studentCreate.body());
+
+            HttpResponse<String> invalidRole = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "name", "Invalid Role " + suffix,
+                                            "email", "invalid-role-" + suffix + "@example.test",
+                                            "password", password,
+                                            "role", "SUPERUSER",
+                                            "department", "CSE"))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidRole.statusCode(), invalidRole.body());
+        } finally {
+            server.stop();
+        }
+    }
+
+
     @Test
     void httpRejectsTokenAfterDatabaseRoleChanges() throws Exception {
         UserDAO users = new UserDAO();
