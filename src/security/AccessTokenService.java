@@ -74,6 +74,12 @@ public final class AccessTokenService {
         }
     }
 
+    /** Returns true only when the signed role still matches the user's current database role. */
+    public boolean hasCurrentRole(Principal principal, String currentRole) {
+        return principal != null && currentRole != null
+                && principal.role().equals(currentRole);
+    }
+
     private byte[] sign(String value) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
