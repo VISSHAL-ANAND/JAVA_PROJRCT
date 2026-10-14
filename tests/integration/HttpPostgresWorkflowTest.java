@@ -154,7 +154,7 @@ class HttpPostgresWorkflowTest {
                             .timeout(Duration.ofSeconds(5))
                             .header("Authorization", "Bearer " + technicianToken)
                             .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString("{\\"status\\":\\"IN_PROGRESS\\"}"))
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"status\":\"IN_PROGRESS\"}"))
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, assignedUpdate.statusCode(), assignedUpdate.body());
@@ -176,7 +176,7 @@ class HttpPostgresWorkflowTest {
                             .timeout(Duration.ofSeconds(5))
                             .header("Authorization", "Bearer " + otherTechnicianToken)
                             .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString("{\\"status\\":\\"RESOLVED\\"}"))
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"status\":\"RESOLVED\"}"))
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(403, deniedOtherTechnician.statusCode(), deniedOtherTechnician.body());
@@ -187,7 +187,7 @@ class HttpPostgresWorkflowTest {
                             .timeout(Duration.ofSeconds(5))
                             .header("Authorization", "Bearer " + token)
                             .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString("{\\"status\\":\\"RESOLVED\\"}"))
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"status\":\"RESOLVED\"}"))
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(403, deniedStudentUpdate.statusCode(), deniedStudentUpdate.body());
