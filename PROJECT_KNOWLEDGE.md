@@ -729,3 +729,13 @@ A phase is complete only when:
 - The current validated API changes cover strict JSON types for login credentials, issue fields, emergency fields, admin-created user fields, ticket status, staff assignment IDs, booking resource IDs, and boolean staff availability; malformed/reversed booking times and oversized emergency inputs have explicit regression coverage.
 - No deployment or production database access was performed. Local tests remain unrun because repository cloning is blocked by GitHub DNS resolution in this environment.
 - Next priority: continue the API security/data-integrity audit for a concrete gap; preserve current role and ownership controls and require a regression test for any fix.
+
+### 2026-10-14 — Production container now fails closed without token secret
+
+- Security review found the Docker image did not set `CAMPUSOS_ENV=production`. Because `AccessTokenService` generates a random development-only secret when production mode is absent, a hosted container could silently start without the stable auth secret and invalidate tokens on restart or across replicas.
+- Set `CAMPUSOS_ENV=production` in the runtime image and documented the behavior in the backend environment-variable table. The container now requires `CAMPUSOS_AUTH_SECRET` of at least 32 characters at startup.
+- Added a CI smoke step that runs the built image without the secret and asserts it exits nonzero with the expected configuration error. Existing `AccessTokenServiceTest.productionRequiresConfiguredSecret` continues to cover the secret resolver.
+- Commits: [ee366ed](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/ee366edd3824e97cfdd141ad4e09ef97b87972e0) (container production mode), [0ad3e4c](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/0ad3e4c571af3c6c6070eba589ede45478fcc144) (documentation), and [bbbf31c](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/bbbf31c728dcfea1afa4ac3900586c5f6ef7f959) (CI smoke test).
+- Verified CI: [run 38617474025](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38617474025) completed successfully on `bbbf31c`; all four jobs passed, including the new fail-closed container smoke test.
+- No deployment was performed. Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment.
+- Next priority: continue the security audit around browser token handling and frontend/API boundary hardening; do not deploy without the configured production secret and verified hosting settings.
