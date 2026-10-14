@@ -430,7 +430,7 @@ GET /api/tickets/reporter/1
 
 Returns a JSON object containing the ticket list, including fields such as ID, title, category, location, priority, status and creation time.
 
-The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. The API includes staff ticket workflow, ticket history, notifications, resource booking/cancellation, emergency feed/broadcast, and admin user/assignment routes. Token revocation, database-backed integration tests, and rate-limit hardening across instances remain release blockers.
+The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. The API includes staff ticket workflow, ticket history, notifications, resource booking/cancellation, emergency feed/broadcast, and admin user/assignment routes. Token revocation, verification against a dedicated live Supabase project, and rate-limit hardening across instances remain release blockers.
 
 ### Other authenticated API routes
 
@@ -493,7 +493,7 @@ The codebase includes security-related foundations:
 - **Prepared statements:** DAO queries use parameterized SQL for database operations.
 - **Role and access-control classes:** Role checks are represented in the security layer.
 
-These foundations do **not** mean the web application is production-secure. The current React login stores the returned user only in frontend state; API requests are not yet protected by a verified session/token. There is also no complete CSRF/session lifecycle, deployment hardening, audit trail, or comprehensive authorization test suite. Do not expose this development server to the public internet with real campus or personal data.
+These foundations do **not** mean the web application is production-secure. The React client stores a signed bearer token in `sessionStorage`, which is accessible to same-origin JavaScript and increases the impact of any cross-site scripting (XSS) flaw. The API verifies tokens and checks current database roles plus route-specific ownership/role rules, and CI includes unit and PostgreSQL-backed HTTP integration tests. Production TLS/CORS configuration, token revocation, an audit trail, distributed rate limiting, and a complete security review remain outstanding. Do not expose this development server to the public internet with real campus or personal data.
 
 ## Testing and verification
 
