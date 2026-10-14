@@ -7,6 +7,8 @@ public class EmergencyService {
     public int createEmergency(int createdBy,String title,String message)throws SQLException{
         if(createdBy<=0||title==null||title.isBlank()||message==null||message.isBlank())
             throw new IllegalArgumentException("Emergency details are required");
+        if(title.length()>200||message.length()>3000)
+            throw new IllegalArgumentException("Emergency title or message exceeds the allowed length");
         try(Connection c=DBConnection.getConnection()){
             c.setAutoCommit(false);
             try{
