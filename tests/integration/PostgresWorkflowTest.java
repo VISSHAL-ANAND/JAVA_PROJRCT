@@ -113,10 +113,26 @@ class PostgresWorkflowTest {
         assertFalse(inbox.isEmpty());
         assertTrue(notifications.markRead(studentId, ((Number) inbox.get(0).get("id")).intValue()));
 
-        int emergencyId = new EmergencyService().createEmergency(adminId, "Integration alert", "Follow the posted safety instructions.");
+        String emergencyTitle = "Integration alert";
+        String emergencyBody = "Follow the posted safety instructions.";
+        int emergencyId = new EmergencyService().createEmergency(adminId, emergencyTitle, emergencyBody);
         assertTrue(emergencyId > 0);
         assertTrue(new EmergencyDAO().findRecent().stream()
                 .anyMatch(item -> ((Number) item.get("id")).intValue() == emergencyId));
+
+        // Every other account receives exactly one broadcast notification; the creator is excluded.
+        String emergencyNotification = "EMERGENCY: " + emergencyTitle + " - " + emergencyBody;
+        for (int recipientId : List.of(studentId, technicianId, otherTechnicianId)) {
+            long matchingNotifications = notifications.findByUser(recipientId).stream()
+                    .filter(item -> emergencyNotification.equals(item.get("message")))
+                    .count();
+            assertEquals(1L, matchingNotifications,
+                    "Each non-creator account must receive exactly one emergency notification");
+        }
+        long creatorNotifications = notifications.findByUser(adminId).stream()
+                .filter(item -> emergencyNotification.equals(item.get("message")))
+                .count();
+        assertEquals(0L, creatorNotifications, "The emergency creator must not receive their own broadcast");
 
         int resourceId;
         try (Connection connection = openFixtureConnection();
