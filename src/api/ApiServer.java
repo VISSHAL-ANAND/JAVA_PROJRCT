@@ -178,6 +178,11 @@ public class ApiServer {
             }
 
             JsonNode body = readJson(exchange);
+            for (String field : new String[] {"title", "description", "category", "location"}) {
+                if (body.has(field) && !body.path(field).isTextual()) {
+                    throw new BadRequestException("Issue fields must be strings");
+                }
+            }
             String title = body.path("title").asText("").trim();
             String description = body.path("description").asText("").trim();
             String category = body.path("category").asText("").trim();
@@ -514,6 +519,11 @@ public class ApiServer {
             }
             if ("/api/admin/users".equals(path) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 JsonNode body = readJson(exchange);
+                for (String field : new String[] {"name", "email", "password", "role", "registerNumber", "department", "specialization"}) {
+                    if (body.has(field) && !body.path(field).isTextual()) {
+                        throw new BadRequestException("User fields must be strings");
+                    }
+                }
                 String name = body.path("name").asText("").trim();
                 String email = body.path("email").asText("").trim().toLowerCase(java.util.Locale.ROOT);
                 String password = body.path("password").asText("");
