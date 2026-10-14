@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Verify the new admin-assignment regression against PostgreSQL once GitHub Actions allocates a runner; then add an HTTP regression for admin-created users and staff availability. The targeted credential-history review is recorded below. The connected GitHub interface does not expose the repository's secret-scanning alert dashboard, so the owner must check Security → Secret scanning for server-side alerts. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Add HTTP/PostgreSQL regression coverage for admin-created users and staff availability, including invalid-role and non-admin denial cases. The targeted credential-history review is recorded below. The connected GitHub interface does not expose the repository's secret-scanning alert dashboard, so the owner must check Security → Secret scanning for server-side alerts. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -628,10 +628,11 @@ A phase is complete only when:
 - Next: audit HTTP authorization for admin ticket assignment and user/staff-management routes. No deployment or live database access was performed.
 
 
-### 2026-10-14 — Admin ticket assignment HTTP regression (runtime verification pending)
 
-- Added `adminCanAssignOpenTicketOverHttpAndStudentsCannot` to `tests/integration/HttpPostgresWorkflowTest.java`. It creates a test issue and open ticket, assigns it to an available technician through the authenticated admin endpoint, verifies a student receives HTTP 403 when attempting the same admin operation, and checks the technician's queue and the reporter-visible assignment history.
+### 2026-10-14 — Admin ticket assignment HTTP regression verified
+
+- Added `adminCanAssignOpenTicketOverHttpAndStudentsCannot` to `tests/integration/HttpPostgresWorkflowTest.java`. It creates a test issue and open ticket, assigns it to an available technician through the authenticated admin endpoint, verifies a student receives HTTP 403 when attempting the same operation, and checks the technician's queue and the reporter-visible assignment history.
 - Commit: [575a242](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/575a24278ea31641f130f004651771ed94387a77).
-- CI run [38612498688](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38612498688) completed Java compile/verification, container build, and frontend production build successfully. Its PostgreSQL integration job remained queued and did not execute, so this regression's database-backed runtime result is **unverified**.
-- Local execution remains unavailable because repository cloning fails due DNS/network restrictions. No deployment or live database changes were made.
-- Next: once PostgreSQL CI runs, fix any runtime failures and record the result; then test admin-created user/staff availability over HTTP.
+- The initial workflow run [38612498688](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38612498688) had its PostgreSQL job stuck queued; the follow-up run [38612923042](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38612923042) completed successfully on the latest documentation commit. All four jobs passed: Java verification, PostgreSQL integration tests, API container build, and frontend production build.
+- No live database or deployment was touched. Local tests remain unavailable because repository cloning fails due DNS/network restrictions.
+- Next: test admin-created users and staff availability over HTTP, then continue the route/security audit.
