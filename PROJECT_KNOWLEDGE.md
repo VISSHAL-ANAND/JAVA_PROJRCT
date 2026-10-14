@@ -646,3 +646,13 @@ A phase is complete only when:
 - The current PostgreSQL HTTP integration suite includes emergency broadcast recipient/creator exclusion checks, admin ticket assignment authorization, admin user creation/listing, staff availability authorization and visibility, and rejection of tokens after a database role change.
 - Local tests remain unrun because cloning the repository in this environment fails at DNS resolution for GitHub. The successful CI run is the verified test evidence; it does not imply a local run or production database check. No live database or deployment was touched.
 - Next priority: continue the route-by-route API security audit, focusing on HTTP method handling, role/ownership checks, and malformed input behavior; add focused regression coverage for any concrete gap before changing production code.
+
+### 2026-10-14 — Admin assignment input validation verified
+
+- Route audit found that `POST /api/admin/tickets/{id}/assign` read `staffId` using Jackson's `asInt(0)`, which can coerce a fractional JSON number instead of rejecting malformed input.
+- Updated `src/api/ApiServer.java` to require `staffId` to be an integral JSON number, convertible to a Java `int`, and greater than zero; invalid values now produce HTTP 400 before the DAO is called.
+- Added an HTTP/PostgreSQL integration regression in `adminCanAssignOpenTicketOverHttpAndStudentsCannot`: a fractional `staffId` is rejected with 400, while the valid admin assignment and student-denial assertions still run.
+- Commits: [e99c4ea](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/e99c4ea9467c9fe045a65e07ff46c93e68657c0e) (validation) and [e90a898](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/e90a8983f48f9a7fe51639376543c372c72758c5) (regression test).
+- Verified CI: [run 38614244817](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38614244817) completed successfully on `e90a898`. All four jobs passed, including the PostgreSQL-backed integration test step. The previous known-good run [38613721895](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38613721895) also passed all four jobs before this change.
+- Local tests remain unrun because repository cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
+- Next priority: continue the API route audit, especially consistent method handling and malformed input at booking/resource boundaries; only change behavior where a concrete defect and regression test are established.
