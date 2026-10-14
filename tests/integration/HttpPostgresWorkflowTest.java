@@ -33,11 +33,19 @@ class HttpPostgresWorkflowTest {
         int otherStudentId = users.createUser("HTTP Other Student " + suffix,
                 otherEmail, PasswordHasher.hash(password), "STUDENT", "OTHER" + suffix, "CSE", null);
         String technicianEmail = "http-tech-" + suffix + "@example.test";
-        users.createUser("HTTP Assigned Technician " + suffix, technicianEmail,
+        int technicianId = users.createUser("HTTP Assigned Technician " + suffix, technicianEmail,
                 PasswordHasher.hash(password), "TECHNICIAN", null, "CSE", "Facilities");
         String otherTechnicianEmail = "http-other-tech-" + suffix + "@example.test";
         users.createUser("HTTP Other Technician " + suffix, otherTechnicianEmail,
                 PasswordHasher.hash(password), "TECHNICIAN", null, "CSE", "Plumbing");
+        String fixtureAdminEmail = "http-assignment-admin-" + suffix + "@example.test";
+        int fixtureAdminId = users.createUser("HTTP Assignment Admin " + suffix, fixtureAdminEmail,
+                PasswordHasher.hash(password), "ADMIN", null, "CSE", null);
+        int statusIssueId = new dao.IssueDAO().createIssue(
+                new model.Issue(0, "HTTP status fixture " + suffix, "Fixture for staff status authorization",
+                        "Facilities", "Status Block", null, model.Priority.MEDIUM));
+        int statusTicketId = new dao.TicketDAO().createTicket(statusIssueId, studentId);
+        new dao.TicketDAO().assignTicketToStaff(statusTicketId, technicianId, fixtureAdminId);
 
         ApiServer server = new ApiServer(0);
         server.start();
@@ -150,7 +158,7 @@ class HttpPostgresWorkflowTest {
             assertFalse(technicianToken.isBlank());
 
             HttpResponse<String> assignedUpdate = client.send(
-                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + ticketId + "/status"))
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + statusTicketId + "/status"))
                             .timeout(Duration.ofSeconds(5))
                             .header("Authorization", "Bearer " + technicianToken)
                             .header("Content-Type", "application/json")
@@ -172,7 +180,7 @@ class HttpPostgresWorkflowTest {
             assertFalse(otherTechnicianToken.isBlank());
 
             HttpResponse<String> deniedOtherTechnician = client.send(
-                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + ticketId + "/status"))
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + statusTicketId + "/status"))
                             .timeout(Duration.ofSeconds(5))
                             .header("Authorization", "Bearer " + otherTechnicianToken)
                             .header("Content-Type", "application/json")
@@ -183,7 +191,7 @@ class HttpPostgresWorkflowTest {
             assertTrue(deniedOtherTechnician.body().contains("not assigned to your account"));
 
             HttpResponse<String> deniedStudentUpdate = client.send(
-                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + ticketId + "/status"))
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + statusTicketId + "/status"))
                             .timeout(Duration.ofSeconds(5))
                             .header("Authorization", "Bearer " + token)
                             .header("Content-Type", "application/json")
