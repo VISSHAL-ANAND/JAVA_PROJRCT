@@ -366,15 +366,15 @@ A phase is complete only when:
 - [x] Choose and document a signed bearer-token strategy with expiry; stable hosted secret required. Individual token revocation is not implemented.
 - [x] Implement token-verified identity for issue submission and reporter ticket reads; role checks for issue creation. Staff/admin route authorization remains to do.
 - [x] Derive issue reporter identity from token and verify ticket route ID matches authenticated user.
-- [x] Enforce reporter ticket ownership at the HTTP route; add a smoke test for cross-user reporter-ID access (new test commit; latest CI pending). Continue auditing all read/update routes.
-- [x] Enforce a 16 KiB JSON request-body limit and exact application/json media type (parameters such as charset remain accepted); added tests for application/jsonp rejection and oversized bodies. Latest CI pending.
+- [x] Enforce reporter ticket ownership at the HTTP route; add a smoke test for cross-user reporter-ID access. The authenticated HTTP-to-PostgreSQL success/ownership workflow also passes CI run 38608976116. Continue auditing all read/update routes.
+- [x] Enforce a 16 KiB JSON request-body limit and exact application/json media type (parameters such as charset remain accepted); tests cover application/jsonp rejection and oversized bodies.
 - [x] CI run 38433702324 passed Java verification, frontend production build, Docker image build, and PostgreSQL-backed workflow integration tests. Earlier CI run 38428705148 passed Java verify, frontend build, and 9 unit/smoke tests.
 - [x] Add wrong-role, anonymous-access, priority, and PostgreSQL-backed success/workflow tests; expand invalid-input and HTTP authenticated ownership coverage.
 
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; priority classification tests are included in passing CI.
 - [x] Add PostgreSQL-backed integration test for authentication, issue priority/assignment/status history, wrong-owner status rejection, notifications, emergency broadcast, booking conflict/cancellation, and admin metrics. Anonymous/wrong-role smoke tests pass in CI.
-- [x] Expand PostgreSQL integration coverage for cross-user booking cancellation denial and cross-technician ticket status-update denial; the existing parallel capacity-one booking test remains in place. Authenticated HTTP success flows against a dedicated live database are still pending.
+- [x] Expand PostgreSQL integration coverage for cross-user booking cancellation denial and cross-technician ticket status-update denial; the existing parallel capacity-one booking test remains in place. `HttpPostgresWorkflowTest` now covers login → authenticated issue creation → persisted reporter retrieval → cross-reporter denial against disposable PostgreSQL. Live Supabase remains unverified.
 - [x] Add HTTP validation tests for malformed JSON, wrong Content-Type, JSONP-like media types, and oversized bodies; CI verification pending.
 - [ ] Define consistent JSON response/error contracts.
 - [x] Add liveness/readiness endpoints and HTTP API executor shutdown hook; structured request IDs/metrics remain.
@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Continue the API security/ownership audit, add focused regression tests for any gaps found, and prepare a safe live Supabase smoke test once a dedicated CAMPUSOS project is configured. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. The schema and PostgreSQL CI integration exist, but a live Supabase smoke test is not possible until connection details are configured. resources/config.properties was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored resources/config.properties or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Add a real-PostgreSQL regression proving that changing a user's database role invalidates an already-issued bearer token at the HTTP boundary. Then continue the route/ownership audit and a deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -530,5 +530,16 @@ A phase is complete only when:
 - Expanded `tests/integration/PostgresWorkflowTest.java` to assert that an emergency broadcast creates exactly one matching notification for each tested non-creator account (student and two technicians) and no matching notification for the admin who created the emergency.
 - The test also continues to verify that the emergency record is persisted and visible through `EmergencyDAO.findRecent()`. It runs only in the disposable PostgreSQL integration workflow when `CAMPUSOS_IT_ENABLED=true`.
 - Implementation review: `EmergencyService.createEmergency` inserts the emergency and broadcast notifications in the same transaction, selecting every user except `createdBy`; a failure rolls back both writes. The new test adds recipient-level assertions, not a change to production behavior.
-- Verification status: pending GitHub Actions for the new test commit. No live Supabase connection was attempted, and no deployment or hosted database changes were made.
-- Next priorities: verify CI for this regression, inspect authenticated HTTP workflows against PostgreSQL, and arrange a safe live smoke test only after the dedicated CAMPUSOS database access is available.
+- Verification: GitHub Actions run [38608527392](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38608527392) completed successfully on the documentation commit whose parent contains this regression; all four jobs passed, including PostgreSQL workflow integration tests. The test-only commit's own run was cancelled by the workflow concurrency policy and is covered by this subsequent successful run.
+- No live Supabase connection was attempted, and no deployment or hosted database changes were made.
+
+
+### 2026-10-14 — Authenticated HTTP-to-PostgreSQL workflow regression
+
+- Added `tests/integration/HttpPostgresWorkflowTest.java`, gated by `CAMPUSOS_IT_ENABLED=true`, to exercise the real HTTP server and disposable PostgreSQL app role together.
+- The test creates isolated student accounts, logs in through `POST /api/auth/login`, submits an issue through authenticated `POST /api/issues`, retrieves the created ticket through `GET /api/tickets/reporter/{id}`, and confirms the same token cannot read another student's ticket list (HTTP 403).
+- This closes the previous test-coverage gap between mocked HTTP authorization tests and service/DAO-only PostgreSQL integration tests. It does not contact or modify live Supabase.
+- Commit: [f658bd9](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/f658bd95cf5cf5fcda45c0549cf7776741b9f2a2).
+- Verification passed in GitHub Actions run [38608976116](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38608976116): Java compile/verification, PostgreSQL workflow integration tests, Java API container build, and frontend production build all succeeded.
+- Local Maven tests were not run in this environment because cloning the repository previously failed due to unavailable DNS/network access; CI executed the tests against disposable PostgreSQL successfully.
+- Next priority: add a database-backed HTTP regression for token invalidation after a real user-role change. No deployment or hosted database changes were made.
