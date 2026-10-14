@@ -392,8 +392,13 @@ public class ApiServer {
                 return;
             }
             JsonNode body = readJson(exchange);
-            String title = body.path("title").asText("").trim();
-            String message = body.path("message").asText("").trim();
+            JsonNode titleNode = body.path("title");
+            JsonNode messageNode = body.path("message");
+            if (!titleNode.isTextual() || !messageNode.isTextual()) {
+                throw new BadRequestException("Title and message must be strings");
+            }
+            String title = titleNode.asText().trim();
+            String message = messageNode.asText().trim();
             if (title.isBlank() || message.isBlank() || title.length() > 200 || message.length() > 3000) {
                 throw new BadRequestException("A title and message are required within the allowed length");
             }
