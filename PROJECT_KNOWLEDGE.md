@@ -714,3 +714,11 @@ A phase is complete only when:
 - Verified CI: [run 38616603288](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38616603288) completed successfully on `eb95954`; Java verification, PostgreSQL integration tests, frontend build, and API container build all passed.
 - Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
 - Next priority: inspect remaining API handlers for unhandled field-type coercion and service-layer invariants; preserve role/ownership behavior and add focused tests for any concrete defect.
+
+### 2026-10-14 — Ticket status JSON type validation
+
+- Extended the field-type audit to `POST /api/staff/tickets/{id}/status`. The handler now requires `status` to be a JSON string before normalizing or calling the DAO; numeric/boolean/object values return HTTP 400 rather than being coerced and potentially reported as an invalid state transition.
+- Added an HTTP/PostgreSQL regression that submits numeric `status`, asserts HTTP 400, then continues with the valid `IN_PROGRESS` transition to prove the rejected request did not prevent the legitimate workflow.
+- Commits: [6293334](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/6293334d8d4833c4bd25f06937aaf41054cc0b42) (validation) and [182888e](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/182888ede0f6e93d8995d1584f885886124114b4) (regression test).
+- The workflow for the test commit was cancelled during rapid successive pushes; this is not a pass or failure. A fresh CI run on the current main head is required before marking this change verified.
+- Next priority: inspect remaining API handlers and service-layer invariants for concrete type-validation gaps. No deployment or production database access was performed.
