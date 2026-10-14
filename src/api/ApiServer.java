@@ -611,11 +611,23 @@ public class ApiServer {
             sendJson(exchange, 401, Map.of("success", false, "message", "Authentication required"));
             return null;
         }
-        AccessTokenService.Principal principal = tokens.verify(authorization.substring(7).trim());
+        String token = authorization.substring(7).trim();
+        AccessTokenService.Principal principal = tokens.verify(token);
         if (principal == null) {
             sendJson(exchange, 401, Map.of("success", false, "message", "Session expired or invalid. Please sign in again."));
+            return null;
         }
-        return principal;
+        try {
+            java.util.Optional<String> role = new UserDAO().findRoleById(principal.userId());
+            if (role.isEmpty() || !tokens.hasCurrentRole(principal, role.get())) {
+                sendJson(exchange, 401, Map.of("success", false, "message", "Account or permissions changed; sign in again."));
+                return null;
+            }
+            return principal;
+        } catch (SQLException exception) {
+            sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
+            return null;
+        }
     }
 
     private JsonNode readJson(HttpExchange exchange) throws IOException, BadRequestException {
