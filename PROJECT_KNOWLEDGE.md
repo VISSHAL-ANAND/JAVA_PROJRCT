@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Add HTTP/PostgreSQL coverage for the administrator emergency-broadcast success path: authenticated admin creates an emergency, other authenticated users can read it, recipients see exactly one notification, and non-admin creation is denied. Then continue the deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Add HTTP/PostgreSQL coverage for notification ownership: the intended recipient can mark their notification read, while another authenticated user cannot alter it. Then continue the deeper Git-history secret scan and remaining API route audit. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -595,3 +595,14 @@ A phase is complete only when:
 - Verification passed in GitHub Actions run [38610705111](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38610705111): Java verification, PostgreSQL workflow integration tests, Java API container build, and frontend production build all succeeded.
 - The privileged fixture connection only creates a disposable test resource; booking operations run through the least-privilege application role. No live Supabase connection or deployment occurred.
 - Next priority: exercise administrator emergency creation and recipient notification through the authenticated HTTP/PostgreSQL path.
+
+
+### 2026-10-14 — Emergency broadcast through authenticated HTTP
+
+- Added `httpEmergencyBroadcastPersistsAndNotifiesRecipients` to `tests/integration/HttpPostgresWorkflowTest.java`.
+- The test creates a disposable admin and student, authenticates through the HTTP login endpoint, verifies admin-only emergency creation returns HTTP 201, and confirms another authenticated user can retrieve the persisted emergency feed.
+- It checks the student receives exactly one matching broadcast notification, the creator admin receives none, and a student attempting to create an emergency receives HTTP 403.
+- Commit: [ea23c3d](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/ea23c3d219215194c9ae8b452b1dd561288b1076).
+- Verification passed in GitHub Actions run [38611005434](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38611005434): Java verification, PostgreSQL integration tests, API container build, and frontend production build all succeeded.
+- The test runs only against the disposable PostgreSQL CI database; no hosted database or deployment was touched.
+- Next priority: verify notification read ownership at the HTTP boundary, then continue the Git-history secret scan and route audit.
