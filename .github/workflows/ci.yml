@@ -58,6 +58,23 @@ jobs:
         uses: actions/checkout@v4
       - name: Build container image
         run: docker build --tag campusos-api:ci .
+      - name: Verify container fails closed without auth secret
+        shell: bash
+        run: |
+          set +e
+          output="$(docker run --rm campusos-api:ci 2>&1)"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "::error::Container started without CAMPUSOS_AUTH_SECRET"
+            exit 1
+          fi
+          if ! grep -q "CAMPUSOS_AUTH_SECRET must be configured" <<<"$output"; then
+            echo "$output"
+            echo "::error::Container failed for an unexpected reason"
+            exit 1
+          fi
+          echo "Container correctly fails closed without CAMPUSOS_AUTH_SECRET."
 
   postgres-integration:
     name: PostgreSQL workflow integration tests
