@@ -148,7 +148,7 @@ CORS currently allows the Vite development origin `http://localhost:5173`, and t
 - `AuthService.authenticate` checks blank inputs, uses `UserDAO.findForAuthentication`, verifies passwords with `PasswordHasher.verify`, and applies a rate limiter.
 - The API returns user id, name, email, and role after successful login.
 - **Latest change:** API login now issues a signed HMAC-SHA256 bearer token with a two-hour expiry. Issue creation and ticket listing require a valid token; issue creation is limited to STUDENT/FACULTY, the reporter ID comes from the token, and ticket listing checks the path ID matches the token identity. Frontend sends the bearer token and keeps it in sessionStorage.
-- CAMPUSOS_AUTH_SECRET must be configured to a strong stable value (32+ characters) for hosted use. If absent, a random per-process key is generated for local development, so tokens stop validating after restart. Current stateless tokens cannot be individually revoked before expiry; full route-by-route role coverage and security tests remain required.
+- CAMPUSOS_AUTH_SECRET must be configured to a strong stable value (32+ characters) for hosted use. If absent, a random per-process key is generated for local development, so tokens stop validating after restart. Every authenticated API request now rechecks the token's user ID and role against the database, so deleted accounts and changed roles are rejected immediately. Individual token revocation while the same account and role remain active is not implemented; full route-by-route role coverage and security tests remain required.
 
 ### Issue submission
 - `IssueService.submit` validates the issue/reporter ID, calculates priority, and creates issue + ticket inside a JDBC transaction.
