@@ -25,6 +25,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -120,6 +126,43 @@ class PostgresWorkflowTest {
         assertEquals(1, bookings.findByUser(studentId).size());
         assertTrue(bookings.cancelFutureBooking(bookingId, studentId));
         assertTrue(bookings.findByUser(studentId).isEmpty());
+
+        // Two simultaneous requests for a capacity-one resource must not both succeed.
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch startGate = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<Integer> firstAttempt = pool.submit(() -> {
+                ready.countDown();
+                if (!startGate.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("Booking test start timed out");
+                return bookings.createIfAvailable(resourceId, studentId, start.plusHours(3), end.plusHours(3));
+            });
+            Future<Integer> secondAttempt = pool.submit(() -> {
+                ready.countDown();
+                if (!startGate.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("Booking test start timed out");
+                return bookings.createIfAvailable(resourceId, adminId, start.plusHours(3), end.plusHours(3));
+            });
+            assertTrue(ready.await(5, TimeUnit.SECONDS), "Booking workers did not become ready");
+            startGate.countDown();
+            int successes = 0;
+            int conflicts = 0;
+            for (Future<Integer> attempt : List.of(firstAttempt, secondAttempt)) {
+                try {
+                    assertTrue(attempt.get(10, TimeUnit.SECONDS) > 0);
+                    successes++;
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof SQLException sql && "23P01".equals(sql.getSQLState())) {
+                        conflicts++;
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+            assertEquals(1, successes);
+            assertEquals(1, conflicts);
+        } finally {
+            pool.shutdownNow();
+        }
 
         Map<String, Object> overview = new AdminDAO().getOverview();
         assertTrue(((Number) overview.get("totalUsers")).intValue() >= 3);

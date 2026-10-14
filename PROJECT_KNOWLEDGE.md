@@ -465,3 +465,10 @@ A phase is complete only when:
 - Tightened the CAMPUSOS app-role example further: users can only be updated in the available column; tickets only in assigned_technician_id, status, and updated_at; notifications only in is_read. SELECT/INSERT grants remain table-specific, and DELETE remains limited to bookings.
 - Expanded the disposable PostgreSQL CI privilege checks to prove permitted column updates work and writes to users.role and notifications.user_id are rejected.
 - These are setup/CI-only changes; no hosted database has been modified. CI verification is pending.
+
+
+### 2026-10-14 — Run integration tests using the least-privilege database role
+- Changed the PostgreSQL CI workflow to run the full Maven/PostgreSQL integration suite as campusos_app instead of the postgres superuser. This ensures application queries are actually compatible with the intended production permissions.
+- The stricter role exposed a design constraint in booking capacity checks: SELECT ... FOR UPDATE requires UPDATE privilege on resources. Replaced that table-row lock with a transaction-scoped PostgreSQL advisory lock per resource, so concurrent booking attempts remain serialized without granting the application permission to modify resource inventory.
+- Added a concurrent capacity-one booking regression test: two overlapping simultaneous attempts must yield exactly one booking and one 23P01 capacity conflict.
+- CI verification for the new least-privilege end-to-end run is pending. The previous column-level privilege checks passed in run 38595255824. No hosted database has been touched.

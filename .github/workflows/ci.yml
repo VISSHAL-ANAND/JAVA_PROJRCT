@@ -132,4 +132,7 @@ jobs:
             echo "Confirmed campusos_app cannot reassign notifications."
           fi
       - name: Run PostgreSQL-backed workflow tests
+        env:
+          CAMPUSOS_DB_USERNAME: campusos_app
+          CAMPUSOS_DB_PASSWORD: REPLACE_WITH_A_LONG_RANDOM_PASSWORD
         run: mvn --batch-mode --no-transfer-progress clean verify

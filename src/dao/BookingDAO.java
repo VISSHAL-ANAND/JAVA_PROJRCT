@@ -10,14 +10,23 @@ import java.util.List;
 import java.util.Map;
 
 public class BookingDAO {
+    private static final int BOOKING_LOCK_NAMESPACE = 1128351312;
+
     public int createIfAvailable(int resourceId, int userId, LocalDateTime start, LocalDateTime end) throws SQLException {
-        String resourceSql = "SELECT quantity, available FROM resources WHERE id = ? FOR UPDATE";
+        String resourceSql = "SELECT quantity, available FROM resources WHERE id = ?";
         String overlapSql = "SELECT COUNT(*) FROM bookings WHERE resource_id = ? AND start_time < ? AND end_time > ?";
         String insertSql = "INSERT INTO bookings(resource_id,booked_by,start_time,end_time) VALUES(?,?,?,?)";
 
         try (Connection connection = DBConnection.getConnection()) {
             connection.setAutoCommit(false);
             try {
+                // Serialize booking attempts for this resource without requiring UPDATE on resources.
+                try (PreparedStatement lock = connection.prepareStatement("SELECT pg_advisory_xact_lock(?, ?)")) {
+                    lock.setInt(1, BOOKING_LOCK_NAMESPACE);
+                    lock.setInt(2, resourceId);
+                    lock.execute();
+                }
+
                 int capacity;
                 try (PreparedStatement statement = connection.prepareStatement(resourceSql)) {
                     statement.setInt(1, resourceId);
