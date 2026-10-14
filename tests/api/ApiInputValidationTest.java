@@ -29,7 +29,7 @@ class ApiInputValidationTest {
                     .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"missing@example.test\",\"password\":\"WrongPassword!123\"}"))
                     .build();
             HttpResponse<String> first = client.send(request, HttpResponse.BodyHandlers.ofString());
-            assertEquals(401, first.statusCode()); // Unknown account is rejected before the limiter is reached.
+            assertEquals(401, first.statusCode()); // The first allowed attempt reaches authentication.
             HttpResponse<String> limited = client.send(request, HttpResponse.BodyHandlers.ofString());
             assertEquals(429, limited.statusCode());
             assertEquals("900", limited.headers().firstValue("Retry-After").orElse(""));
