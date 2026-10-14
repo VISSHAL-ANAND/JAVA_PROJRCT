@@ -472,7 +472,7 @@ public class ApiServer {
             LocalDateTime end = LocalDateTime.parse(body.path("endTime").asText(""));
             int bookingId = bookingService.book(resourceId, principal.userId(), start, end);
             sendJson(exchange, 201, Map.of("success", true, "message", "Resource booked successfully", "bookingId", bookingId));
-        } catch (BadRequestException | IllegalArgumentException e) {
+        } catch (BadRequestException | IllegalArgumentException | java.time.format.DateTimeParseException e) {
             sendJson(exchange, 400, Map.of("success", false, "message", "Invalid booking data. Check the resource and start/end times."));
         } catch (SQLException e) {
             if ("23P01".equals(e.getSQLState()) || (e.getMessage() != null && e.getMessage().contains("already booked"))) {
