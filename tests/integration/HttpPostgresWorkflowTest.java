@@ -427,6 +427,30 @@ class HttpPostgresWorkflowTest {
             String message = "Follow the posted safety instructions for " + suffix;
             String expectedNotification = "EMERGENCY: " + title + " - " + message;
 
+            HttpResponse<String> oversizedTitle = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("title", "T".repeat(201), "message", "Safety message"))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, oversizedTitle.statusCode(),
+                    "Emergency titles beyond the database/API limit must be rejected as client errors");
+
+            HttpResponse<String> oversizedMessage = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("title", "Safety alert", "message", "M".repeat(3001)))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, oversizedMessage.statusCode(),
+                    "Emergency messages beyond the configured limit must be rejected before broadcasting");
+
             HttpResponse<String> create = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
                             .timeout(Duration.ofSeconds(5))
