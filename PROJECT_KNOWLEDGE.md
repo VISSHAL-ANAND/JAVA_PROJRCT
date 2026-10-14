@@ -472,3 +472,10 @@ A phase is complete only when:
 - The stricter role exposed a design constraint in booking capacity checks: SELECT ... FOR UPDATE requires UPDATE privilege on resources. Replaced that table-row lock with a transaction-scoped PostgreSQL advisory lock per resource, so concurrent booking attempts remain serialized without granting the application permission to modify resource inventory.
 - Added a concurrent capacity-one booking regression test: two overlapping simultaneous attempts must yield exactly one booking and one 23P01 capacity conflict.
 - CI verification for the new least-privilege end-to-end run is pending. The previous column-level privilege checks passed in run 38595255824. No hosted database has been touched.
+
+
+### 2026-10-14 — Least-privilege integration test fixture isolation
+- The first attempt to run the full integration suite as campusos_app correctly rejected a test fixture INSERT into resources. The API app role is intentionally read-only for resource inventory.
+- Kept that least-privilege boundary. The integration test now creates its temporary resource fixture through a separate test-only admin JDBC connection, while all application workflow operations still use campusos_app.
+- CI passes the fixture-admin settings only to the test step in the disposable PostgreSQL job; these are test container credentials, not live project secrets. The role-backed suite is being rerun.
+- Previous run 38595625011 failed at the expected fixture permission boundary; do not mark the new run verified until all jobs pass.

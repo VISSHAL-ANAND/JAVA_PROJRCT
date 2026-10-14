@@ -17,6 +17,7 @@ import service.EmergencyService;
 import service.IssueService;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -101,7 +102,7 @@ class PostgresWorkflowTest {
                 .anyMatch(item -> ((Number) item.get("id")).intValue() == emergencyId));
 
         int resourceId;
-        try (Connection connection = database.DBConnection.getConnection();
+        try (Connection connection = openFixtureConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "INSERT INTO resources(name,type,quantity,available) VALUES(?,?,?,TRUE)",
                      Statement.RETURN_GENERATED_KEYS)) {
@@ -168,4 +169,17 @@ class PostgresWorkflowTest {
         assertTrue(((Number) overview.get("totalUsers")).intValue() >= 3);
         assertTrue(((Number) overview.get("totalTickets")).intValue() >= 2);
     }
+    private Connection openFixtureConnection() throws SQLException {
+        String adminUrl = System.getenv("CAMPUSOS_IT_ADMIN_DB_URL");
+        if (adminUrl == null || adminUrl.isBlank()) {
+            return database.DBConnection.getConnection();
+        }
+        String adminUsername = System.getenv("CAMPUSOS_IT_ADMIN_DB_USERNAME");
+        String adminPassword = System.getenv("CAMPUSOS_IT_ADMIN_DB_PASSWORD");
+        if (adminUsername == null || adminUsername.isBlank() || adminPassword == null) {
+            throw new SQLException("Test fixture admin connection settings are incomplete");
+        }
+        return DriverManager.getConnection(adminUrl, adminUsername, adminPassword);
+    }
+
 }

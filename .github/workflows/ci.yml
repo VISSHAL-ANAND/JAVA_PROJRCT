@@ -135,4 +135,7 @@ jobs:
         env:
           CAMPUSOS_DB_USERNAME: campusos_app
           CAMPUSOS_DB_PASSWORD: REPLACE_WITH_A_LONG_RANDOM_PASSWORD
+          CAMPUSOS_IT_ADMIN_DB_URL: jdbc:postgresql://localhost:5432/campusos?sslmode=disable
+          CAMPUSOS_IT_ADMIN_DB_USERNAME: postgres
+          CAMPUSOS_IT_ADMIN_DB_PASSWORD: postgres
         run: mvn --batch-mode --no-transfer-progress clean verify
