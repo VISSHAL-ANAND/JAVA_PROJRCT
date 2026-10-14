@@ -564,3 +564,13 @@ A phase is complete only when:
 - Verification passed in GitHub Actions run [38609797983](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38609797983): Java verification, PostgreSQL integration tests, API container build, and frontend production build all succeeded.
 - No production code, hosted database, or deployment configuration changed. Local test execution remains unavailable in this environment due repository-clone DNS/network failure; CI is the verified test runner.
 - Next: exercise staff ticket status authorization over HTTP/PostgreSQL for both the assigned technician and a different technician, then continue the route audit.
+
+
+### 2026-10-14 — HTTP ticket history ownership regression
+
+- Added assertions to `tests/integration/HttpPostgresWorkflowTest.java`: the authenticated reporter can retrieve their ticket history, while a separately logged-in student receives HTTP 404 for that ticket's history.
+- The test uses the actual API and disposable PostgreSQL-backed application role; existing reporter-list isolation assertions remain intact.
+- Verification passed in GitHub Actions run [38609974850](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38609974850): Java verification, PostgreSQL integration tests, Java API container build, and frontend production build all succeeded.
+- Commit: [7e6fa09](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/7e6fa09215a0cffff52ce8f7820481a79937ff36).
+- No production logic, hosted database, or deployment configuration changed. Local test execution remains unavailable here because repository cloning fails due to DNS/network access; CI ran the PostgreSQL-backed tests.
+- Next priority: add HTTP/PostgreSQL coverage for staff ticket status changes, including assigned-technician success and denial for a different technician and a student.
