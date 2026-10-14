@@ -200,7 +200,7 @@ class PostgresWorkflowTest {
             }
         }
 
-        LocalDateTime sharedStart = LocalDateTime.now().plusDays(4).withSecond(0).withNano(0);
+        LocalDateTime sharedStart = LocalDateTime.now().plusDays(4).withHour(9).withMinute(0).withSecond(0).withNano(0);
         bookings.createIfAvailable(capacityTwoResourceId, studentId, sharedStart, sharedStart.plusHours(1));
         bookings.createIfAvailable(capacityTwoResourceId, adminId, sharedStart.plusHours(1), sharedStart.plusHours(2));
         int spanningBookingId = bookings.createIfAvailable(
