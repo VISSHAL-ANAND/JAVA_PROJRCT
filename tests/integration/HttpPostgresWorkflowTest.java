@@ -636,14 +636,42 @@ class HttpPostgresWorkflowTest {
                             .GET().build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, staffList.statusCode(), staffList.body());
-            boolean foundUnavailableStaff = false;
+            boolean foundManagedStaff = false;
             for (JsonNode staff : JSON.readTree(staffList.body()).path("staff")) {
                 if (staff.path("id").asInt() == managedUserId) {
-                    foundUnavailableStaff = !staff.path("available").asBoolean(true);
+                    foundManagedStaff = true;
                     break;
                 }
             }
-            assertTrue(foundUnavailableStaff, "Non-admin availability update must not change the staff member");
+            assertFalse(foundManagedStaff,
+                    "The student must not re-enable an unavailable staff member");
+
+            HttpResponse<String> restoreAvailability = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users/" + managedUserId + "/availability"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(
+                                    JSON.writeValueAsString(java.util.Map.of("available", true))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, restoreAvailability.statusCode(), restoreAvailability.body());
+
+            HttpResponse<String> staffAfterRestore = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/staff"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, staffAfterRestore.statusCode(), staffAfterRestore.body());
+            boolean foundRestoredStaff = false;
+            for (JsonNode staff : JSON.readTree(staffAfterRestore.body()).path("staff")) {
+                if (staff.path("id").asInt() == managedUserId) {
+                    foundRestoredStaff = true;
+                    break;
+                }
+            }
+            assertTrue(foundRestoredStaff, "Admin must be able to restore staff availability");
 
             HttpResponse<String> studentCreate = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
