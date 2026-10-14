@@ -656,3 +656,14 @@ A phase is complete only when:
 - Verified CI: [run 38614244817](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38614244817) completed successfully on `e90a898`. All four jobs passed, including the PostgreSQL-backed integration test step. The previous known-good run [38613721895](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38613721895) also passed all four jobs before this change.
 - Local tests remain unrun because repository cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
 - Next priority: continue the API route audit, especially consistent method handling and malformed input at booking/resource boundaries; only change behavior where a concrete defect and regression test are established.
+
+### 2026-10-14 — Booking endpoint method and identifier validation verified
+
+- Continued the API route audit and corrected two concrete input/HTTP-contract defects in the booking collection route:
+  - A request to the exact `/api/bookings` path using a method other than POST now returns HTTP 405; unknown paths still return 404.
+  - `resourceId` must be a positive integral JSON number representable as a Java `int`. Fractional values are rejected with HTTP 400 rather than being silently truncated by Jackson's `asInt(0)`.
+- Added HTTP/PostgreSQL integration assertions in `httpBookingLifecycleEnforcesOwnerOnlyCancellation` for PUT returning 405 and a fractional resource ID returning 400; the valid booking lifecycle assertions remain in the same test.
+- Commits: [767e585](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/767e585afd2a160d02b610a67113fc40ddd29995) (method semantics), [3a9dbed](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/3a9dbedf773e1caad18b994828999a12a8b99aa9) (resource ID validation), [f802487](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/f802487698bcbe64c3ddf7375d1eb85734f87460) (method regression), and [8425ae2](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/8425ae2af63e66817fcdd0c877939f43859d24d) (fractional ID regression).
+- Verified CI: [run 38614640124](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38614640124) completed successfully on `8425ae2`; Java verification, PostgreSQL integration tests, frontend production build, and API container build all passed.
+- Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
+- Next priority: expand the HTTP booking input regression coverage for invalid or reversed timestamps and verify malformed requests do not create rows; continue the remaining API audit only where concrete correctness or security gaps are found.
