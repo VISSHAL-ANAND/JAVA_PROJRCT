@@ -694,3 +694,14 @@ A phase is complete only when:
 - Verified CI: [run 38615712017](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38615712017) completed successfully on `c5867bb`; Java verification, PostgreSQL integration tests, frontend production build, and API container build all passed.
 - Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
 - Next priority: continue a focused API input/authorization audit, starting with service-level validation for emergency creation and checking that all user-facing handlers convert malformed JSON types into client errors rather than unhandled exceptions.
+
+### 2026-10-14 — Emergency service and JSON field validation verified
+
+- Added defense-in-depth validation to `EmergencyService.createEmergency`: title is capped at 200 characters and message at 3,000, matching the HTTP contract and database title column. Invalid details are rejected before opening a database connection.
+- Added `tests/service/EmergencyServiceTest.java` to cover missing details and both length limits without needing a database.
+- Updated `POST /api/emergencies` to require JSON string values for `title` and `message`; numbers and booleans now return HTTP 400 instead of being coerced to text.
+- Expanded `httpEmergencyBroadcastPersistsAndNotifiesRecipients` with regressions for numeric title, boolean message, oversized title, and oversized message; existing successful broadcast and notification ownership assertions remain.
+- Commits: [68daeb1](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/68daeb1a060abbdede8b85c0e0c5c7a674a36a6a) (service validation), [ee32817](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/ee328179aa4b831a810617e0c6e621fddebc9559) (service tests), [28330c2](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/28330c2f24cddef370e2e4975b0ccb5944717bd1) (HTTP type validation), and [3b6930d](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/3b6930dc467233fab5283607d4f5c970b5ff2f8c) (HTTP regressions).
+- Verified CI: [run 38616146533](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38616146533) completed successfully on `3b6930d`; all four jobs passed.
+- Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
+- Next priority: audit issue submission and admin user-creation JSON field types, ensuring fields documented as strings are not silently coerced from numbers, booleans, arrays, or objects.
