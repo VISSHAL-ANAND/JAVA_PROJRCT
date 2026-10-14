@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Add HTTP/PostgreSQL coverage for booking ownership: create and list a booking as its owner, deny cancellation by another user, and allow the owner to cancel it. Then verify emergency-read behavior and continue the deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Add HTTP/PostgreSQL coverage for the administrator emergency-broadcast success path: authenticated admin creates an emergency, other authenticated users can read it, recipients see exactly one notification, and non-admin creation is denied. Then continue the deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -584,3 +584,14 @@ A phase is complete only when:
 - Verification passed after the correction in GitHub Actions run [38610433866](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38610433866): Java verification, PostgreSQL integration tests, Java API container build, and frontend production build all succeeded.
 - This is test-only coverage against disposable PostgreSQL. No live database or deployment was touched. Local tests remain unavailable because repository cloning fails due DNS/network restrictions in this environment.
 - Next priority: test the complete HTTP booking lifecycle and cross-user cancellation boundary against disposable PostgreSQL.
+
+
+### 2026-10-14 — HTTP booking lifecycle and owner-only cancellation
+
+- Added `httpBookingLifecycleEnforcesOwnerOnlyCancellation` to `tests/integration/HttpPostgresWorkflowTest.java`.
+- The test creates a unique resource using the disposable CI fixture-admin connection, logs in as two separate students, creates a booking over HTTP, verifies it appears in the owner's booking list, and confirms the other student cannot cancel it (HTTP 409) and the booking remains intact.
+- The owner can then cancel the same booking through HTTP (HTTP 200), and it disappears from the owner's booking list.
+- Commit: [331289a](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/331289acc09af8e303e9072cd5ffb7c2a4e5a0b1).
+- Verification passed in GitHub Actions run [38610705111](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38610705111): Java verification, PostgreSQL workflow integration tests, Java API container build, and frontend production build all succeeded.
+- The privileged fixture connection only creates a disposable test resource; booking operations run through the least-privilege application role. No live Supabase connection or deployment occurred.
+- Next priority: exercise administrator emergency creation and recipient notification through the authenticated HTTP/PostgreSQL path.
