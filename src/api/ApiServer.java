@@ -463,7 +463,11 @@ public class ApiServer {
                 return;
             }
             JsonNode body = readJson(exchange);
-            int resourceId = body.path("resourceId").asInt(0);
+            JsonNode resourceIdNode = body.path("resourceId");
+            if (!resourceIdNode.isIntegralNumber() || !resourceIdNode.canConvertToInt() || resourceIdNode.asInt() <= 0) {
+                throw new BadRequestException("A positive integer resourceId is required");
+            }
+            int resourceId = resourceIdNode.asInt();
             LocalDateTime start = LocalDateTime.parse(body.path("startTime").asText(""));
             LocalDateTime end = LocalDateTime.parse(body.path("endTime").asText(""));
             int bookingId = bookingService.book(resourceId, principal.userId(), start, end);
