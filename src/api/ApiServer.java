@@ -534,6 +534,10 @@ public class ApiServer {
                 sendJson(exchange, 201, Map.of("success", true, "message", "User created", "userId", userId));
                 return;
             }
+            if ("/api/admin/overview".equals(path) || "/api/admin/users".equals(path)) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                return;
+            }
             java.util.regex.Matcher availabilityMatcher = java.util.regex.Pattern
                     .compile("^/api/admin/users/(\\d+)/availability$").matcher(path);
             if (availabilityMatcher.matches()) {
