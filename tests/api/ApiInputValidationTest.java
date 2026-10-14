@@ -50,6 +50,14 @@ class ApiInputValidationTest {
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();
+            String loginUrl = "http://127.0.0.1:" + server.getPort() + "/api/auth/login";
+            HttpResponse<String> nonStringLoginField = client.send(HttpRequest.newBuilder(URI.create(loginUrl))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"email\":123,\"password\":\"WrongPassword!123\"}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, nonStringLoginField.statusCode());
+            assertTrue(nonStringLoginField.body().contains("Email and password must be strings"));
+
             String url = "http://127.0.0.1:" + server.getPort() + "/api/issues";
             HttpResponse<String> malformed = client.send(HttpRequest.newBuilder(URI.create(url))
                     .header("Authorization", "Bearer " + token)
