@@ -325,6 +325,105 @@ class HttpPostgresWorkflowTest {
     }
 
 
+
+    @Test
+    void httpEmergencyBroadcastPersistsAndNotifiesRecipients() throws Exception {
+        UserDAO users = new UserDAO();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String password = "IntegrationPass!2026";
+        String studentEmail = "emergency-student-" + suffix + "@example.test";
+        int studentId = users.createUser("Emergency Student " + suffix, studentEmail,
+                PasswordHasher.hash(password), "STUDENT", "EMERG" + suffix, "CSE", null);
+        String adminEmail = "emergency-admin-" + suffix + "@example.test";
+        int adminId = users.createUser("Emergency Admin " + suffix, adminEmail,
+                PasswordHasher.hash(password), "ADMIN", null, "CSE", null);
+
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(3))
+                    .build();
+            String base = "http://127.0.0.1:" + server.getPort();
+            String studentToken = loginToken(client, base, studentEmail, password);
+            String adminToken = loginToken(client, base, adminEmail, password);
+            String title = "HTTP emergency " + suffix;
+            String message = "Follow the posted safety instructions for " + suffix;
+            String expectedNotification = "EMERGENCY: " + title + " - " + message;
+
+            HttpResponse<String> create = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("title", title, "message", message))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, create.statusCode(), create.body());
+            int emergencyId = JSON.readTree(create.body()).path("id").asInt();
+            assertTrue(emergencyId > 0);
+
+            HttpResponse<String> feed = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, feed.statusCode(), feed.body());
+            boolean foundEmergency = false;
+            for (JsonNode emergency : JSON.readTree(feed.body()).path("emergencies")) {
+                if (emergency.path("id").asInt() == emergencyId
+                        && title.equals(emergency.path("title").asText())
+                        && message.equals(emergency.path("message").asText())) {
+                    foundEmergency = true;
+                    break;
+                }
+            }
+            assertTrue(foundEmergency, "The authenticated emergency feed must expose the persisted broadcast");
+
+            HttpResponse<String> studentInbox = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/notifications/me"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, studentInbox.statusCode(), studentInbox.body());
+            long studentMatches = 0;
+            for (JsonNode notification : JSON.readTree(studentInbox.body()).path("notifications")) {
+                if (expectedNotification.equals(notification.path("message").asText())) studentMatches++;
+            }
+            assertEquals(1L, studentMatches, "Each non-creator recipient must receive exactly one matching notification");
+
+            HttpResponse<String> adminInbox = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/notifications/me"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, adminInbox.statusCode(), adminInbox.body());
+            long adminMatches = 0;
+            for (JsonNode notification : JSON.readTree(adminInbox.body()).path("notifications")) {
+                if (expectedNotification.equals(notification.path("message").asText())) adminMatches++;
+            }
+            assertEquals(0L, adminMatches, "The emergency creator must not receive their own broadcast notification");
+
+            HttpResponse<String> deniedStudentBroadcast = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("title", "Unauthorized " + suffix, "message", "Not allowed"))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, deniedStudentBroadcast.statusCode(), deniedStudentBroadcast.body());
+        } finally {
+            server.stop();
+        }
+    }
+
+
     @Test
     void httpRejectsTokenAfterDatabaseRoleChanges() throws Exception {
         UserDAO users = new UserDAO();
