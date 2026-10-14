@@ -722,3 +722,10 @@ A phase is complete only when:
 - Commits: [6293334](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/6293334d8d4833c4bd25f06937aaf41054cc0b42) (validation) and [182888e](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/182888ede0f6e93d8995d1584f885886124114b4) (regression test).
 - The workflow for the test commit was cancelled during rapid successive pushes; this is not a pass or failure. A fresh CI run on the current main head is required before marking this change verified.
 - Next priority: inspect remaining API handlers and service-layer invariants for concrete type-validation gaps. No deployment or production database access was performed.
+
+### 2026-10-14 — Consolidated API input-validation CI confirmation
+
+- Follow-up CI [run 38617040775](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38617040775) completed successfully on `dc6c1c2`, including the ticket-status string validation and regression test. Java verification, PostgreSQL integration tests, frontend production build, and API container build all passed.
+- The current validated API changes cover strict JSON types for login credentials, issue fields, emergency fields, admin-created user fields, ticket status, staff assignment IDs, booking resource IDs, and boolean staff availability; malformed/reversed booking times and oversized emergency inputs have explicit regression coverage.
+- No deployment or production database access was performed. Local tests remain unrun because repository cloning is blocked by GitHub DNS resolution in this environment.
+- Next priority: continue the API security/data-integrity audit for a concrete gap; preserve current role and ownership controls and require a regression test for any fix.
