@@ -15,7 +15,11 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
     REVOKE ALL ON SEQUENCES FROM campusos_app;
 
 -- Grant only operations used by the Java API. In particular, DELETE is limited to bookings.
-GRANT SELECT, INSERT ON TABLE public.users, public.tickets, public.notifications TO campusos_app;
+-- User queries only need these columns; do not expose unrelated user columns by default.
+GRANT SELECT (id, name, email, password, role, register_number, department, specialization, available, created_at)
+    ON TABLE public.users TO campusos_app;
+GRANT INSERT ON TABLE public.users TO campusos_app;
+GRANT SELECT, INSERT ON TABLE public.tickets, public.notifications TO campusos_app;
 GRANT UPDATE (available) ON TABLE public.users TO campusos_app;
 GRANT UPDATE (assigned_technician_id, status, updated_at) ON TABLE public.tickets TO campusos_app;
 GRANT UPDATE (is_read) ON TABLE public.notifications TO campusos_app;
