@@ -49,6 +49,7 @@ public class ApiServer {
     private final ObjectMapper mapper = new ObjectMapper();
     private final IssueService issueService = new IssueService();
     private final AuthService authService = new AuthService(new UserDAO());
+    private final UserDAO userDAO;
     private final TicketDAO ticketDAO = new TicketDAO();
     private final NotificationDAO notificationDAO = new NotificationDAO();
     private final EmergencyDAO emergencyDAO = new EmergencyDAO();
@@ -68,9 +69,18 @@ public class ApiServer {
     }
 
     ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter) {
+        this(port, tokens, loginRateLimiter, new UserDAO());
+    }
+
+    ApiServer(int port, AccessTokenService tokens, UserDAO userDAO) {
+        this(port, tokens, new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)), userDAO);
+    }
+
+    ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter, UserDAO userDAO) {
         this.port = port;
         this.tokens = java.util.Objects.requireNonNull(tokens, "tokens");
         this.loginRateLimiter = java.util.Objects.requireNonNull(loginRateLimiter, "loginRateLimiter");
+        this.userDAO = java.util.Objects.requireNonNull(userDAO, "userDAO");
     }
 
     public void start() throws IOException {
@@ -618,7 +628,7 @@ public class ApiServer {
             return null;
         }
         try {
-            java.util.Optional<String> role = new UserDAO().findRoleById(principal.userId());
+            java.util.Optional<String> role = userDAO.findRoleById(principal.userId());
             if (role.isEmpty() || !tokens.hasCurrentRole(principal, role.get())) {
                 sendJson(exchange, 401, Map.of("success", false, "message", "Account or permissions changed; sign in again."));
                 return null;
