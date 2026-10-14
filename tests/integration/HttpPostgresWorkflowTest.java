@@ -197,6 +197,134 @@ class HttpPostgresWorkflowTest {
         }
     }
 
+
+    @Test
+    void httpBookingLifecycleEnforcesOwnerOnlyCancellation() throws Exception {
+        UserDAO users = new UserDAO();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String password = "IntegrationPass!2026";
+        String ownerEmail = "booking-owner-" + suffix + "@example.test";
+        int ownerId = users.createUser("Booking Owner " + suffix, ownerEmail,
+                PasswordHasher.hash(password), "STUDENT", "BOOK" + suffix, "CSE", null);
+        String otherEmail = "booking-other-" + suffix + "@example.test";
+        users.createUser("Booking Other " + suffix, otherEmail,
+                PasswordHasher.hash(password), "STUDENT", "OTHERBOOK" + suffix, "CSE", null);
+
+        int resourceId;
+        try (java.sql.Connection connection = openAdminConnection();
+             java.sql.PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO public.resources(name,type,quantity,available) VALUES(?,?,1,TRUE)",
+                     java.sql.Statement.RETURN_GENERATED_KEYS)) {
+            statement.setString(1, "HTTP Booking Resource " + suffix);
+            statement.setString(2, "ROOM");
+            statement.executeUpdate();
+            try (java.sql.ResultSet result = statement.getGeneratedKeys()) {
+                assertTrue(result.next());
+                resourceId = result.getInt(1);
+            }
+        }
+
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(3))
+                    .build();
+            String base = "http://127.0.0.1:" + server.getPort();
+            String ownerToken = loginToken(client, base, ownerEmail, password);
+            String otherToken = loginToken(client, base, otherEmail, password);
+            java.time.LocalDateTime start = java.time.LocalDateTime.now()
+                    .plusDays(3).withHour(10).withMinute(0).withSecond(0).withNano(0);
+            java.time.LocalDateTime end = start.plusHours(1);
+
+            HttpResponse<String> create = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "resourceId", resourceId,
+                                            "startTime", start.toString(),
+                                            "endTime", end.toString()))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, create.statusCode(), create.body());
+            int bookingId = JSON.readTree(create.body()).path("bookingId").asInt();
+            assertTrue(bookingId > 0);
+
+            HttpResponse<String> ownerBookings = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings/mine"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, ownerBookings.statusCode(), ownerBookings.body());
+            assertTrue(containsId(JSON.readTree(ownerBookings.body()).path("bookings"), bookingId));
+
+            HttpResponse<String> deniedCancel = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings/" + bookingId + "/cancel"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + otherToken)
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(409, deniedCancel.statusCode(), deniedCancel.body());
+
+            HttpResponse<String> ownerAfterDeniedCancel = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings/mine"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, ownerAfterDeniedCancel.statusCode(), ownerAfterDeniedCancel.body());
+            assertTrue(containsId(JSON.readTree(ownerAfterDeniedCancel.body()).path("bookings"), bookingId),
+                    "A denied cross-user cancellation must leave the owner's booking intact");
+
+            HttpResponse<String> ownerCancel = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings/" + bookingId + "/cancel"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, ownerCancel.statusCode(), ownerCancel.body());
+
+            HttpResponse<String> ownerAfterCancel = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings/mine"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, ownerAfterCancel.statusCode(), ownerAfterCancel.body());
+            assertFalse(containsId(JSON.readTree(ownerAfterCancel.body()).path("bookings"), bookingId));
+        } finally {
+            server.stop();
+        }
+    }
+
+    private String loginToken(HttpClient client, String base, String email, String password) throws Exception {
+        HttpResponse<String> login = client.send(
+                HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                        .timeout(Duration.ofSeconds(5))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                java.util.Map.of("email", email, "password", password))))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, login.statusCode(), login.body());
+        String token = JSON.readTree(login.body()).path("token").asText();
+        assertFalse(token.isBlank(), "Successful login must issue an access token");
+        return token;
+    }
+
+    private boolean containsId(JsonNode array, int expectedId) {
+        if (!array.isArray()) return false;
+        for (JsonNode item : array) {
+            if (item.path("id").asInt() == expectedId) return true;
+        }
+        return false;
+    }
+
+
     @Test
     void httpRejectsTokenAfterDatabaseRoleChanges() throws Exception {
         UserDAO users = new UserDAO();
