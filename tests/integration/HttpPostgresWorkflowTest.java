@@ -104,4 +104,66 @@ class HttpPostgresWorkflowTest {
             server.stop();
         }
     }
+
+    @Test
+    void httpRejectsTokenAfterDatabaseRoleChanges() throws Exception {
+        UserDAO users = new UserDAO();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String password = "IntegrationPass!2026";
+        String email = "role-change-" + suffix + "@example.test";
+        int studentId = users.createUser("Role Change Student " + suffix, email,
+                PasswordHasher.hash(password), "STUDENT", "ROLE" + suffix, "CSE", null);
+
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(3))
+                    .build();
+            String base = "http://127.0.0.1:" + server.getPort();
+
+            HttpResponse<String> login = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("email", email, "password", password))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, login.statusCode(), login.body());
+            String token = JSON.readTree(login.body()).path("token").asText();
+            assertFalse(token.isBlank());
+
+            // Change only this test-created account using the CI fixture-admin connection.
+            try (java.sql.Connection connection = openAdminConnection();
+                 java.sql.PreparedStatement statement = connection.prepareStatement(
+                         "UPDATE public.users SET role = ? WHERE id = ?")) {
+                statement.setString(1, "FACULTY");
+                statement.setInt(2, studentId);
+                assertEquals(1, statement.executeUpdate());
+            }
+
+            HttpResponse<String> response = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/tickets/reporter/" + studentId))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + token)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, response.statusCode(), response.body());
+            assertTrue(response.body().contains("permissions changed"));
+        } finally {
+            server.stop();
+        }
+    }
+
+    private java.sql.Connection openAdminConnection() throws java.sql.SQLException {
+        String url = System.getenv("CAMPUSOS_IT_ADMIN_DB_URL");
+        String username = System.getenv("CAMPUSOS_IT_ADMIN_DB_USERNAME");
+        String password = System.getenv("CAMPUSOS_IT_ADMIN_DB_PASSWORD");
+        if (url == null || url.isBlank() || username == null || username.isBlank() || password == null) {
+            throw new java.sql.SQLException("PostgreSQL integration fixture-admin settings are required");
+        }
+        return java.sql.DriverManager.getConnection(url, username, password);
+    }
+
 }
