@@ -705,3 +705,12 @@ A phase is complete only when:
 - Verified CI: [run 38616146533](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38616146533) completed successfully on `3b6930d`; all four jobs passed.
 - Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
 - Next priority: audit issue submission and admin user-creation JSON field types, ensuring fields documented as strings are not silently coerced from numbers, booleans, arrays, or objects.
+
+### 2026-10-14 — Issue, login, and admin user JSON type validation verified
+
+- Updated the API to reject non-string values for issue fields (`title`, `description`, `category`, optional `location`), login `email`/`password`, and admin user fields (`name`, `email`, `password`, `role`, and optional profile fields). These inputs now return HTTP 400 instead of allowing Jackson's `asText()` coercion to turn numbers/booleans into strings.
+- Added unit-style HTTP coverage in `ApiInputValidationTest` for numeric issue titles and numeric login emails, plus PostgreSQL HTTP coverage for a numeric admin-user name. Existing malformed JSON, content-type, and oversized-body checks remain.
+- Commits: [661eee0](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/661eee0fa1948affb3c98a38e44c60f149ffb114) (validation), [503f854](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/503f854d450ac131347cfbfe9a98d0816d1b4241) (issue test), [9da41cf](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/9da41cf2a87c544566337edda4d15dc3fec779a4) (admin user test), [7998060](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/7998060d1aedc798cf8daa951c1acf34ba0397ae) (login validation), and [eb95954](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/eb959540604198bc1be2484a1e908192e69845bb) (login test).
+- Verified CI: [run 38616603288](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38616603288) completed successfully on `eb95954`; Java verification, PostgreSQL integration tests, frontend build, and API container build all passed.
+- Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
+- Next priority: inspect remaining API handlers for unhandled field-type coercion and service-layer invariants; preserve role/ownership behavior and add focused tests for any concrete defect.
