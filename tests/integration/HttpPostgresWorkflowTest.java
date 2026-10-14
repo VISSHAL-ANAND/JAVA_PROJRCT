@@ -449,6 +449,100 @@ class HttpPostgresWorkflowTest {
     }
 
 
+
+    @Test
+    void adminCanAssignOpenTicketOverHttpAndStudentsCannot() throws Exception {
+        UserDAO users = new UserDAO();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String password = "IntegrationPass!2026";
+        String studentEmail = "assign-student-" + suffix + "@example.test";
+        int studentId = users.createUser("Assignment Student " + suffix, studentEmail,
+                PasswordHasher.hash(password), "STUDENT", "ASGN" + suffix, "CSE", null);
+        String adminEmail = "assign-admin-" + suffix + "@example.test";
+        users.createUser("Assignment Admin " + suffix, adminEmail,
+                PasswordHasher.hash(password), "ADMIN", null, "CSE", null);
+        String technicianEmail = "assign-tech-" + suffix + "@example.test";
+        int technicianId = users.createUser("Assignment Technician " + suffix, technicianEmail,
+                PasswordHasher.hash(password), "TECHNICIAN", null, "CSE", "Facilities");
+
+        String issueTitle = "HTTP admin assignment " + suffix;
+        int issueId = new dao.IssueDAO().createIssue(
+                new model.Issue(0, issueTitle, "Fixture issue for admin assignment",
+                        "Facilities", "Assignment Block", null, model.Priority.MEDIUM));
+        int ticketId = new dao.TicketDAO().createTicket(issueId, studentId);
+
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(3))
+                    .build();
+            String base = "http://127.0.0.1:" + server.getPort();
+            String adminToken = loginToken(client, base, adminEmail, password);
+            String technicianToken = loginToken(client, base, technicianEmail, password);
+            String studentToken = loginToken(client, base, studentEmail, password);
+
+            HttpResponse<String> assignment = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/tickets/" + ticketId + "/assign"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("staffId", technicianId))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, assignment.statusCode(), assignment.body());
+
+            HttpResponse<String> studentAssignment = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/tickets/" + ticketId + "/assign"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("staffId", technicianId))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, studentAssignment.statusCode(), studentAssignment.body());
+
+            HttpResponse<String> staffQueue = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + technicianToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, staffQueue.statusCode(), staffQueue.body());
+            boolean foundAssignedTicket = false;
+            for (JsonNode ticket : JSON.readTree(staffQueue.body()).path("tickets")) {
+                if (ticket.path("id").asInt() == ticketId
+                        && "ASSIGNED".equals(ticket.path("status").asText())) {
+                    foundAssignedTicket = true;
+                    break;
+                }
+            }
+            assertTrue(foundAssignedTicket, "The assigned technician must see the ticket in their staff queue");
+
+            HttpResponse<String> history = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/tickets/" + ticketId + "/history"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + studentToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, history.statusCode(), history.body());
+            boolean foundAssignmentHistory = false;
+            for (JsonNode entry : JSON.readTree(history.body()).path("history")) {
+                if ("OPEN".equals(entry.path("fromStatus").asText())
+                        && "ASSIGNED".equals(entry.path("toStatus").asText())) {
+                    foundAssignmentHistory = true;
+                    break;
+                }
+            }
+            assertTrue(foundAssignmentHistory, "The assignment must be recorded in ticket history");
+        } finally {
+            server.stop();
+        }
+    }
+
+
     @Test
     void httpRejectsTokenAfterDatabaseRoleChanges() throws Exception {
         UserDAO users = new UserDAO();
