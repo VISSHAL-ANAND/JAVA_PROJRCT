@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Add a real-PostgreSQL regression proving that changing a user's database role invalidates an already-issued bearer token at the HTTP boundary. Then continue the route/ownership audit and a deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Continue the HTTP route/ownership audit, focusing on ticket history, staff ticket actions, emergency reads, and booking ownership; add regression tests for any uncovered gap. Then perform a deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -543,3 +543,14 @@ A phase is complete only when:
 - Verification passed in GitHub Actions run [38608976116](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38608976116): Java compile/verification, PostgreSQL workflow integration tests, Java API container build, and frontend production build all succeeded.
 - Local Maven tests were not run in this environment because cloning the repository previously failed due to unavailable DNS/network access; CI executed the tests against disposable PostgreSQL successfully.
 - Next priority: add a database-backed HTTP regression for token invalidation after a real user-role change. No deployment or hosted database changes were made.
+
+
+### 2026-10-14 — Database-backed role-change token invalidation
+
+- Extended `tests/integration/HttpPostgresWorkflowTest.java` with a second end-to-end security regression.
+- The test logs in as a student through the HTTP API, changes that test-created account's role to `FACULTY` through the disposable CI database's fixture-admin connection, and verifies that the previously issued `STUDENT` token receives HTTP 401 on the next protected request with the role-change message.
+- This verifies current-role validation across HTTP, token verification, and PostgreSQL; it complements the existing mocked-role HTTP test. The privileged fixture connection is available only to the integration-test step and only modifies the unique account created by this test.
+- Commit: [b292ec6](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/b292ec6b48d3f9ada2de26911d1e948f99b5e83d).
+- Verification passed in GitHub Actions run [38609335639](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38609335639): Java compile/verification, PostgreSQL integration tests, API container build, and frontend production build all succeeded.
+- Local tests were not run because this environment cannot clone the repository due to DNS/network unavailability; the GitHub Actions PostgreSQL workflow executed the regression successfully. No live Supabase connection or deployment was attempted.
+- Next: audit the remaining HTTP authorization boundaries (ticket history, staff actions, emergency reads, and booking operations), then run a deeper Git-history secret scan.
