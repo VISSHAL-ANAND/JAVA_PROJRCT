@@ -92,6 +92,23 @@ class PostgresWorkflowTest {
                 .filter(ticket -> ((Number) ticket.get("id")).intValue() == unassignedTicketId)
                 .findFirst().orElseThrow().get("status"));
 
+        // A staff member must not update a ticket assigned to a different staff account.
+        int otherTechnicianId = users.createUser("IT Other Technician " + suffix,
+                "other-tech-" + suffix + "@example.test", PasswordHasher.hash(password),
+                "TECHNICIAN", null, "CSE", "Plumbing");
+        assertTrue(users.setStaffAvailability(technicianId, false));
+        Issue otherStaffIssue = new Issue(0, "Leaking pipe", "Water leaking near the lab",
+                "Plumbing", "Block B", null, null);
+        int otherStaffTicketId = new IssueService().submit(otherStaffIssue, studentId);
+        assertTrue(users.setStaffAvailability(technicianId, true));
+        assertEquals(otherTechnicianId, tickets.findAssignedTo(otherTechnicianId, false).stream()
+                .filter(ticket -> ((Number) ticket.get("id")).intValue() == otherStaffTicketId)
+                .map(ticket -> ((Number) ticket.get("assignedTechnicianId")).intValue())
+                .findFirst().orElseThrow());
+        assertThrows(SecurityException.class,
+                () -> tickets.updateStatus(otherStaffTicketId, technicianId, "TECHNICIAN", "IN_PROGRESS"));
+        tickets.updateStatus(otherStaffTicketId, otherTechnicianId, "TECHNICIAN", "IN_PROGRESS");
+
         List<Map<String, Object>> inbox = notifications.findByUser(studentId);
         assertFalse(inbox.isEmpty());
         assertTrue(notifications.markRead(studentId, ((Number) inbox.get(0).get("id")).intValue()));
@@ -124,6 +141,9 @@ class PostgresWorkflowTest {
         SQLException conflict = assertThrows(SQLException.class,
                 () -> bookings.createIfAvailable(resourceId, adminId, start.plusMinutes(30), end.plusMinutes(30)));
         assertEquals("23P01", conflict.getSQLState());
+        assertEquals(1, bookings.findByUser(studentId).size());
+        assertFalse(bookings.cancelFutureBooking(bookingId, adminId),
+                "A different user must not cancel someone else's booking");
         assertEquals(1, bookings.findByUser(studentId).size());
         assertTrue(bookings.cancelFutureBooking(bookingId, studentId));
         assertTrue(bookings.findByUser(studentId).isEmpty());
