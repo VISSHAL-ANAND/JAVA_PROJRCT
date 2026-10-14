@@ -427,6 +427,30 @@ class HttpPostgresWorkflowTest {
             String message = "Follow the posted safety instructions for " + suffix;
             String expectedNotification = "EMERGENCY: " + title + " - " + message;
 
+            HttpResponse<String> nonStringTitle = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("title", 123, "message", "Safety message"))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, nonStringTitle.statusCode(),
+                    "Numeric emergency titles must be rejected instead of coerced to text");
+
+            HttpResponse<String> nonStringMessage = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("title", "Safety alert", "message", true))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, nonStringMessage.statusCode(),
+                    "Boolean emergency messages must be rejected instead of coerced to text");
+
             HttpResponse<String> oversizedTitle = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/emergencies"))
                             .timeout(Duration.ofSeconds(5))
