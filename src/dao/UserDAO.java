@@ -19,6 +19,17 @@ public class UserDAO {
             s.setString(1,email); try(ResultSet r=s.executeQuery()){return r.next();}
         }
     }
+    public Optional<String> findRoleById(int userId) throws SQLException {
+        String sql = "SELECT role FROM users WHERE id = ?";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, userId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? Optional.ofNullable(result.getString("role")) : Optional.empty();
+            }
+        }
+    }
+
     public Optional<AuthUser> findForAuthentication(String email) throws SQLException {
         String sql="SELECT id,name,email,password,role,register_number,department,specialization,available FROM users WHERE email=?";
         try(Connection c=DBConnection.getConnection(); PreparedStatement s=c.prepareStatement(sql)){
