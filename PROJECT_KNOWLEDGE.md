@@ -685,3 +685,12 @@ A phase is complete only when:
 - Verified CI: [run 38615297944](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38615297944) completed successfully on `43eec57`. All four jobs passed, including the PostgreSQL workflow integration tests.
 - Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
 - Next priority: review emergency broadcast request validation against database column constraints and ensure invalid oversized inputs return 400 rather than surfacing as server errors.
+
+### 2026-10-14 — Emergency broadcast size-limit regression coverage verified
+
+- Confirmed `POST /api/emergencies` already enforces nonblank title/message, a 200-character title limit, and a 3,000-character message limit before calling the transactional service. No production change was necessary for this task.
+- Added integration checks that an over-limit title (201 characters) and over-limit message (3,001 characters) each return HTTP 400. The existing successful broadcast, recipient notification, creator exclusion, and notification-read ownership checks remain in the same workflow suite.
+- Test commit: [c5867bb](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/c5867bbcddeff4a3d39b7636ae3a54a41d67a986).
+- Verified CI: [run 38615712017](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38615712017) completed successfully on `c5867bb`; Java verification, PostgreSQL integration tests, frontend production build, and API container build all passed.
+- Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
+- Next priority: continue a focused API input/authorization audit, starting with service-level validation for emergency creation and checking that all user-facing handlers convert malformed JSON types into client errors rather than unhandled exceptions.
