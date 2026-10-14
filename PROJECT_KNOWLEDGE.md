@@ -498,3 +498,5 @@ A phase is complete only when:
 - Updated `ApiServerSmokeTest` and `ApiInputValidationTest` to inject the deterministic role lookup for synthetic-token tests.
 - CI failure evidence on run 38599972954: the frontend build passed; Java verification, API container build, and PostgreSQL workflow tests failed due to role lookup returning 401/503 for synthetic test identities. The tests have been corrected and a fresh CI run is required before marking the change verified.
 - Not yet verified: final CI result for the correction, full end-to-end role-change revocation against a real database, deployment configuration, and live Supabase connectivity.
+
+- Added an HTTP-level regression test proving that a token originally issued as `STUDENT` is rejected with 401 when the injected current database role is `ADMIN`. This complements the token helper unit tests and verifies enforcement at the API boundary.
