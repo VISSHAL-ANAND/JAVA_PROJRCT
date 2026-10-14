@@ -245,6 +245,16 @@ class HttpPostgresWorkflowTest {
                     .plusDays(3).withHour(10).withMinute(0).withSecond(0).withNano(0);
             java.time.LocalDateTime end = start.plusHours(1);
 
+            HttpResponse<String> wrongMethod = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .PUT(HttpRequest.BodyPublishers.noBody())
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(405, wrongMethod.statusCode(),
+                    "The booking collection must report unsupported methods as HTTP 405");
+
             HttpResponse<String> create = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
                             .timeout(Duration.ofSeconds(5))
