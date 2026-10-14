@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
+import { isApiUrlSecure } from "./security.js";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
 
 // Bound network waits so a sleeping/unreachable API never leaves the UI spinning forever.
 async function apiFetch(url, options = {}) {
+  if (!isApiUrlSecure(API_BASE_URL, import.meta.env.PROD)) {
+    throw new Error("Production API URL must use HTTPS. Configure VITE_API_BASE_URL with an https:// origin.");
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12000);
   try {
