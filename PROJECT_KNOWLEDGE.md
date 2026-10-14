@@ -489,3 +489,12 @@ A phase is complete only when:
 - This adds a database read to each authenticated request; monitor latency and connection-pool capacity during live smoke testing.
 - Verification: CI was triggered by these commits; check the latest run before treating this change as verified. No deployment or hosted database change was performed.
 - Next: verify all CI jobs, then audit ticket history, staff ticket actions, emergency reads, and booking ownership at the HTTP/API boundary. Keep rate limiting and distributed-deployment concerns on the release checklist.
+
+
+## 2026-10-14 — Live-role validation regression and correction
+
+- The first CI run after current-role token validation failed because HTTP unit tests used synthetic student tokens while the server attempted a real database role lookup. Those tests were intended to verify route authorization/input validation and were not integration tests; the database lookup made them dependent on an unavailable or unseeded user record.
+- Added constructor injection for the current-role `UserDAO` lookup in `ApiServer`. Production constructors still use a real `UserDAO`; only targeted HTTP tests inject a deterministic test DAO returning `STUDENT`. This keeps the production fail-closed behavior (role lookup SQL failure returns 503; missing/changed account returns 401) while making tests isolate the behavior they intend to verify.
+- Updated `ApiServerSmokeTest` and `ApiInputValidationTest` to inject the deterministic role lookup for synthetic-token tests.
+- CI failure evidence on run 38599972954: the frontend build passed; Java verification, API container build, and PostgreSQL workflow tests failed due to role lookup returning 401/503 for synthetic test identities. The tests have been corrected and a fresh CI run is required before marking the change verified.
+- Not yet verified: final CI result for the correction, full end-to-end role-change revocation against a real database, deployment configuration, and live Supabase connectivity.
