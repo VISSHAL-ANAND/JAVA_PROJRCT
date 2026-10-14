@@ -270,6 +270,46 @@ class HttpPostgresWorkflowTest {
             assertEquals(400, malformedResourceId.statusCode(),
                     "A fractional resource ID must be rejected instead of truncated to another resource");
 
+            HttpResponse<String> malformedTime = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "resourceId", resourceId,
+                                            "startTime", "not-a-timestamp",
+                                            "endTime", end.toString()))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, malformedTime.statusCode(),
+                    "Malformed booking timestamps must produce a client error response");
+
+            HttpResponse<String> reversedInterval = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "resourceId", resourceId,
+                                            "startTime", end.toString(),
+                                            "endTime", start.toString()))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, reversedInterval.statusCode(),
+                    "A booking whose end is before its start must be rejected");
+
+            HttpResponse<String> beforeValidBooking = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/bookings/mine"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + ownerToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, beforeValidBooking.statusCode(), beforeValidBooking.body());
+            assertEquals(0, JSON.readTree(beforeValidBooking.body()).path("bookings").size(),
+                    "Invalid booking requests must not create database rows");
+
             HttpResponse<String> create = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/bookings"))
                             .timeout(Duration.ofSeconds(5))
