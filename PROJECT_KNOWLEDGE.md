@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Add HTTP/PostgreSQL coverage for notification ownership: the intended recipient can mark their notification read, while another authenticated user cannot alter it. Then continue the deeper Git-history secret scan and remaining API route audit. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Perform a deeper Git-history secret scan using repository history and targeted searches, record the scope and findings, and do not expose or reproduce any discovered secret. If a live credential is found in history, stop before rotating or changing external systems and ask the owner to authorize remediation. Then continue the remaining API route audit. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -606,3 +606,13 @@ A phase is complete only when:
 - Verification passed in GitHub Actions run [38611005434](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38611005434): Java verification, PostgreSQL integration tests, API container build, and frontend production build all succeeded.
 - The test runs only against the disposable PostgreSQL CI database; no hosted database or deployment was touched.
 - Next priority: verify notification read ownership at the HTTP boundary, then continue the Git-history secret scan and route audit.
+
+
+### 2026-10-14 — Notification read ownership over authenticated HTTP
+
+- Extended `httpEmergencyBroadcastPersistsAndNotifiesRecipients` to capture the notification ID for a test-created recipient and exercise `POST /api/notifications/{id}/read`.
+- A different authenticated student receives HTTP 404 when attempting to mark that recipient's notification read; the intended recipient receives HTTP 200. This verifies the API route and `NotificationDAO.markRead` ownership predicate together.
+- Commit: [a897483](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/a897483e3e9c4c32e6ce10ede2ecaed3819db68b).
+- Verification passed in GitHub Actions run [38611350005](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38611350005): Java verification, PostgreSQL integration tests, API container build, and frontend production build all succeeded.
+- The test uses only the disposable PostgreSQL CI database; no live database or deployment was touched. Local tests were not run because cloning is unavailable in this environment.
+- Next: conduct a deeper Git-history secret scan without printing any secret values, then continue the remaining API route/security audit.
