@@ -29,9 +29,9 @@ class HttpPostgresWorkflowTest {
         String email = "http-student-" + suffix + "@example.test";
         int studentId = users.createUser("HTTP Student " + suffix, email,
                 PasswordHasher.hash(password), "STUDENT", "HTTP" + suffix, "CSE", null);
+        String otherEmail = "http-other-" + suffix + "@example.test";
         int otherStudentId = users.createUser("HTTP Other Student " + suffix,
-                "http-other-" + suffix + "@example.test", PasswordHasher.hash(password),
-                "STUDENT", "OTHER" + suffix, "CSE", null);
+                otherEmail, PasswordHasher.hash(password), "STUDENT", "OTHER" + suffix, "CSE", null);
 
         ApiServer server = new ApiServer(0);
         server.start();
@@ -91,6 +91,36 @@ class HttpPostgresWorkflowTest {
             }
             assertTrue(foundCreatedTicket,
                     "The HTTP-created issue must be retrievable from PostgreSQL through the reporter endpoint");
+
+            HttpResponse<String> ownHistory = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/tickets/" + ticketId + "/history"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + token)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, ownHistory.statusCode(), ownHistory.body());
+            assertTrue(JSON.readTree(ownHistory.body()).path("history").isArray());
+
+            HttpResponse<String> otherLogin = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("email", otherEmail, "password", password))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, otherLogin.statusCode(), otherLogin.body());
+            String otherToken = JSON.readTree(otherLogin.body()).path("token").asText();
+            assertFalse(otherToken.isBlank());
+
+            HttpResponse<String> otherHistory = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/tickets/" + ticketId + "/history"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + otherToken)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(404, otherHistory.statusCode(), otherHistory.body());
+            assertTrue(otherHistory.body().contains("Ticket not found"));
 
             HttpResponse<String> otherTickets = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/tickets/reporter/" + otherStudentId))
