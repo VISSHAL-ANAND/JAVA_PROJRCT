@@ -157,6 +157,17 @@ class HttpPostgresWorkflowTest {
             String technicianToken = JSON.readTree(technicianLogin.body()).path("token").asText();
             assertFalse(technicianToken.isBlank());
 
+            HttpResponse<String> nonStringStatus = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + statusTicketId + "/status"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + technicianToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"status\":123}"))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, nonStringStatus.statusCode(),
+                    "Ticket status must be a string rather than a coerced JSON number");
+
             HttpResponse<String> assignedUpdate = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + statusTicketId + "/status"))
                             .timeout(Duration.ofSeconds(5))
