@@ -748,3 +748,12 @@ A phase is complete only when:
 - Verified CI: [run 38617920196](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38617920196) completed successfully on `d9b5ed1`; all four jobs passed.
 - No deployment or live database access was performed. The repository tree scan found no tracked real `.env`, private-key, or `resources/config.properties` file; this was a current-tree check, not a full historical secret scan.
 - Next priority: continue browser/API boundary hardening only where the change can be tested and avoids breaking the documented local-development workflow.
+
+### 2026-10-14 — Production browser API transport guard verified
+
+- Added `frontend/src/security.js` with `isApiUrlSecure`. In production builds, the client now blocks API requests to public `http://` origins before attaching/sending bearer tokens; HTTPS origins are accepted. HTTP loopback is allowed for local production-build previews, and local development remains unchanged.
+- Added five Node built-in unit tests covering HTTPS, public HTTP rejection, loopback preview, development HTTP, and invalid URLs. `frontend/package.json` now exposes `npm test`, and CI runs it before the Vite production build.
+- Commits: [0ee18c5](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/0ee18c53511a25ab6977a18d4891ace183d1ec3f) (helper), [2868006](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/2868006dd9a65995d1ba6c9a74513b4e86c9d918) (API guard), [b23f27e](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/b23f27ea51919af3e62bbe39efa59b18f40f3005) (unit tests), [d2e6071](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/d2e60711a99f341e5bf188a429d0308012ea6308) (test script), and [280d962](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/280d96215f1232a694faab3a18a2ee4d5879160d) (CI test step).
+- Verified CI: [run 38618404805](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38618404805) completed successfully on `280d962`. All four jobs passed; the frontend security unit tests and production-container fail-closed smoke test both passed.
+- No deployment was performed. The guard intentionally does not solve XSS or replace production TLS/CORS configuration.
+- Next priority: run a final route/authorization and dependency/configuration review; only make further changes for a concrete defect with a verifiable regression test.
