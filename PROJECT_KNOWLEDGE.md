@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Add HTTP/PostgreSQL regression coverage for staff ticket status changes: assigned technician succeeds, a different technician is denied, and students cannot mutate status. Then continue emergency-read/booking ownership checks and perform a deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Add HTTP/PostgreSQL coverage for booking ownership: create and list a booking as its owner, deny cancellation by another user, and allow the owner to cancel it. Then verify emergency-read behavior and continue the deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -574,3 +574,13 @@ A phase is complete only when:
 - Commit: [7e6fa09](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/7e6fa09215a0cffff52ce8f7820481a79937ff36).
 - No production logic, hosted database, or deployment configuration changed. Local test execution remains unavailable here because repository cloning fails due to DNS/network access; CI ran the PostgreSQL-backed tests.
 - Next priority: add HTTP/PostgreSQL coverage for staff ticket status changes, including assigned-technician success and denial for a different technician and a student.
+
+
+### 2026-10-14 — Staff ticket status authorization over HTTP
+
+- Expanded `tests/integration/HttpPostgresWorkflowTest.java` to create two technicians with different specializations and a student, then submit a Facilities issue through the authenticated API.
+- The regression verifies the assigned technician can move the ticket to `IN_PROGRESS` (HTTP 200), a different technician cannot update that ticket (HTTP 403), and the student cannot invoke the staff status endpoint (HTTP 403).
+- The first CI attempt [38610290512](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38610290512) exposed malformed Java escaping in the new JSON test bodies; corrected it in [047c73d](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/047c73de3e2675f6659cd1d2a7ec190b4b173994).
+- Verification passed after the correction in GitHub Actions run [38610433866](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38610433866): Java verification, PostgreSQL integration tests, Java API container build, and frontend production build all succeeded.
+- This is test-only coverage against disposable PostgreSQL. No live database or deployment was touched. Local tests remain unavailable because repository cloning fails due DNS/network restrictions in this environment.
+- Next priority: test the complete HTTP booking lifecycle and cross-user cancellation boundary against disposable PostgreSQL.
