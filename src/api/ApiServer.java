@@ -146,8 +146,13 @@ public class ApiServer {
                 sendJson(exchange, 429, Map.of("success", false, "message", "Too many login attempts. Try again in 15 minutes."));
                 return;
             }
-            String email = body.path("email").asText("").trim().toLowerCase(java.util.Locale.ROOT);
-            String password = body.path("password").asText("");
+            JsonNode emailNode = body.path("email");
+            JsonNode passwordNode = body.path("password");
+            if (!emailNode.isTextual() || !passwordNode.isTextual()) {
+                throw new BadRequestException("Email and password must be strings");
+            }
+            String email = emailNode.asText().trim().toLowerCase(java.util.Locale.ROOT);
+            String password = passwordNode.asText();
             User user = authService.authenticate(email, password);
             Map<String, Object> userData = new LinkedHashMap<>();
             userData.put("id", user.getId());
