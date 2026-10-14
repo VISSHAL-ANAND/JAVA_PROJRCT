@@ -59,6 +59,14 @@ class ApiInputValidationTest {
             assertEquals(400, malformed.statusCode());
             assertTrue(malformed.body().contains("Malformed JSON"));
 
+            HttpResponse<String> nonStringIssueTitle = client.send(HttpRequest.newBuilder(URI.create(url))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"title\":123,\"description\":\"Valid description\",\"category\":\"General\"}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, nonStringIssueTitle.statusCode());
+            assertTrue(nonStringIssueTitle.body().contains("Issue fields must be strings"));
+
             HttpResponse<String> wrongType = client.send(HttpRequest.newBuilder(URI.create(url))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "text/plain")
