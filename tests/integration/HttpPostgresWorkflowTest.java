@@ -490,6 +490,18 @@ class HttpPostgresWorkflowTest {
             String technicianToken = loginToken(client, base, technicianEmail, password);
             String studentToken = loginToken(client, base, studentEmail, password);
 
+            HttpResponse<String> malformedAssignment = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/tickets/" + ticketId + "/assign"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("staffId", 1.9d))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, malformedAssignment.statusCode(),
+                    "A fractional staff ID must be rejected instead of truncated to another account ID");
+
             HttpResponse<String> assignment = client.send(
                     HttpRequest.newBuilder(URI.create(base + "/api/admin/tickets/" + ticketId + "/assign"))
                             .timeout(Duration.ofSeconds(5))
