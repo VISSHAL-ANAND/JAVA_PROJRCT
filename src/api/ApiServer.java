@@ -318,7 +318,11 @@ public class ApiServer {
             }
             int ticketId = Integer.parseInt(matcher.group(1));
             JsonNode body = readJson(exchange);
-            String nextStatus = body.path("status").asText("").trim().toUpperCase(java.util.Locale.ROOT);
+            JsonNode statusNode = body.path("status");
+            if (!statusNode.isTextual()) {
+                throw new BadRequestException("Ticket status must be a string");
+            }
+            String nextStatus = statusNode.asText().trim().toUpperCase(java.util.Locale.ROOT);
             ticketDAO.updateStatus(ticketId, principal.userId(), principal.role(), nextStatus);
             sendJson(exchange, 200, Map.of("success", true, "message", "Ticket status updated", "status", nextStatus));
         } catch (BadRequestException | IllegalArgumentException e) {
