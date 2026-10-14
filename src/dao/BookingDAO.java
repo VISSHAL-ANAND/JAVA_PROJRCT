@@ -14,7 +14,26 @@ public class BookingDAO {
 
     public int createIfAvailable(int resourceId, int userId, LocalDateTime start, LocalDateTime end) throws SQLException {
         String resourceSql = "SELECT quantity, available FROM resources WHERE id = ?";
-        String overlapSql = "SELECT COUNT(*) FROM bookings WHERE resource_id = ? AND start_time < ? AND end_time > ?";
+        // Booking intervals are half-open [start, end). Occupancy can only increase
+        // at the requested start or at an existing booking's start within the interval.
+        // Evaluate those points so sequential bookings are not mistaken for simultaneous use.
+        String peakOccupancySql = """
+                WITH points AS (
+                    SELECT CAST(? AS timestamp) AS point_time
+                    UNION
+                    SELECT start_time
+                    FROM bookings
+                    WHERE resource_id = ? AND start_time > ? AND start_time < ?
+                )
+                SELECT COALESCE(MAX((
+                    SELECT COUNT(*)
+                    FROM bookings b
+                    WHERE b.resource_id = ?
+                      AND b.start_time <= points.point_time
+                      AND b.end_time > points.point_time
+                )), 0)
+                FROM points
+                """;
         String insertSql = "INSERT INTO bookings(resource_id,booked_by,start_time,end_time) VALUES(?,?,?,?)";
 
         try (Connection connection = DBConnection.getConnection()) {
@@ -38,17 +57,19 @@ public class BookingDAO {
                 }
                 if (capacity <= 0) throw new IllegalArgumentException("Resource has no available capacity");
 
-                int overlappingBookings;
-                try (PreparedStatement statement = connection.prepareStatement(overlapSql)) {
-                    statement.setInt(1, resourceId);
-                    statement.setTimestamp(2, Timestamp.valueOf(end));
+                int peakOccupancy;
+                try (PreparedStatement statement = connection.prepareStatement(peakOccupancySql)) {
+                    statement.setTimestamp(1, Timestamp.valueOf(start));
+                    statement.setInt(2, resourceId);
                     statement.setTimestamp(3, Timestamp.valueOf(start));
+                    statement.setTimestamp(4, Timestamp.valueOf(end));
+                    statement.setInt(5, resourceId);
                     try (ResultSet rs = statement.executeQuery()) {
                         rs.next();
-                        overlappingBookings = rs.getInt(1);
+                        peakOccupancy = rs.getInt(1);
                     }
                 }
-                if (overlappingBookings >= capacity) {
+                if (peakOccupancy >= capacity) {
                     throw new SQLException("Resource is already booked for that time.", "23P01");
                 }
 

@@ -514,3 +514,12 @@ A phase is complete only when:
 - Kept changes scoped to `tests/integration/PostgresWorkflowTest.java`; no application behavior, schema, credentials, or deployment configuration changed.
 - Verification status at edit time: GitHub Actions has not yet run against this test change. Await the new CI result; PostgreSQL-specific assertions only execute when `CAMPUSOS_IT_ENABLED=true` is configured in CI.
 - Next: verify the CI run, then continue checking API authorization and booking time/capacity boundaries. Do not deploy until separately authorized and the dedicated hosted database is verified.
+
+
+### 2026-10-14 — Correct booking capacity using peak simultaneous occupancy
+
+- Fixed `src/dao/BookingDAO.java`: reservation capacity is now checked against peak simultaneous occupancy, evaluated at the requested start and each existing booking start strictly inside the requested interval. The interval convention is half-open `[start, end)`, so adjacent bookings do not count as simultaneous.
+- Preserved the transaction-scoped PostgreSQL advisory lock per resource; booking attempts for the same resource remain serialized without requiring UPDATE privileges on `resources`.
+- Added PostgreSQL integration coverage in `tests/integration/PostgresWorkflowTest.java`: for a quantity-2 resource, existing 09:00–10:00 and 10:00–11:00 bookings allow a new 09:00–11:00 booking; a further 09:30–10:30 booking is rejected with SQLSTATE `23P01` because it would exceed capacity. The existing capacity-one parallel-booking test remains unchanged.
+- CI verification for code and regression tests: GitHub Actions run [38606883935](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38606883935) completed successfully. All four jobs passed: Java verification, frontend production build, Docker image build, and PostgreSQL workflow integration tests.
+- No deployment or hosted database changes were made. Live Supabase connectivity remains unverified.
