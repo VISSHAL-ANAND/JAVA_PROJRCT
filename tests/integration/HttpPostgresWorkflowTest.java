@@ -650,6 +650,27 @@ class HttpPostgresWorkflowTest {
             String base = "http://127.0.0.1:" + server.getPort();
             String adminToken = loginToken(client, base, adminEmail, password);
             String studentToken = loginToken(client, base, studentEmail, password);
+
+            HttpResponse<String> wrongUsersMethod = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .PUT(HttpRequest.BodyPublishers.noBody())
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(405, wrongUsersMethod.statusCode(),
+                    "The admin users collection must report unsupported methods as HTTP 405");
+
+            HttpResponse<String> wrongOverviewMethod = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/overview"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .PUT(HttpRequest.BodyPublishers.noBody())
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(405, wrongOverviewMethod.statusCode(),
+                    "The admin overview route must report unsupported methods as HTTP 405");
+
             String managedEmail = "managed-tech-" + suffix + "@example.test";
             String managedName = "Managed Technician " + suffix;
 
