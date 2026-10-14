@@ -458,4 +458,10 @@ A phase is complete only when:
 - Rate limiting is applied after bounded JSON parsing and before database authentication. The API uses the socket peer address rather than trusting caller-supplied X-Forwarded-For headers.
 - Added an HTTP regression test with an injected one-attempt limiter, verifying the next login attempt returns 429 and Retry-After without requiring a live database.
 - Limitation: this limiter is process-local; deployments with multiple API replicas need a shared gateway/distributed rate limit to enforce a global limit.
-- Verification for this change is pending.
+- Verification passed in GitHub Actions run 38594858380: all four jobs succeeded, including the HTTP login-throttling regression test. The first run found and exposed an incorrect expected status in the test (401 is correct); the test was corrected before the successful run.
+
+
+### 2026-10-14 — Column-level database write permissions
+- Tightened the CAMPUSOS app-role example further: users can only be updated in the available column; tickets only in assigned_technician_id, status, and updated_at; notifications only in is_read. SELECT/INSERT grants remain table-specific, and DELETE remains limited to bookings.
+- Expanded the disposable PostgreSQL CI privilege checks to prove permitted column updates work and writes to users.role and notifications.user_id are rejected.
+- These are setup/CI-only changes; no hosted database has been modified. CI verification is pending.

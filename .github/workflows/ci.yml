@@ -116,5 +116,20 @@ jobs:
           else
             echo "Confirmed campusos_app cannot DELETE from public.users."
           fi
+          psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "UPDATE public.users SET available = available WHERE false"
+          psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "UPDATE public.tickets SET status = status WHERE false"
+          psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "UPDATE public.notifications SET is_read = is_read WHERE false"
+          if psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "UPDATE public.users SET role = role WHERE false"; then
+            echo "::error::campusos_app unexpectedly has permission to update user roles"
+            exit 1
+          else
+            echo "Confirmed campusos_app cannot update user roles."
+          fi
+          if psql -h localhost -U campusos_app -d campusos -v ON_ERROR_STOP=1 -c "UPDATE public.notifications SET user_id = user_id WHERE false"; then
+            echo "::error::campusos_app unexpectedly has permission to reassign notifications"
+            exit 1
+          else
+            echo "Confirmed campusos_app cannot reassign notifications."
+          fi
       - name: Run PostgreSQL-backed workflow tests
         run: mvn --batch-mode --no-transfer-progress clean verify
