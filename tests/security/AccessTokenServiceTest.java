@@ -33,6 +33,19 @@ class AccessTokenServiceTest {
     }
 
     @Test
+    void rejectsTokensWhenDatabaseRoleChangesOrAccountIsMissing() {
+        AccessTokenService service = new AccessTokenService();
+        String token = service.issue(new Student(42, "Test Student", "student@example.test", "", "TEST42", "CSE"));
+        AccessTokenService.Principal principal = service.verify(token);
+
+        assertNotNull(principal);
+        assertTrue(service.hasCurrentRole(principal, "STUDENT"));
+        assertFalse(service.hasCurrentRole(principal, "ADMIN"));
+        assertFalse(service.hasCurrentRole(principal, null));
+        assertFalse(service.hasCurrentRole(null, "STUDENT"));
+    }
+
+    @Test
     void productionRequiresConfiguredSecret() {
         assertThrows(IllegalStateException.class, () -> AccessTokenService.resolveSecret(null, true));
         assertThrows(IllegalStateException.class, () -> AccessTokenService.resolveSecret("too-short", true));
