@@ -374,7 +374,7 @@ A phase is complete only when:
 ### Phase 2 — Test foundation and API quality
 - [x] Introduce JUnit 5 and the Maven Surefire plugin; priority classification tests are included in passing CI.
 - [x] Add PostgreSQL-backed integration test for authentication, issue priority/assignment/status history, wrong-owner status rejection, notifications, emergency broadcast, booking conflict/cancellation, and admin metrics. Anonymous/wrong-role smoke tests pass in CI.
-- [ ] Expand integration coverage with parallel concurrent booking attempts and authenticated HTTP-level successful database-backed workflow tests. Cross-user reporter ownership denial now has an HTTP smoke test.
+- [x] Expand PostgreSQL integration coverage for cross-user booking cancellation denial and cross-technician ticket status-update denial; the existing parallel capacity-one booking test remains in place. Authenticated HTTP success flows against a dedicated live database are still pending.
 - [x] Add HTTP validation tests for malformed JSON, wrong Content-Type, JSONP-like media types, and oversized bodies; CI verification pending.
 - [ ] Define consistent JSON response/error contracts.
 - [x] Add liveness/readiness endpoints and HTTP API executor shutdown hook; structured request IDs/metrics remain.
@@ -504,3 +504,13 @@ A phase is complete only when:
 - The first verification attempt after injection still found one synthetic-token test using the default database-backed constructor (`authenticatedUserCannotReadAnotherUsersTickets`). Updated that remaining test to inject the deterministic role lookup as well. The newest CI run must pass before this work is considered verified.
 
 - Additional privilege audit: narrowed `campusos_app` SELECT access on `users` from all columns to the specific columns currently used by the API (including the password hash needed for login). INSERT remains table-granted and `available` remains the only user UPDATE column. CI must confirm every DAO query still works under this role.
+
+
+## 2026-10-14 — Cross-owner and cross-technician authorization regression tests
+
+- Re-inspected current `main` at `3afe83d822c34ae308611229eadff57a8c1cc484` and reviewed the ticket status DAO and PostgreSQL integration workflow.
+- Added an integration regression asserting a user other than the booking owner cannot cancel the booking; it confirms the owner's booking remains present after the denied attempt.
+- Added a second technician workflow: a ticket is assigned to that technician, a different technician is denied a status update with `SecurityException`, and the assigned technician can update it.
+- Kept changes scoped to `tests/integration/PostgresWorkflowTest.java`; no application behavior, schema, credentials, or deployment configuration changed.
+- Verification status at edit time: GitHub Actions has not yet run against this test change. Await the new CI result; PostgreSQL-specific assertions only execute when `CAMPUSOS_IT_ENABLED=true` is configured in CI.
+- Next: verify the CI run, then continue checking API authorization and booking time/capacity boundaries. Do not deploy until separately authorized and the dedicated hosted database is verified.
