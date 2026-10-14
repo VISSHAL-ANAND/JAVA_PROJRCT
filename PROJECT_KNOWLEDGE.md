@@ -502,3 +502,5 @@ A phase is complete only when:
 - Added an HTTP-level regression test proving that a token originally issued as `STUDENT` is rejected with 401 when the injected current database role is `ADMIN`. This complements the token helper unit tests and verifies enforcement at the API boundary.
 
 - The first verification attempt after injection still found one synthetic-token test using the default database-backed constructor (`authenticatedUserCannotReadAnotherUsersTickets`). Updated that remaining test to inject the deterministic role lookup as well. The newest CI run must pass before this work is considered verified.
+
+- Additional privilege audit: narrowed `campusos_app` SELECT access on `users` from all columns to the specific columns currently used by the API (including the password hash needed for login). INSERT remains table-granted and `available` remains the only user UPDATE column. CI must confirm every DAO query still works under this role.
