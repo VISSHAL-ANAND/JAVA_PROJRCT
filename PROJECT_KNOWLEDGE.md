@@ -400,7 +400,7 @@ A phase is complete only when:
 - [ ] Verify HTTPS, secrets management, migrations, least-privilege DB account, and production CORS.
 - [ ] Run end-to-end acceptance tests and document release procedure.
 
-**Immediate next task:** Continue the HTTP route/ownership audit, focusing on ticket history, staff ticket actions, emergency reads, and booking ownership; add regression tests for any uncovered gap. Then perform a deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
+**Immediate next task:** Add HTTP/PostgreSQL regression coverage for staff ticket status changes: assigned technician succeeds, a different technician is denied, and students cannot mutate status. Then continue emergency-read/booking ownership checks and perform a deeper Git-history secret scan. A live Supabase smoke test remains blocked until a dedicated CAMPUSOS project and authorized server-side connection settings are available. No deployment without explicit authorization. Architecture is locked: Vercel frontend + Java API container + Supabase PostgreSQL. `resources/config.properties` was removed from tracking because it is local-only; the owner must back up their local file before pulling, then use ignored `resources/config.properties` or environment variables. Do not host until explicitly authorized.
 
 
 ### 2026-10-13 — Architecture locked, PostgreSQL CI, and frontend resilience
@@ -554,3 +554,13 @@ A phase is complete only when:
 - Verification passed in GitHub Actions run [38609335639](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38609335639): Java compile/verification, PostgreSQL integration tests, API container build, and frontend production build all succeeded.
 - Local tests were not run because this environment cannot clone the repository due to DNS/network unavailability; the GitHub Actions PostgreSQL workflow executed the regression successfully. No live Supabase connection or deployment was attempted.
 - Next: audit the remaining HTTP authorization boundaries (ticket history, staff actions, emergency reads, and booking operations), then run a deeper Git-history secret scan.
+
+
+### 2026-10-14 — Ticket history ownership at the HTTP boundary
+
+- Expanded `tests/integration/HttpPostgresWorkflowTest.java` to verify the reporter can retrieve their ticket history over HTTP and a separately authenticated student receives HTTP 404 when attempting to read that ticket's history.
+- The test exercises the real API, bearer-token identity, `TicketDAO.canViewTicket`, and the disposable PostgreSQL app role; the existing cross-reporter list test remains in place.
+- Commit: [7e6fa09](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/7e6fa09215a0cffff52ce8f7820481a79937ff36).
+- Verification passed in GitHub Actions run [38609797983](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38609797983): Java verification, PostgreSQL integration tests, API container build, and frontend production build all succeeded.
+- No production code, hosted database, or deployment configuration changed. Local test execution remains unavailable in this environment due repository-clone DNS/network failure; CI is the verified test runner.
+- Next: exercise staff ticket status authorization over HTTP/PostgreSQL for both the assigned technician and a different technician, then continue the route audit.
