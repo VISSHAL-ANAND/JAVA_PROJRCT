@@ -32,6 +32,12 @@ class HttpPostgresWorkflowTest {
         String otherEmail = "http-other-" + suffix + "@example.test";
         int otherStudentId = users.createUser("HTTP Other Student " + suffix,
                 otherEmail, PasswordHasher.hash(password), "STUDENT", "OTHER" + suffix, "CSE", null);
+        String technicianEmail = "http-tech-" + suffix + "@example.test";
+        users.createUser("HTTP Assigned Technician " + suffix, technicianEmail,
+                PasswordHasher.hash(password), "TECHNICIAN", null, "CSE", "Facilities");
+        String otherTechnicianEmail = "http-other-tech-" + suffix + "@example.test";
+        users.createUser("HTTP Other Technician " + suffix, otherTechnicianEmail,
+                PasswordHasher.hash(password), "TECHNICIAN", null, "CSE", "Plumbing");
 
         ApiServer server = new ApiServer(0);
         server.start();
@@ -130,6 +136,62 @@ class HttpPostgresWorkflowTest {
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(403, otherTickets.statusCode(), otherTickets.body());
             assertTrue(otherTickets.body().contains("only view your own tickets"));
+
+            HttpResponse<String> technicianLogin = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("email", technicianEmail, "password", password))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, technicianLogin.statusCode(), technicianLogin.body());
+            String technicianToken = JSON.readTree(technicianLogin.body()).path("token").asText();
+            assertFalse(technicianToken.isBlank());
+
+            HttpResponse<String> assignedUpdate = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + ticketId + "/status"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + technicianToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\\"status\\":\\"IN_PROGRESS\\"}"))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, assignedUpdate.statusCode(), assignedUpdate.body());
+
+            HttpResponse<String> otherTechnicianLogin = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("email", otherTechnicianEmail, "password", password))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, otherTechnicianLogin.statusCode(), otherTechnicianLogin.body());
+            String otherTechnicianToken = JSON.readTree(otherTechnicianLogin.body()).path("token").asText();
+            assertFalse(otherTechnicianToken.isBlank());
+
+            HttpResponse<String> deniedOtherTechnician = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + ticketId + "/status"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + otherTechnicianToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\\"status\\":\\"RESOLVED\\"}"))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, deniedOtherTechnician.statusCode(), deniedOtherTechnician.body());
+            assertTrue(deniedOtherTechnician.body().contains("not assigned to your account"));
+
+            HttpResponse<String> deniedStudentUpdate = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/staff/tickets/" + ticketId + "/status"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + token)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\\"status\\":\\"RESOLVED\\"}"))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(403, deniedStudentUpdate.statusCode(), deniedStudentUpdate.body());
+            assertTrue(deniedStudentUpdate.body().contains("Staff access required"));
         } finally {
             server.stop();
         }
