@@ -676,3 +676,12 @@ A phase is complete only when:
 - Verified CI: [run 38614944835](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38614944835) completed successfully on `93ee2f3`. All four jobs passed: Java verification, PostgreSQL workflow integration tests, frontend production build, and API container build.
 - Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
 - Next priority: finish the remaining admin-route HTTP method audit and add regression coverage for any known route/method mismatch; avoid changing behavior without a concrete test.
+
+### 2026-10-14 — Admin collection method handling verified
+
+- The route audit found that unsupported methods on exact `/api/admin/users` and `/api/admin/overview` paths fell through to the generic route-not-found response (404). Added a method-not-allowed response (405) for those recognized collection paths while preserving their allowed GET/POST behavior and existing authorization checks.
+- Added HTTP/PostgreSQL integration assertions that authenticated admins receive 405 for PUT requests to both paths; the existing admin user-management and staff-availability checks continue to run.
+- Commits: [6fb201c](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/6fb201c43ed170c998d3f90297ef2ac7d40d17fc) (route behavior) and [43eec57](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/43eec57cf015a92a1d557e7cda70b340022da108) (HTTP regression tests).
+- Verified CI: [run 38615297944](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38615297944) completed successfully on `43eec57`. All four jobs passed, including the PostgreSQL workflow integration tests.
+- Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
+- Next priority: review emergency broadcast request validation against database column constraints and ensure invalid oversized inputs return 400 rather than surfacing as server errors.
