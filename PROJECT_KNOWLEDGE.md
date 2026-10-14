@@ -739,3 +739,12 @@ A phase is complete only when:
 - Verified CI: [run 38617474025](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38617474025) completed successfully on `bbbf31c`; all four jobs passed, including the new fail-closed container smoke test.
 - No deployment was performed. Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment.
 - Next priority: continue the security audit around browser token handling and frontend/API boundary hardening; do not deploy without the configured production secret and verified hosting settings.
+
+### 2026-10-14 — README security posture corrected and CI verified
+
+- Corrected stale README statements that said API requests were not protected by verified tokens and that database-backed integration tests were absent. The docs now reflect the signed bearer-token flow, current-role/ownership checks, and existing unit/PostgreSQL HTTP integration coverage.
+- The security note now accurately calls out `sessionStorage` token exposure to same-origin JavaScript/XSS and lists the remaining release blockers: live Supabase verification, token revocation, production TLS/CORS verification, audit trail, distributed rate limiting, and a complete security review.
+- Documentation commit: [d9b5ed1](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/d9b5ed1e5b9b384a2596e4d4ca57e8ba16242f3e).
+- Verified CI: [run 38617920196](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38617920196) completed successfully on `d9b5ed1`; all four jobs passed.
+- No deployment or live database access was performed. The repository tree scan found no tracked real `.env`, private-key, or `resources/config.properties` file; this was a current-tree check, not a full historical secret scan.
+- Next priority: continue browser/API boundary hardening only where the change can be tested and avoids breaking the documented local-development workflow.
