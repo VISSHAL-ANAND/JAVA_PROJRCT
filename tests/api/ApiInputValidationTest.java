@@ -3,6 +3,8 @@ package api;
 import model.Student;
 import org.junit.jupiter.api.Test;
 import security.AccessTokenService;
+import security.RateLimiter;
+import java.time.Duration;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -13,6 +15,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApiInputValidationTest {
+    @Test
+    void loginRateLimitReturns429AfterConfiguredAttempts() throws Exception {
+        AccessTokenService tokens = new AccessTokenService();
+        RateLimiter limiter = new RateLimiter(1, Duration.ofMinutes(15), Duration.ofMinutes(15));
+        ApiServer server = new ApiServer(0, tokens, limiter);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            String url = "http://127.0.0.1:" + server.getPort() + "/api/auth/login";
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"missing@example.test\",\"password\":\"WrongPassword!123\"}"))
+                    .build();
+            HttpResponse<String> first = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertEquals(500, first.statusCode()); // Isolated smoke test has no database configured.
+            HttpResponse<String> limited = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertEquals(429, limited.statusCode());
+            assertEquals("900", limited.headers().firstValue("Retry-After").orElse(""));
+            assertTrue(limited.body().contains("Too many login attempts"));
+        } finally {
+            server.stop();
+        }
+    }
     @Test
     void rejectsMalformedJsonAndNonJsonContentType() throws Exception {
         AccessTokenService tokens = new AccessTokenService();

@@ -443,7 +443,7 @@ A phase is complete only when:
 - Tightened resources/supabase_app_role.sql.example to revoke previous broad grants and grant table-specific operations: DELETE only on bookings; read-only access to resources; no UPDATE/DELETE on issues, ticket history, or emergencies; and no automatic table grants for future tables.
 - Kept sequence permissions needed for PostgreSQL identity-generated IDs. New tables require explicit grants in their migration.
 - This changes only the setup example; it has not been applied to any Supabase project. Live verification still requires a dedicated CAMPUSOS project and its server-side connection settings. Never use the unrelated TRAVEL_CRM project.
-- CI verification for this change is pending.
+- Verification passed in GitHub Actions run 38448857353: all four jobs succeeded, including execution of the role setup SQL and the checks that the app role can delete bookings but cannot delete users. This was an ephemeral CI database only.
 
 
 ### 2026-10-14 — CI verifies least-privilege database role
@@ -451,3 +451,11 @@ A phase is complete only when:
 - Added a runtime privilege check: the app role can read users and delete bookings, but cannot delete users. This tests the intended table-level permission boundary without touching any real Supabase project.
 - The CI job uses a disposable local database and a placeholder-only password. It does not validate live Supabase connectivity or apply changes to a hosted database; those remain pending a dedicated CAMPUSOS project.
 - Verification passed in GitHub Actions run 38448857353: all four jobs succeeded, including execution of the role setup SQL and the checks that the app role can delete bookings but cannot delete users. This was an ephemeral CI database only.
+
+
+### 2026-10-14 — Login endpoint brute-force throttling
+- Connected the existing bounded in-memory RateLimiter to the login endpoint. Requests are limited to five attempts per source IP in a 15-minute window; excess requests receive HTTP 429 and Retry-After: 900.
+- Rate limiting is applied after bounded JSON parsing and before database authentication. The API uses the socket peer address rather than trusting caller-supplied X-Forwarded-For headers.
+- Added an HTTP regression test with an injected one-attempt limiter, verifying the next login attempt returns 429 and Retry-After without requiring a live database.
+- Limitation: this limiter is process-local; deployments with multiple API replicas need a shared gateway/distributed rate limit to enforce a global limit.
+- Verification for this change is pending.

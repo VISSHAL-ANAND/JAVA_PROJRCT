@@ -17,6 +17,7 @@ import model.Issue;
 import model.User;
 import security.AccessTokenService;
 import security.PasswordHasher;
+import security.RateLimiter;
 import service.AuthService;
 import service.IssueService;
 import service.EmergencyService;
@@ -29,6 +30,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -55,14 +57,20 @@ public class ApiServer {
     private final BookingDAO bookingDAO = new BookingDAO();
     private final BookingService bookingService = new BookingService();
     private final AccessTokenService tokens;
+    private final RateLimiter loginRateLimiter;
     private HttpServer server;
     private ExecutorService executor;
 
     public ApiServer(int port) { this(port, new AccessTokenService()); }
 
     public ApiServer(int port, AccessTokenService tokens) {
+        this(port, tokens, new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)));
+    }
+
+    ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter) {
         this.port = port;
         this.tokens = java.util.Objects.requireNonNull(tokens, "tokens");
+        this.loginRateLimiter = java.util.Objects.requireNonNull(loginRateLimiter, "loginRateLimiter");
     }
 
     public void start() throws IOException {
@@ -122,6 +130,12 @@ public class ApiServer {
         try {
             if (handleOptionsOrMethod(exchange, "POST")) return;
             JsonNode body = readJson(exchange);
+            String rateLimitKey = exchange.getRemoteAddress().getAddress().getHostAddress();
+            if (!loginRateLimiter.allow(rateLimitKey)) {
+                exchange.getResponseHeaders().set("Retry-After", "900");
+                sendJson(exchange, 429, Map.of("success", false, "message", "Too many login attempts. Try again in 15 minutes."));
+                return;
+            }
             String email = body.path("email").asText("").trim().toLowerCase(java.util.Locale.ROOT);
             String password = body.path("password").asText("");
             User user = authService.authenticate(email, password);
