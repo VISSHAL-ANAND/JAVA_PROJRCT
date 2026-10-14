@@ -719,6 +719,22 @@ class HttpPostgresWorkflowTest {
             assertEquals(405, wrongOverviewMethod.statusCode(),
                     "The admin overview route must report unsupported methods as HTTP 405");
 
+            HttpResponse<String> nonStringUserField = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/admin/users"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + adminToken)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of(
+                                            "name", 123,
+                                            "email", "bad-name-" + suffix + "@example.test",
+                                            "password", password,
+                                            "role", "TECHNICIAN"))))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, nonStringUserField.statusCode(),
+                    "Admin user fields must not be silently coerced from numbers to strings");
+
             String managedEmail = "managed-tech-" + suffix + "@example.test";
             String managedName = "Managed Technician " + suffix;
 
