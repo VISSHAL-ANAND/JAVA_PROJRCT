@@ -667,3 +667,12 @@ A phase is complete only when:
 - Verified CI: [run 38614640124](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38614640124) completed successfully on `8425ae2`; Java verification, PostgreSQL integration tests, frontend production build, and API container build all passed.
 - Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
 - Next priority: expand the HTTP booking input regression coverage for invalid or reversed timestamps and verify malformed requests do not create rows; continue the remaining API audit only where concrete correctness or security gaps are found.
+
+### 2026-10-14 — Malformed booking timestamp handling verified
+
+- The booking route parsed timestamps with `LocalDateTime.parse` but did not handle `DateTimeParseException`, so malformed client input could escape the route's 400-response path. Added the parse exception to the booking handler's validation catch.
+- Expanded `httpBookingLifecycleEnforcesOwnerOnlyCancellation` to verify malformed timestamps and reversed intervals return HTTP 400, and that these invalid requests create no booking rows. Existing assertions also verify PUT returns 405 and fractional resource IDs return 400.
+- Commits: [ed55c9b](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/ed55c9b80eb14d9b60d71050cad6e7ab39a76326) (parse-error handling) and [93ee2f3](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/93ee2f36335a2dd06dbf31c7cc72515542f43ae0) (timestamp/interval regression tests).
+- Verified CI: [run 38614944835](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38614944835) completed successfully on `93ee2f3`. All four jobs passed: Java verification, PostgreSQL workflow integration tests, frontend production build, and API container build.
+- Local tests remain unrun because cloning fails at GitHub DNS resolution in this environment. No production database or deployment was touched.
+- Next priority: finish the remaining admin-route HTTP method audit and add regression coverage for any known route/method mismatch; avoid changing behavior without a concrete test.
