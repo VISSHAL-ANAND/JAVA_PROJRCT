@@ -564,7 +564,11 @@ public class ApiServer {
                 return;
             }
             int ticketId = Integer.parseInt(matcher.group(1));
-            int staffId = readJson(exchange).path("staffId").asInt(0);
+            JsonNode staffIdNode = readJson(exchange).path("staffId");
+            if (!staffIdNode.isIntegralNumber() || !staffIdNode.canConvertToInt() || staffIdNode.asInt() <= 0) {
+                throw new BadRequestException("A positive integer staffId is required");
+            }
+            int staffId = staffIdNode.asInt();
             ticketDAO.assignTicketToStaff(ticketId, staffId, principal.userId());
             sendJson(exchange, 200, Map.of("success", true, "message", "Ticket assigned successfully"));
         } catch (BadRequestException | IllegalArgumentException e) {
