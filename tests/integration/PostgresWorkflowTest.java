@@ -185,6 +185,35 @@ class PostgresWorkflowTest {
             pool.shutdownNow();
         }
 
+        // Capacity is simultaneous occupancy, not the number of bookings touching the interval.
+        int capacityTwoResourceId;
+        try (Connection connection = openFixtureConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO resources(name,type,quantity,available) VALUES(?,?,2,TRUE)",
+                     Statement.RETURN_GENERATED_KEYS)) {
+            statement.setString(1, "IT Shared Room " + suffix);
+            statement.setString(2, "ROOM");
+            statement.executeUpdate();
+            try (ResultSet rs = statement.getGeneratedKeys()) {
+                assertTrue(rs.next());
+                capacityTwoResourceId = rs.getInt(1);
+            }
+        }
+
+        LocalDateTime sharedStart = LocalDateTime.now().plusDays(4).withSecond(0).withNano(0);
+        bookings.createIfAvailable(capacityTwoResourceId, studentId, sharedStart, sharedStart.plusHours(1));
+        bookings.createIfAvailable(capacityTwoResourceId, adminId, sharedStart.plusHours(1), sharedStart.plusHours(2));
+        int spanningBookingId = bookings.createIfAvailable(
+                capacityTwoResourceId, technicianId, sharedStart, sharedStart.plusHours(2));
+        assertTrue(spanningBookingId > 0,
+                "Capacity 2 must allow a booking spanning two sequential bookings when peak occupancy is 1");
+
+        SQLException trueCapacityConflict = assertThrows(SQLException.class,
+                () -> bookings.createIfAvailable(capacityTwoResourceId, studentId,
+                        sharedStart.plusMinutes(30), sharedStart.plusMinutes(90)));
+        assertEquals("23P01", trueCapacityConflict.getSQLState(),
+                "A third simultaneous booking must be rejected when capacity is 2");
+
         Map<String, Object> overview = new AdminDAO().getOverview();
         assertTrue(((Number) overview.get("totalUsers")).intValue() >= 3);
         assertTrue(((Number) overview.get("totalTickets")).intValue() >= 2);
