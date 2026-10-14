@@ -2,7 +2,7 @@
 
 > **Purpose:** This is the persistent handover document for CAMPUSOS. Update it after every meaningful investigation, code change, test, bug fix, design decision, and deployment change. It records what is known, what is verified, what remains incomplete, and the next safe step.
 >
-> **Last reviewed:** 2026-10-13  
+> **Last reviewed:** 2026-10-14  
 > **Primary branch:** `main`  
 > **Repository:** https://github.com/VISSHAL-ANAND/JAVA_PROJRCT
 
@@ -523,3 +523,12 @@ A phase is complete only when:
 - Added PostgreSQL integration coverage in `tests/integration/PostgresWorkflowTest.java`: for a quantity-2 resource, existing 09:00–10:00 and 10:00–11:00 bookings allow a new 09:00–11:00 booking; a further 09:30–10:30 booking is rejected with SQLSTATE `23P01` because it would exceed capacity. The existing capacity-one parallel-booking test remains unchanged.
 - CI verification for code and regression tests: GitHub Actions run [38606883935](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38606883935) completed successfully. All four jobs passed: Java verification, frontend production build, Docker image build, and PostgreSQL workflow integration tests.
 - No deployment or hosted database changes were made. Live Supabase connectivity remains unverified.
+
+
+### 2026-10-14 — Emergency broadcast recipient regression coverage
+
+- Expanded `tests/integration/PostgresWorkflowTest.java` to assert that an emergency broadcast creates exactly one matching notification for each tested non-creator account (student and two technicians) and no matching notification for the admin who created the emergency.
+- The test also continues to verify that the emergency record is persisted and visible through `EmergencyDAO.findRecent()`. It runs only in the disposable PostgreSQL integration workflow when `CAMPUSOS_IT_ENABLED=true`.
+- Implementation review: `EmergencyService.createEmergency` inserts the emergency and broadcast notifications in the same transaction, selecting every user except `createdBy`; a failure rolls back both writes. The new test adds recipient-level assertions, not a change to production behavior.
+- Verification status: pending GitHub Actions for the new test commit. No live Supabase connection was attempted, and no deployment or hosted database changes were made.
+- Next priorities: verify CI for this regression, inspect authenticated HTTP workflows against PostgreSQL, and arrange a safe live smoke test only after the dedicated CAMPUSOS database access is available.
