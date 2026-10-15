@@ -94,7 +94,7 @@ Java socket server (port 5050)
 | User ticket list from the configured SQL database | Implemented with ownership checks |
 | Live student ticket counts | Implemented in the current dashboard |
 | Technician ticket lifecycle (assigned → in progress → resolved → closed) | Implemented with role/assignment checks and status history; database integration testing pending |
-| Admin overview, account creation, user directory, staff assignment and staff availability | Implemented; editing/deleting user identity and report exports remain incomplete |
+| Admin overview, account creation, user directory, staff assignment, staff availability and ticket CSV export | Implemented; editing/deleting user identity and broader operational analytics remain incomplete |
 | Resource inventory, reservations, personal booking list and future cancellation | Implemented; live database/concurrency testing pending |
 | Notification inbox and mark-read | Implemented; live database testing pending |
 | Emergency feed and admin-only broadcast | Implemented; live database testing pending |
@@ -450,6 +450,7 @@ The ticket endpoint requires a valid bearer token and only returns tickets when 
 | GET | `/api/emergencies` | Authenticated user |
 | POST | `/api/emergencies` | ADMIN only; creates alert and notifications |
 | GET | `/api/admin/overview` | ADMIN only |
+| GET | `/api/admin/reports/tickets.csv` | ADMIN only; downloads the 10,000 most recent tickets with spreadsheet-formula protection |
 | GET | `/api/admin/users` | ADMIN only |
 | POST | `/api/admin/users` | ADMIN only; password is hashed server-side and minimum length is 12 characters |
 | POST | `/api/admin/users/{userId}/availability` | ADMIN only; staff availability |
