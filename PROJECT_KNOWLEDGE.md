@@ -1124,3 +1124,11 @@ A phase is complete only when:
 
 - The first correction still left an extra backslash in the generated Java source. Replaced the helper line with a raw literal and checked the exact file content before committing.
 - CI remains the source of truth for this fix; do not mark the shared-IP regression complete until the full run is green.
+
+
+### 2026-10-15 — Extend 1,000-user read load from one burst to five rounds
+
+- Strengthened `ApiDatabaseLoadTest` to run five rounds of 1,000 simultaneous authenticated requests, for 5,000 database-backed requests total across 1,000 distinct users. Each round checks every HTTP status and response body; the test reports round duration and aggregate p50/p95/max latency.
+- The previous single-round CI result was 997 ms total, p50 351 ms, p95 622 ms, max 723 ms with a five-connection PostgreSQL pool (run [38708218745](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38708218745)). The five-round variant is pending verification and has a 90-second total budget with p95 below 30 seconds.
+- Cross-database write-path tests also passed in that run: 100 simultaneous issue submissions completed in 1,244 ms on MySQL and 233 ms on PostgreSQL, with issue, assigned ticket, history and notification assertions.
+- The shared-IP login-throttle regression passed (3 rate-limit tests, no failures) on the latest full CI run. Do not treat a new code change as complete until the strengthened 5,000-request test and all CI jobs pass.

@@ -33,6 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ApiDatabaseLoadTest {
     private static final int DISTINCT_USERS = 1_000;
     private static final int CONCURRENT_REQUESTS = 1_000;
+    private static final int ROUNDS = 5;
+    private static final int TOTAL_REQUESTS = CONCURRENT_REQUESTS * ROUNDS;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
     @Test
@@ -64,33 +66,41 @@ class ApiDatabaseLoadTest {
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
             String base = "http://127.0.0.1:" + server.getPort();
-            List<Long> latencyMillis = Collections.synchronizedList(new ArrayList<>(CONCURRENT_REQUESTS));
-            List<CompletableFuture<Void>> requests = new ArrayList<>(CONCURRENT_REQUESTS);
+            List<Long> latencyMillis = Collections.synchronizedList(new ArrayList<>(TOTAL_REQUESTS));
             long startedAt = System.nanoTime();
 
-            for (int i = 0; i < CONCURRENT_REQUESTS; i++) {
-                int userIndex = i % DISTINCT_USERS;
-                long requestStartedAt = System.nanoTime();
-                HttpRequest request = HttpRequest.newBuilder(
-                                URI.create(base + "/api/tickets/reporter/" + userIds.get(userIndex)))
-                        .timeout(REQUEST_TIMEOUT)
-                        .header("Authorization", "Bearer " + tokens.get(userIndex))
-                        .header("Accept", "application/json")
-                        .GET()
-                        .build();
-                requests.add(client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                        .thenAccept(response -> {
-                            latencyMillis.add(TimeUnit.NANOSECONDS.toMillis(
-                                    System.nanoTime() - requestStartedAt));
-                            assertEquals(200, response.statusCode(),
-                                    "Authenticated reporter query should succeed: " + response.body());
-                            assertTrue(response.body().contains("\"success\":true"));
-                            assertTrue(response.body().contains("\"tickets\":[]"));
-                        }));
+            // Five rounds repeatedly drive all 1,000 distinct authenticated accounts at once.
+            // This catches queue/pool regressions that a single burst can miss.
+            for (int round = 1; round <= ROUNDS; round++) {
+                List<CompletableFuture<Void>> requests = new ArrayList<>(CONCURRENT_REQUESTS);
+                long roundStartedAt = System.nanoTime();
+                for (int i = 0; i < CONCURRENT_REQUESTS; i++) {
+                    int userIndex = i % DISTINCT_USERS;
+                    long requestStartedAt = System.nanoTime();
+                    HttpRequest request = HttpRequest.newBuilder(
+                                    URI.create(base + "/api/tickets/reporter/" + userIds.get(userIndex)))
+                            .timeout(REQUEST_TIMEOUT)
+                            .header("Authorization", "Bearer " + tokens.get(userIndex))
+                            .header("Accept", "application/json")
+                            .GET()
+                            .build();
+                    requests.add(client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                            .thenAccept(response -> {
+                                latencyMillis.add(TimeUnit.NANOSECONDS.toMillis(
+                                        System.nanoTime() - requestStartedAt));
+                                assertEquals(200, response.statusCode(),
+                                        "Authenticated reporter query should succeed: " + response.body());
+                                assertTrue(response.body().contains("\"success\":true"));
+                                assertTrue(response.body().contains("\"tickets\":[]"));
+                            }));
+                }
+                CompletableFuture.allOf(requests.toArray(CompletableFuture[]::new))
+                        .get(REQUEST_TIMEOUT.toSeconds() + 15, TimeUnit.SECONDS);
+                long roundMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - roundStartedAt);
+                System.out.printf("CAMPUSOS database load round: round=%d/%d concurrentUsers=%d totalMs=%d%n",
+                        round, ROUNDS, CONCURRENT_REQUESTS, roundMillis);
             }
 
-            CompletableFuture.allOf(requests.toArray(CompletableFuture[]::new))
-                    .get(REQUEST_TIMEOUT.toSeconds() + 15, TimeUnit.SECONDS);
             long totalMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
             List<Long> sorted = new ArrayList<>(latencyMillis);
             Collections.sort(sorted);
@@ -99,13 +109,13 @@ class ApiDatabaseLoadTest {
             long max = sorted.get(sorted.size() - 1);
 
             System.out.printf(
-                    "CAMPUSOS database load smoke: distinctUsers=%d requests=%d concurrency=%d totalMs=%d p50Ms=%d p95Ms=%d maxMs=%d poolSize=%s%n",
-                    DISTINCT_USERS, sorted.size(), CONCURRENT_REQUESTS, totalMillis, p50, p95, max,
+                    "CAMPUSOS database load smoke: distinctUsers=%d requests=%d concurrencyPerRound=%d rounds=%d totalMs=%d p50Ms=%d p95Ms=%d maxMs=%d poolSize=%s%n",
+                    DISTINCT_USERS, sorted.size(), CONCURRENT_REQUESTS, ROUNDS, totalMillis, p50, p95, max,
                     System.getenv().getOrDefault("CAMPUSOS_DB_POOL_SIZE", "10 (default)"));
 
-            assertEquals(CONCURRENT_REQUESTS, sorted.size(), "All requests must finish");
-            assertTrue(totalMillis < 45_000,
-                    "1,000 authenticated DB requests exceeded the 45-second CI smoke-test budget");
+            assertEquals(TOTAL_REQUESTS, sorted.size(), "All requests across every round must finish");
+            assertTrue(totalMillis < 90_000,
+                    "5,000 authenticated DB requests exceeded the 90-second CI smoke-test budget");
             assertTrue(p95 < 30_000,
                     "95th-percentile authenticated DB latency exceeded the 30-second CI smoke-test budget");
         } finally {
