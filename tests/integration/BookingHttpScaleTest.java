@@ -156,7 +156,6 @@ class BookingHttpScaleTest {
                 if (booking.path("id").asInt() == bookingId) foundBooking = true;
             }
             assertTrue(foundBooking, "The winning user must see the booking they created");
-                    "The winning user must see the booking they created");
 
             int otherIndex = (winnerIndex + 1) % CONTENDERS;
             HttpResponse<String> wrongOwnerCancel = client.send(
