@@ -19,7 +19,7 @@ public class BookingDAO {
         // Evaluate those points so sequential bookings are not mistaken for simultaneous use.
         String peakOccupancySql = """
                 WITH points AS (
-                    SELECT CAST(? AS timestamp) AS point_time
+                    SELECT ? AS point_time
                     UNION
                     SELECT start_time
                     FROM bookings

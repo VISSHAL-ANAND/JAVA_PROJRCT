@@ -935,3 +935,11 @@ A phase is complete only when:
 - Extended the PostgreSQL workflow integration test to assert the reporter summary across closed, assigned, and in-progress tickets; this checks returned counts in CI. It does not substitute for a MySQL service test, which remains a portability verification gap.
 - Updated this log before committing. No live database or hosting/deployment settings were changed.
 - Next: continue the cross-database SQL audit, focusing on timestamp casts and dialect-specific constructs in booking capacity calculations.
+
+
+### 2026-10-15 — Remove dialect-specific timestamp cast from booking capacity query
+
+- The next portability pass found `BookingDAO.createIfAvailable()` seeded its capacity-check CTE with `CAST(? AS timestamp)`. PostgreSQL accepts this syntax, but MySQL's `CAST` target-type support does not reliably include `TIMESTAMP`, making the query a compatibility risk for the documented MySQL setup.
+- Changed the seed to `SELECT ? AS point_time`; JDBC binds the parameter with `setTimestamp`, and the `UNION` with the schema's `start_time` supplies the common temporal type. Existing PostgreSQL workflow booking tests will verify the behavior in CI.
+- This does not count as live MySQL runtime verification; the repository still needs a MySQL-backed integration job to establish that dialect end-to-end.
+- No production database or hosting settings were changed. Wait for and inspect CI on this exact commit before proceeding.
