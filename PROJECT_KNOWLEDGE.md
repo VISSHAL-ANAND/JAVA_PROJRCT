@@ -959,3 +959,9 @@ A phase is complete only when:
 - The first CI run for the new MySQL job caught a Java test-compilation error: fixture IDs assigned during database setup were captured directly by lambdas and therefore were not effectively final. The production application code was not implicated by this failure.
 - Fixed the test by copying the initialized fixture IDs into final local variables before using them in the overlap and concurrency lambdas.
 - The first run's CI results are being treated as a genuine failure; the task is not complete until a new run on the correction passes all Java, frontend, container, PostgreSQL and MySQL jobs.
+
+
+### 2026-10-15 — Correct second concurrent MySQL test lambda
+
+- The rerun caught one remaining reference to the mutable setup IDs in the second concurrency lambda. Updated both worker submissions to use the final fixture IDs; CI compile output pinpointed the remaining references.
+- Re-run the complete workflow on this exact fix. The MySQL integration task remains open until the MySQL service test itself passes, not merely compiles.

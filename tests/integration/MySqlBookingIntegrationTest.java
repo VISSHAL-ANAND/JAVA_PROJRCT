@@ -82,7 +82,7 @@ class MySqlBookingIntegrationTest {
                 Future<Integer> first = executor.submit(() -> attemptAfterGate(
                         bookings, testResourceId, testUserId, concurrentStart, ready, gate));
                 Future<Integer> second = executor.submit(() -> attemptAfterGate(
-                        bookings, resourceId, userId, concurrentStart, ready, gate));
+                        bookings, testResourceId, testUserId, concurrentStart, ready, gate));
                 assertTrue(ready.await(5, TimeUnit.SECONDS), "Booking workers did not become ready");
                 gate.countDown();
 
