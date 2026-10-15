@@ -1307,3 +1307,12 @@ A phase is complete only when:
 - Enabled the existing five-round, 1,000-concurrent authenticated database-read test in the MySQL 8.4 job as well as PostgreSQL 17. It now validates 5,000 authenticated ticket-read requests per engine.
 - The test's existing cleanup remains configured for the PostgreSQL least-privilege test role; MySQL test accounts are disposable and the entire MySQL service is destroyed with the CI job. No shared or live database is used.
 - This broadens CI coverage across both supported SQL engines. Do not claim verified until the new MySQL test and the complete workflow pass on the exact commit. No live database or hosting configuration was touched.
+
+
+### 2026-10-15 — Verify repeated 1,000-user DB reads on both SQL engines
+
+- GitHub Actions run [38736620365](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38736620365) completed successfully on commit `e7bf2df44a171a81b206821bc73bbe9dd4785a78`; all six jobs passed.
+- New MySQL coverage passed: five rounds of 1,000 concurrent authenticated DB-backed ticket reads (5,000 requests total) completed in 2,581 ms, p50 227 ms, p95 412 ms, max 478 ms, using a five-connection pool. PostgreSQL completed the same workload in 2,733 ms, p50 205 ms, p95 392 ms, max 466 ms, also using five connections.
+- The same run passed 1,000 concurrent logins (MySQL 13,063 ms total, p95 12,154 ms; PostgreSQL 12,542 ms total, p95 11,726 ms), 1,000 issue writes per database, 1,000 mixed reads/writes per database, emergency notification fan-out, 100-way booking contention and cancellation, pagination, frontend audit/build, Java verification, and container build.
+- These are repeatable ephemeral CI burst tests, not proof of sustained production capacity. The 1,000-login p95 is over 10 seconds on the shared CI runners, so the dedicated staging run must measure login latency on the actual planned host and may require a larger CPU tier or tuning. The guarded 14-minute, 1,000-VU staging profile remains unrun until an approved disposable staging host, accounts, and test window exist.
+- No deployment, live Supabase access, or production database modification occurred.
