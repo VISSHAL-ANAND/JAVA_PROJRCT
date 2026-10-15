@@ -494,7 +494,7 @@ This is a keyword-based rule system, not an AI classifier. The current assignmen
 The codebase includes security-related foundations:
 
 - **Password hashing:** PBKDF2-HMAC-SHA256 with a random salt and a stored hash format of `pbkdf2$iterations$salt$hash`.
-- **Login rate limiting:** The authentication service limits repeated login attempts.
+- **Login rate limiting:** Repeated attempts are limited per account; the HTTP layer also buckets failures by account plus source address so one user's failures do not lock out everyone behind a shared campus/NAT/proxy IP.
 - **Prepared statements:** DAO queries use parameterized SQL for database operations.
 - **Role and access-control classes:** Role checks are represented in the security layer.
 

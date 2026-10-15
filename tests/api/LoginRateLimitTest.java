@@ -54,6 +54,34 @@ class LoginRateLimitTest {
         }
     }
 
+    @Test
+    void failedAttemptsForOneAccountDoNotBlockAnotherAccountBehindSameProxy() throws Exception {
+        AuthService authService = new AuthService(new UserDAO()) {
+            @Override
+            public User authenticate(String email, String password) throws AuthenticationException {
+                if ("blocked@example.test".equals(email)) {
+                    throw new AuthenticationException("Invalid email or password");
+                }
+                return new Student(2, "Other Student", email, "", "TEST-2", "CSE");
+            }
+        };
+        ApiServer server = new ApiServer(0, new AccessTokenService(),
+                new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
+                new UserDAO(), authService);
+        server.start();
+        try {
+            for (int attempt = 1; attempt <= 5; attempt++) {
+                assertEquals(401, login(server, "blocked@example.test").statusCode());
+            }
+            assertEquals(429, login(server, "blocked@example.test").statusCode(),
+                    "The targeted account/address bucket should still be throttled");
+            assertEquals(200, login(server, "other@example.test").statusCode(),
+                    "Another account sharing the same apparent source IP must remain able to sign in");
+        } finally {
+            server.stop();
+        }
+    }
+
     private ApiServer startServer(boolean authenticateSuccessfully) throws IOException {
         AuthService authService = new AuthService(new UserDAO()) {
             @Override
@@ -76,6 +104,16 @@ class LoginRateLimitTest {
                 .uri(URI.create("http://127.0.0.1:" + server.getPort() + "/api/auth/login"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(LOGIN_BODY))
+                .build();
+        return CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> login(ApiServer server, String email) throws Exception {
+        String body = "{\\"email\\":\\"" + email + "\\",\\"password\\":\\"correct-password\\"}";
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://127.0.0.1:" + server.getPort() + "/api/auth/login"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
         return CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
     }

@@ -1105,3 +1105,10 @@ A phase is complete only when:
 - GitHub Actions run [38707339299](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38707339299) completed successfully on commit `fb4df073ec53e939b200e3d0a27cb910f17a18f8). The MySQL write-load test passed: 100 concurrent authenticated issue submissions completed in 1,054 ms, and all issue/ticket/assignment/history/notification assertions passed.
 - The first workflow edit enabled the write-load flag only in the MySQL job; the PostgreSQL suite compiled the test but skipped it. Added the missing PostgreSQL job flag so the same 100-request workflow is tested using the least-privilege app role as well.
 - PostgreSQL runtime verification is pending the next full CI run; do not treat the earlier run as cross-database write-load validation.
+
+
+### 2026-10-15 — Prevent shared-IP login lockouts for large campus populations
+
+- The 1,000-user review found the API-level login limiter keyed only by remote IP. Behind a campus NAT or reverse proxy, five failed attempts from one account could therefore block unrelated students sharing the same apparent IP.
+- Changed the outer limiter key to the normalized account email plus source address, while preserving the existing account-level limiter in `AuthService`. A regression test now proves repeated failures for one account are still throttled while a different account from the same apparent IP can sign in.
+- This is important for multi-user campuses and reverse-proxy hosting. CI must verify the new regression and all six existing jobs before the fix is considered complete.

@@ -166,12 +166,6 @@ public class ApiServer {
         try {
             if (handleOptionsOrMethod(exchange, "POST")) return;
             JsonNode body = readJson(exchange);
-            String rateLimitKey = exchange.getRemoteAddress().getAddress().getHostAddress();
-            if (!loginRateLimiter.allow(rateLimitKey)) {
-                exchange.getResponseHeaders().set("Retry-After", "900");
-                sendJson(exchange, 429, Map.of("success", false, "message", "Too many login attempts. Try again in 15 minutes."));
-                return;
-            }
             JsonNode emailNode = body.path("email");
             JsonNode passwordNode = body.path("password");
             if (!emailNode.isTextual() || !passwordNode.isTextual()) {
@@ -179,9 +173,19 @@ public class ApiServer {
             }
             String email = emailNode.asText().trim().toLowerCase(java.util.Locale.ROOT);
             String password = passwordNode.asText();
+            // Key this outer limiter by source address AND account. Many campuses and
+            // reverse proxies share one apparent IP; one user's failures must not lock out
+            // every unrelated user behind that address. AuthService also limits per account.
+            String sourceAddress = exchange.getRemoteAddress().getAddress().getHostAddress();
+            String rateLimitKey = sourceAddress + ":" + email;
+            if (!loginRateLimiter.allow(rateLimitKey)) {
+                exchange.getResponseHeaders().set("Retry-After", "900");
+                sendJson(exchange, 429, Map.of("success", false, "message", "Too many login attempts. Try again in 15 minutes."));
+                return;
+            }
             User user = authService.authenticate(email, password);
-            // A successful authentication is not a failed login attempt. Release this IP's
-            // failure budget so shared campus/NAT addresses do not lock out other users.
+            // A successful authentication is not a failed login attempt; release only
+            // this account/address bucket, never other users sharing the same source IP.
             loginRateLimiter.reset(rateLimitKey);
             Map<String, Object> userData = new LinkedHashMap<>();
             userData.put("id", user.getId());
