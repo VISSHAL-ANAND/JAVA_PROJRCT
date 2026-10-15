@@ -63,25 +63,45 @@ public class UserDAO {
 
 
     public java.util.List<java.util.Map<String, Object>> findUsers() throws SQLException {
-        java.util.List<java.util.Map<String, Object>> users = new java.util.ArrayList<>();
-        String sql = "SELECT id, name, email, role, department, specialization, available, created_at FROM users ORDER BY role, name, id LIMIT 200";
+        return findUsers(50, 0);
+    }
+
+    public java.util.List<java.util.Map<String, Object>> findUsers(int limit, long offset) throws SQLException {
+        if (limit < 1 || limit > 100 || offset < 0) {
+            throw new IllegalArgumentException("Invalid user page");
+        }
+        java.util.List<java.util.Map<String, Object>> users = new java.util.ArrayList<>(limit);
+        String sql = "SELECT id, name, email, role, department, specialization, available, created_at "
+                + "FROM users ORDER BY role, name, id LIMIT ? OFFSET ?";
         try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet rs = statement.executeQuery()) {
-            while (rs.next()) {
-                java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
-                item.put("id", rs.getInt("id"));
-                item.put("name", rs.getString("name"));
-                item.put("email", rs.getString("email"));
-                item.put("role", rs.getString("role"));
-                item.put("department", rs.getString("department"));
-                item.put("specialization", rs.getString("specialization"));
-                item.put("available", rs.getBoolean("available"));
-                item.put("createdAt", rs.getTimestamp("created_at").toString());
-                users.add(item);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, limit);
+            statement.setLong(2, offset);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+                    item.put("id", rs.getInt("id"));
+                    item.put("name", rs.getString("name"));
+                    item.put("email", rs.getString("email"));
+                    item.put("role", rs.getString("role"));
+                    item.put("department", rs.getString("department"));
+                    item.put("specialization", rs.getString("specialization"));
+                    item.put("available", rs.getBoolean("available"));
+                    item.put("createdAt", rs.getTimestamp("created_at").toString());
+                    users.add(item);
+                }
             }
         }
         return users;
+    }
+
+    public int countUsers() throws SQLException {
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT COUNT(*) FROM users");
+             ResultSet rs = statement.executeQuery()) {
+            if (!rs.next()) throw new SQLException("Unable to count users");
+            return rs.getInt(1);
+        }
     }
 
     public boolean setStaffAvailability(int userId, boolean available) throws SQLException {

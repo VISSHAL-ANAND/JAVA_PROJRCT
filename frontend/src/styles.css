@@ -130,3 +130,5 @@ input, select, textarea {
 .ticket-pagination>div{display:flex;align-items:center;gap:12px}
 .ticket-pagination button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:520px){.ticket-pagination,.ticket-pagination>div{gap:8px}.ticket-pagination{align-items:flex-start;flex-direction:column}}
+
+.pagination-controls{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}.pagination-controls .text-button:disabled{opacity:.4;cursor:not-allowed}

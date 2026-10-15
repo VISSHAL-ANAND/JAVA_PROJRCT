@@ -1149,3 +1149,10 @@ A phase is complete only when:
 - The new real login load test passed on both databases with 100 distinct accounts logging in concurrently from the same apparent IP: MySQL 1,764 ms total (p50 1,096 ms, p95 1,633 ms, max 1,758 ms); PostgreSQL 1,317 ms total (p50 706 ms, p95 1,246 ms, max 1,275 ms). Every login returned HTTP 200 and a token.
 - The cross-database 100-issue write test also passed (MySQL 1,244 ms; PostgreSQL 233 ms), along with 25-way capacity-one booking races and 1,000-recipient emergency broadcasts. These are CI smoke tests on ephemeral databases; production traffic shape, database tier limits, sustained uptime, and failover still require staging load tests.
 - Next audit target: admin user management currently uses a bounded first-page query; verify the frontend can navigate beyond 200 users rather than silently hiding users in a 1,000-person campus.
+
+
+### 2026-10-15 — Fix admin user directory truncation for campuses above 200 accounts
+
+- The scale audit found that `UserDAO.findUsers()` silently returned only the first 200 users and the React admin directory had no pagination controls. This would hide accounts in a campus with 1,000+ users.
+- Replaced the fixed first-200 query with deterministic page/limit SQL, added a total-user count and page metadata to `GET /api/admin/users?page=1&pageSize=50`, and added Previous/Next/Refresh controls plus total account/page indicators to the admin UI. API page size is capped at 100.
+- Added a cross-database integration test plan to verify every account is reachable exactly once across pages and malformed/out-of-range page inputs are rejected. The test and full CI verification are pending.

@@ -610,7 +610,28 @@ public class ApiServer {
                 return;
             }
             if ("/api/admin/users".equals(path) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-                sendJson(exchange, 200, Map.of("success", true, "users", new UserDAO().findUsers()));
+                int page = queryInteger(exchange, "page", 1);
+                int pageSize = queryInteger(exchange, "pageSize", 50);
+                if (page < 1 || page > 100_000_000) {
+                    throw new BadRequestException("Page must be a positive integer");
+                }
+                if (pageSize < 1 || pageSize > 100) {
+                    throw new BadRequestException("Page size must be between 1 and 100");
+                }
+                UserDAO users = new UserDAO();
+                int totalUsers = users.countUsers();
+                long totalPages = Math.max(1L, (totalUsers + (long) pageSize - 1) / pageSize);
+                if (page > totalPages) {
+                    throw new BadRequestException("Page exceeds the available user pages");
+                }
+                long offset = (long) (page - 1) * pageSize;
+                sendJson(exchange, 200, Map.of(
+                        "success", true,
+                        "users", users.findUsers(pageSize, offset),
+                        "page", page,
+                        "pageSize", pageSize,
+                        "totalUsers", totalUsers,
+                        "totalPages", totalPages));
                 return;
             }
             if ("/api/admin/users".equals(path) && "POST".equalsIgnoreCase(exchange.getRequestMethod())) {
@@ -708,6 +729,21 @@ public class ApiServer {
             LOGGER.log(Level.SEVERE, "Admin request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process administrator request"));
         } finally { exchange.close(); }
+    }
+
+    private int queryInteger(HttpExchange exchange, String name, int defaultValue) throws BadRequestException {
+        String query = exchange.getRequestURI().getRawQuery();
+        if (query == null || query.isBlank()) return defaultValue;
+        for (String parameter : query.split("&")) {
+            int separator = parameter.indexOf('=');
+            if (separator < 0 || !name.equals(parameter.substring(0, separator))) continue;
+            try {
+                return Integer.parseInt(parameter.substring(separator + 1));
+            } catch (NumberFormatException e) {
+                throw new BadRequestException(name + " must be an integer");
+            }
+        }
+        return defaultValue;
     }
 
     private void prepare(HttpExchange exchange) {

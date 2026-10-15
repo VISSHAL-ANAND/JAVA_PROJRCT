@@ -73,7 +73,7 @@ Java socket server (port 5050)
         └── Separate networking foundation
 ```
 
-- **Frontend:** React components provide login, the dashboard, issue reporting and ticket listing.
+- **Frontend:** React components provide login, the dashboard, issue reporting and ticket listing. The administrator user directory is paginated (50 per page, up to 100 per API request) so campus populations larger than 200 remain navigable.
 - **HTTP API:** Java's built-in `HttpServer` exposes JSON endpoints.
 - **Service layer:** Applies application rules such as priority calculation and issue submission.
 - **DAO layer:** Executes parameterized SQL statements through JDBC.
