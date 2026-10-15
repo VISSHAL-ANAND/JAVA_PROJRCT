@@ -98,8 +98,8 @@ public class TicketDAO {
     public Map<String, Integer> getReporterTicketSummary(int reporterId) throws SQLException {
         String q = """
                 SELECT COUNT(*) AS total,
-                       COUNT(*) FILTER (WHERE status IN ('OPEN','ASSIGNED','IN_PROGRESS')) AS open_count,
-                       COUNT(*) FILTER (WHERE status IN ('RESOLVED','CLOSED')) AS resolved_count
+                       SUM(CASE WHEN status IN ('OPEN','ASSIGNED','IN_PROGRESS') THEN 1 ELSE 0 END) AS open_count,
+                       SUM(CASE WHEN status IN ('RESOLVED','CLOSED') THEN 1 ELSE 0 END) AS resolved_count
                 FROM tickets WHERE reported_by = ?
                 """;
         try (Connection c = DBConnection.getConnection();

@@ -926,3 +926,12 @@ A phase is complete only when:
 - Corrective approach: retain PostgreSQL transaction-scoped advisory locking on PostgreSQL, where the role can acquire the lock without extra table privileges; use a resource-row `FOR UPDATE` lock on MySQL. This preserves same-resource booking serialization without broadening PostgreSQL permissions.
 - Re-run the full CI workflow on the correction before considering the booking-lock task complete. MySQL runtime behavior remains unverified unless a MySQL service test is added.
 - No live database, production secrets, or hosting/deployment settings were accessed or changed.
+
+
+### 2026-10-15 — Make reporter ticket summary SQL portable
+
+- The database portability audit found `TicketDAO.getReporterTicketSummary()` used PostgreSQL-only aggregate `FILTER (WHERE ...)`, which fails against the documented MySQL local-development database.
+- Replaced the filtered aggregates with standard `SUM(CASE WHEN ... THEN 1 ELSE 0 END)` expressions for open and resolved counts.
+- Extended the PostgreSQL workflow integration test to assert the reporter summary across closed, assigned, and in-progress tickets; this checks returned counts in CI. It does not substitute for a MySQL service test, which remains a portability verification gap.
+- Updated this log before committing. No live database or hosting/deployment settings were changed.
+- Next: continue the cross-database SQL audit, focusing on timestamp casts and dialect-specific constructs in booking capacity calculations.

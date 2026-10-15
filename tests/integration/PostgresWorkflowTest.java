@@ -230,6 +230,11 @@ class PostgresWorkflowTest {
         assertEquals("23P01", trueCapacityConflict.getSQLState(),
                 "A third simultaneous booking must be rejected when capacity is 2");
 
+        Map<String, Integer> reporterSummary = tickets.getReporterTicketSummary(studentId);
+        assertEquals(3, reporterSummary.get("total"));
+        assertEquals(2, reporterSummary.get("openCount"));
+        assertEquals(1, reporterSummary.get("resolvedCount"));
+
         Map<String, Object> overview = new AdminDAO().getOverview();
         assertTrue(((Number) overview.get("totalUsers")).intValue() >= 3);
         assertTrue(((Number) overview.get("totalTickets")).intValue() >= 2);
