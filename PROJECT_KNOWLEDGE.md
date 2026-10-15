@@ -1214,6 +1214,14 @@ A phase is complete only when:
 
 ### 2026-10-15 — Expand concurrent real-login load test to 1,000 accounts
 
-- The 100-account shared-IP login test was passing, but the requested campus scale is 1,000 accounts. Expanded the integration test to create 1,000 distinct student fixtures and send 1,000 concurrent real password-verification login requests from the same apparent source address.
-- Every request must return HTTP 200 with a signed token; this specifically verifies that per-account throttling does not block unrelated students sharing campus NAT/proxy IPs. The test runs against both MySQL 8.4 and PostgreSQL 17 and cleans up its temporary accounts.
-- Extended individual/overall test timeouts to accommodate PBKDF2 password verification on shared CI runners. Do not treat this as verified until the next CI run completes with both database jobs green; if it fails, inspect real login behavior and resource saturation rather than silently reducing the target.
+- Expanded the integration test from 100 to 1,000 distinct student accounts and sent 1,000 concurrent real password-verification login requests from the same apparent source address.
+- Every request returned HTTP 200 with a signed token on both MySQL 8.4 and PostgreSQL 17, confirming that per-account throttling does not block unrelated students sharing campus NAT/proxy IPs. The tests cleaned up temporary accounts.
+- Verified by [CI run 38722677555](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38722677555): all six jobs passed. MySQL completed 1,000 concurrent logins in 14,028 ms (p50 7,442 ms, p95 12,919 ms, max 13,447 ms); PostgreSQL completed them in 9,649 ms (p50 4,813 ms, p95 8,841 ms, max 9,262 ms). The 1,000-write tests and 5,000-read PostgreSQL test also passed in the same run. These are CI burst measurements, not production latency guarantees.
+
+
+### 2026-10-15 — Verify 1,000 concurrent real logins on both database engines
+
+- Full CI run [38722677555](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38722677555) completed successfully on `d28c194502bebbdc2f11ad34d5b15cf17fe37878`; all six jobs passed.
+- Verified 1,000 simultaneous successful logins with distinct accounts sharing a single apparent source IP. PostgreSQL: 9,649 ms total, p50 4,813 ms, p95 8,841 ms, max 9,262 ms. MySQL: 14,028 ms total, p50 7,442 ms, p95 12,919 ms, max 13,447 ms. All 1,000 requests returned success and a token.
+- In the same run, the 1,000-write burst passed on PostgreSQL (3,265 ms) and MySQL (1,911 ms), and PostgreSQL completed 5,000 authenticated database-backed reads in 2,013 ms (p50 171 ms, p95 273 ms, max 310 ms) with a five-connection pool.
+- This materially improves confidence in 1,000-account burst handling but remains CI smoke testing. Production capacity depends on the real API host CPU/memory, database plan/connection limits, network latency, sustained request mix, and monitoring/recovery configuration. A staging load test is still required before release.
