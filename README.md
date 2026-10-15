@@ -98,8 +98,8 @@ Java socket server (port 5050)
 | Resource inventory, reservations, personal booking list and future cancellation | Implemented; MySQL 8.4 CI verifies booking creation, adjacent intervals, conflicts and concurrent capacity-one requests; hosted Supabase still needs live verification |
 | Notification inbox and mark-read | Implemented; assignment notifications are integration-tested on MySQL 8.4 and PostgreSQL workflow CI; hosted Supabase still needs live verification |
 | Emergency feed and admin-only broadcast | Implemented and exercised by PostgreSQL workflow CI; hosted Supabase still needs live verification |
-| API authentication and route authorization | Signed bearer tokens and core role/ownership checks implemented; token revocation and comprehensive security testing remain |
-| Automated tests | CI runs Java verification, frontend dependency audit/tests/build, container fail-closed checks, PostgreSQL 17 workflow integration, and MySQL 8.4 booking plus issue/ticket lifecycle integration. Live Supabase verification remains pending |
+| API authentication and route authorization | Signed bearer tokens, current-role checks, ownership/role enforcement, and persistent per-token logout revocation implemented; broader security review and distributed rate limiting remain |
+| Automated tests | CI runs Java verification, frontend dependency audit/tests/build, container fail-closed checks, PostgreSQL 17 workflow integration, and MySQL 8.4 booking, issue/ticket lifecycle, and token-revocation integration. Live Supabase verification remains pending |
 
 A menu item or database table does not, by itself, mean its complete workflow is finished. This table is the intended source of truth for the current implementation.
 
@@ -210,7 +210,7 @@ git pull origin main
 mysql -u root -p < resources/campusos.sql
 ```
 
-Alternatively, open `resources/campusos.sql` in MySQL Workbench and execute it. For Supabase PostgreSQL, use the separate `resources/supabase_schema.sql` script in the Supabase SQL Editor; do not run the MySQL schema there.
+Alternatively, open `resources/campusos.sql` in MySQL Workbench and execute it. For Supabase PostgreSQL, use the separate `resources/supabase_schema.sql` script in the Supabase SQL Editor; do not run the MySQL schema there. For an existing database, apply the matching one-time migration `resources/migrations/mysql/003_token_revocations.sql` or `resources/migrations/postgres/002_token_revocations.sql` before deploying this version. The PostgreSQL app role also needs the grants in `resources/supabase_app_role.sql.example` for `public.token_revocations`.
 
 For an **existing** database, do not blindly rerun the full MySQL schema (its original index statements are not all idempotent). Use the appropriate one-time migration instead:
 - MySQL: `resources/migrations/mysql/001_ticket_history_and_query_indexes.sql` (run in MySQL Workbench or the MySQL CLI; it uses a temporary stored procedure to add indexes only when missing).
@@ -393,7 +393,7 @@ Success response (example shape):
 }
 ```
 
-Invalid credentials return HTTP `401`. The response includes a signed bearer token valid for two hours. Protected requests must send `Authorization: Bearer <token>`. The browser keeps the token in `sessionStorage` for the current tab session. Configure a strong `CAMPUSOS_AUTH_SECRET` for hosted use; without it, the local development token key changes on process restart.
+Invalid credentials return HTTP `401`. The response includes a signed bearer token valid for two hours. Protected requests must send `Authorization: Bearer <token>`. The browser keeps the token in `sessionStorage` for the current tab session. Logout calls `POST /api/auth/logout` to revoke that token server-side before clearing local session state. If the API is unreachable, the browser still clears local state, but server-side revocation cannot be confirmed and the token remains valid until expiry. Configure a strong `CAMPUSOS_AUTH_SECRET` for hosted use; without it, the local development token key changes on process restart.
 
 ### Submit an issue
 
@@ -430,7 +430,7 @@ GET /api/tickets/reporter/1
 
 Returns a JSON object containing the ticket list, including fields such as ID, title, category, location, priority, status and creation time.
 
-The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. The API includes staff ticket workflow, ticket history, notifications, resource booking/cancellation, emergency feed/broadcast, and admin user/assignment routes. Token revocation, verification against a dedicated live Supabase project, and rate-limit hardening across instances remain release blockers.
+The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. The API includes staff ticket workflow, ticket history, notifications, resource booking/cancellation, emergency feed/broadcast, and admin user/assignment routes. Persistent token revocation is checked on protected requests. Verification against a dedicated live Supabase project and rate-limit hardening across instances remain release blockers.
 
 ### Other authenticated API routes
 
@@ -443,6 +443,7 @@ The ticket endpoint requires a valid bearer token and only returns tickets when 
 | POST | `/api/staff/tickets/{ticketId}/status` | Assigned staff or admin; forward lifecycle transitions only |
 | GET | `/api/notifications/me` | Authenticated user; own inbox |
 | POST | `/api/notifications/{notificationId}/read` | Authenticated user; own notification |
+| POST | `/api/auth/logout` | Authenticated user; revokes the presented bearer token |
 | GET | `/api/resources` | Authenticated user; available inventory |
 | GET | `/api/bookings/mine` | Authenticated user; own reservations |
 | POST | `/api/bookings` | Authenticated user; create reservation |
@@ -494,7 +495,7 @@ The codebase includes security-related foundations:
 - **Prepared statements:** DAO queries use parameterized SQL for database operations.
 - **Role and access-control classes:** Role checks are represented in the security layer.
 
-These foundations do **not** mean the web application is production-secure. The React client stores a signed bearer token in `sessionStorage`, which is accessible to same-origin JavaScript and increases the impact of any cross-site scripting (XSS) flaw. The API verifies tokens and checks current database roles plus route-specific ownership/role rules, and CI includes unit and PostgreSQL-backed HTTP integration tests. Production TLS/CORS configuration, token revocation, an audit trail, distributed rate limiting, and a complete security review remain outstanding. Do not expose this development server to the public internet with real campus or personal data.
+These foundations do **not** mean the web application is production-secure. The React client stores a signed bearer token in `sessionStorage`, which is accessible to same-origin JavaScript and increases the impact of any cross-site scripting (XSS) flaw. The API verifies tokens, checks current database roles plus route-specific ownership/role rules, and supports persistent server-side token revocation on logout. Production TLS/CORS configuration, an audit trail, distributed rate limiting, a complete security review, and verification against a dedicated live Supabase project remain outstanding. Do not expose this development server to the public internet with real campus or personal data.
 
 ## Testing and verification
 

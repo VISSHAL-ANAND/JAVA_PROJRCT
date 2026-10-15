@@ -1011,3 +1011,11 @@ A phase is complete only when:
 - CI caught two test harness issues in the first token-revocation run: two fake-DAO HTTP tests had not been switched to the no-op revocation adapter, so they attempted a real DB lookup; the new PostgreSQL logout test attempted fixture cleanup through the deliberately least-privilege app role, which correctly cannot delete users.
 - Updated all fake-DAO tests to inject the no-op revocation store and changed integration-fixture cleanup to use the dedicated CI admin connection. Application runtime authorization and least-privilege grants remain unchanged.
 - The MySQL token-revocation DAO test already passed on MySQL 8.4. The full workflow must pass on this correction before considering logout/revocation verified.
+
+
+### 2026-10-15 — Verify persistent logout revocation and document migration/release requirements
+
+- GitHub Actions run [38686864208](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38686864208) completed successfully on commit `57cfecc6c96de1c14e6ce64f6a0ad261e2a3c766`: all five jobs passed. The MySQL job verified booking, issue/ticket lifecycle, and persistent token-revocation SQL; PostgreSQL HTTP integration verified logout invalidates the token immediately; Java, frontend, and container jobs passed.
+- Updated README to document the logout endpoint, persistent revocation behavior, the migration/grant requirement for existing databases, and the remaining security and hosted-project release blockers.
+- The change is verified against ephemeral CI databases only. It does not establish compatibility with a real Supabase project, and no live database, production secret, or hosting project was accessed.
+- Next blocker: live staging verification requires an owner-approved dedicated CAMPUSOS Supabase project and API hosting configuration. Do not use unrelated projects or deploy without explicit authorization.
