@@ -850,3 +850,12 @@ A phase is complete only when:
 - Verified source commit [750516d](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/750516de81ca0fc497b8bb2c7587228226700ade) using CI run [38680815949](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38680815949): all four jobs passed. PostgreSQL-backed tests ran 38 methods with 0 failures, 0 errors, and 0 skipped; least-privilege app-role checks passed; frontend audit found 0 vulnerabilities; Vite build passed; API container build and fail-closed auth-secret check passed.
 - Frontend production build measurements from that CI run: JavaScript 255.86 kB minified / 76.61 kB gzip; CSS 10.78 kB minified / 3.15 kB gzip; Vite reported build time 881 ms. These are build artifact measurements, not real-user page-load measurements or a load-test result.
 - Still outstanding before launch: live browser/device review, real-user/network performance metrics, API/database load and soak tests, real staging HTTP smoke tests, and a dedicated CAMPUSOS Supabase project/API host/Vercel project. No hosting or production database was changed.
+
+
+### 2026-10-15 — Reporter ticket pagination and accurate dashboard counts
+
+- Replaced the reporter-ticket query's unbounded result set with database-side pagination (20 rows per page, stable `created_at DESC, id DESC` ordering) and a validated `page` query parameter. The endpoint continues enforcing that a signed-in student/faculty member can only retrieve their own tickets.
+- Added a compact PostgreSQL aggregate query for total, active, and resolved/closed ticket counts, so dashboard metrics remain accurate independently of the displayed page. The ticket view has Previous/Next controls and range/page information; overview shows the newest tickets.
+- Kept the original one-argument DAO method as a bounded first-page compatibility wrapper. No schema change is required; the existing reporter/created-at index supports this access pattern, with `id` as a deterministic tie-breaker.
+- Extended the PostgreSQL-backed HTTP workflow test to verify pagination metadata, bounded result size, summary counts, and rejection of page zero. CI must pass on the new commit before this task is considered complete.
+- Browser/device review, representative-data query-plan inspection, and load testing remain staging gates. No deployment or database changes were performed.

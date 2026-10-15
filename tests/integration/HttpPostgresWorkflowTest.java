@@ -93,8 +93,23 @@ class HttpPostgresWorkflowTest {
                             .GET().build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, ownTickets.statusCode(), ownTickets.body());
-            JsonNode ticketList = JSON.readTree(ownTickets.body()).path("tickets");
+            JsonNode ownTicketPayload = JSON.readTree(ownTickets.body());
+            JsonNode ticketList = ownTicketPayload.path("tickets");
             assertTrue(ticketList.isArray());
+            assertEquals(1, ownTicketPayload.path("page").asInt());
+            assertEquals(20, ownTicketPayload.path("pageSize").asInt());
+            assertTrue(ownTicketPayload.path("total").asInt() >= 1);
+            assertTrue(ownTicketPayload.path("openCount").asInt() >= 1);
+            assertTrue(ownTicketPayload.path("resolvedCount").asInt() >= 0);
+            assertTrue(ticketList.size() <= 20, "Reporter API must return at most one page of tickets");
+
+            HttpResponse<String> invalidPage = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/tickets/reporter/" + studentId + "?page=0"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + token)
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidPage.statusCode(), invalidPage.body());
             boolean foundCreatedTicket = false;
             for (JsonNode ticket : ticketList) {
                 if (ticket.path("id").asInt() == ticketId

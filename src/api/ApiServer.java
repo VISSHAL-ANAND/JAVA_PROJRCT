@@ -251,7 +251,34 @@ public class ApiServer {
                 sendJson(exchange, 403, Map.of("success", false, "message", "You can only view your own tickets"));
                 return;
             }
-            sendJson(exchange, 200, Map.of("success", true, "tickets", ticketDAO.findByReporter(principal.userId())));
+            int page = 1;
+            String query = exchange.getRequestURI().getRawQuery();
+            if (query != null) {
+                for (String parameter : query.split("&")) {
+                    if (parameter.startsWith("page=")) {
+                        try {
+                            page = Integer.parseInt(parameter.substring("page=".length()));
+                        } catch (NumberFormatException e) {
+                            sendJson(exchange, 400, Map.of("success", false, "message", "Page must be a positive integer"));
+                            return;
+                        }
+                        break;
+                    }
+                }
+            }
+            if (page < 1 || page > 100_000_000) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "Page must be between 1 and 100000000"));
+                return;
+            }
+            final int pageSize = 20;
+            long offset = (long) (page - 1) * pageSize;
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("tickets", ticketDAO.findByReporter(principal.userId(), pageSize, offset));
+            response.put("page", page);
+            response.put("pageSize", pageSize);
+            response.putAll(ticketDAO.getReporterTicketSummary(principal.userId()));
+            sendJson(exchange, 200, response);
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Unable to retrieve reporter tickets", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to retrieve tickets"));

@@ -51,19 +51,32 @@ public class TicketDAO {
         }
     }
 
+    private static final int REPORTER_TICKET_PAGE_SIZE = 20;
+
+    /** Backwards-compatible bounded first-page lookup. */
     public List<Map<String, Object>> findByReporter(int reporterId) throws SQLException {
+        return findByReporter(reporterId, REPORTER_TICKET_PAGE_SIZE, 0L);
+    }
+
+    public List<Map<String, Object>> findByReporter(int reporterId, int limit, long offset) throws SQLException {
+        if (reporterId <= 0 || limit < 1 || limit > 100 || offset < 0) {
+            throw new IllegalArgumentException("Invalid reporter ticket page");
+        }
         List<Map<String, Object>> tickets = new ArrayList<>();
         String q = """
                 SELECT t.id, t.status, t.created_at, i.title, i.category, i.location, i.priority
                 FROM tickets t
                 JOIN issues i ON i.id = t.issue_id
                 WHERE t.reported_by = ?
-                ORDER BY t.created_at DESC
+                ORDER BY t.created_at DESC, t.id DESC
+                LIMIT ? OFFSET ?
                 """;
 
         try (Connection c = DBConnection.getConnection();
              PreparedStatement s = c.prepareStatement(q)) {
             s.setInt(1, reporterId);
+            s.setInt(2, limit);
+            s.setLong(3, offset);
             try (ResultSet r = s.executeQuery()) {
                 while (r.next()) {
                     Map<String, Object> ticket = new LinkedHashMap<>();
@@ -79,6 +92,28 @@ public class TicketDAO {
             }
         }
         return tickets;
+    }
+
+    /** Counts stay correct regardless of which page is being viewed. */
+    public Map<String, Integer> getReporterTicketSummary(int reporterId) throws SQLException {
+        String q = """
+                SELECT COUNT(*) AS total,
+                       COUNT(*) FILTER (WHERE status IN ('OPEN','ASSIGNED','IN_PROGRESS')) AS open_count,
+                       COUNT(*) FILTER (WHERE status IN ('RESOLVED','CLOSED')) AS resolved_count
+                FROM tickets WHERE reported_by = ?
+                """;
+        try (Connection c = DBConnection.getConnection();
+             PreparedStatement s = c.prepareStatement(q)) {
+            s.setInt(1, reporterId);
+            try (ResultSet r = s.executeQuery()) {
+                if (!r.next()) throw new SQLException("Unable to summarize reporter tickets");
+                Map<String, Integer> summary = new LinkedHashMap<>();
+                summary.put("total", r.getInt("total"));
+                summary.put("openCount", r.getInt("open_count"));
+                summary.put("resolvedCount", r.getInt("resolved_count"));
+                return summary;
+            }
+        }
     }
 
     public List<Map<String, Object>> findAssignedTo(int userId, boolean includeAll) throws SQLException {

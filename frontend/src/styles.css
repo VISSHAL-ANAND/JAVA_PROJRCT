@@ -123,3 +123,10 @@ input, select, textarea {
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Compact, accessible server-side ticket pagination. */
+.ticket-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px solid var(--border-color,#e5e7eb);font-size:.875rem;color:var(--muted,#64748b)}
+.ticket-pagination>div{display:flex;align-items:center;gap:12px}
+.ticket-pagination button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:520px){.ticket-pagination,.ticket-pagination>div{gap:8px}.ticket-pagination{align-items:flex-start;flex-direction:column}}
