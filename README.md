@@ -99,7 +99,7 @@ Java socket server (port 5050)
 | Notification inbox and mark-read | Implemented; live database testing pending |
 | Emergency feed and admin-only broadcast | Implemented; live database testing pending |
 | API authentication and route authorization | Signed bearer tokens and core role/ownership checks implemented; token revocation and comprehensive security testing remain |
-| Automated tests | 15 tests pass in CI, including a PostgreSQL 17 workflow integration test; live Supabase verification remains |
+| Automated tests | 38 JUnit test methods across 12 test classes plus frontend security-helper tests; CI uses ephemeral PostgreSQL 17 for database-backed workflows. Live Supabase verification remains pending |
 
 A menu item or database table does not, by itself, mean its complete workflow is finished. This table is the intended source of truth for the current implementation.
 
