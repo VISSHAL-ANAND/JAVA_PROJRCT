@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named = "CAMPUSOS_WRITE_LOAD_TEST_ENABLED", matches = "true")
 class ApiWriteLoadTest {
-    private static final int REQUESTS = 100;
+    private static final int REQUESTS = 1_000;
 
     @Test
     void concurrentIssueSubmissionsPersistTicketsAssignmentsHistoryAndNotifications() throws Exception {
@@ -74,10 +74,10 @@ class ApiWriteLoadTest {
                             assertTrue(response.body().contains("\"ticketId\""));
                         }));
             }
-            CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new)).get(45, TimeUnit.SECONDS);
+            CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new)).get(90, TimeUnit.SECONDS);
             long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
             System.out.printf("CAMPUSOS write load smoke: requests=%d totalMs=%d%n", REQUESTS, elapsed);
-            assertTrue(elapsed < 45_000);
+            assertTrue(elapsed < 90_000, "1,000 concurrent issue submissions exceeded the 90-second CI budget");
 
             try (Connection c = DBConnection.getConnection()) {
                 assertEquals(REQUESTS, count(c,

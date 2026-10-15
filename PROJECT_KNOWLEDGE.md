@@ -1185,3 +1185,11 @@ A phase is complete only when:
 
 - The first attempt to enable staff-ticket pagination on both database engines accidentally duplicated the YAML key in the MySQL job instead of adding it to PostgreSQL. GitHub rejected the workflow before starting any jobs (run [38710634714](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38710634714)); no tests ran on that commit.
 - Removed the duplicate key and added exactly one opt-in flag to each database job. The corrected workflow must trigger and execute the new regression on both MySQL and PostgreSQL before this task is complete.
+
+
+### 2026-10-15 — Increase concurrent issue-write test to 1,000 users
+
+- The existing write-load test verified 100 simultaneous authenticated issue submissions and asserted the matching issue, ticket, assignment, ticket-history, technician-notification and reporter-notification records.
+- Increased the fixture to 1,000 distinct student accounts and 1,000 simultaneous `POST /api/issues` requests. Every response must be HTTP 201, and the database must contain exactly 1,000 matching issues, assigned tickets, history rows, and both classes of notifications. Test timeout is 90 seconds to detect pathological saturation while tolerating CI variability.
+- The test runs against both MySQL 8.4 and PostgreSQL 17 using the configured five-connection CI pool. The full workflow result is pending; if it fails, inspect whether the cause is an application correctness issue, queue/pool saturation, or only an unrealistic CI threshold before adjusting.
+- Previous verified CI run [38710767750](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38710767750) passed all six jobs, including the 1,001-account admin pagination test and 125-ticket staff queue pagination test on both database engines.
