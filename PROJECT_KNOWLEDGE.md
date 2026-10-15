@@ -1241,3 +1241,11 @@ A phase is complete only when:
 - Added `MixedWorkloadScaleTest`: 1,000 simultaneous authenticated HTTP requests against the real API, mixed as 400 reporter-ticket reads, 400 personal-notification reads, and 200 issue submissions. It asserts all requests succeed and verifies persisted issue/ticket/assignment/history/notification counts.
 - Enabled the same mixed workload against both MySQL 8.4 and PostgreSQL 17. This tests interaction between request dispatch, authentication, the five-connection JDBC pool, and concurrent writes instead of measuring each route only in isolation.
 - CI verification is pending. If it fails, fix the underlying correctness or resource-saturation problem and rerun the entire pipeline. Do not claim production readiness from CI burst tests alone.
+
+
+### 2026-10-15 — Verify mixed 1,000-request workload on MySQL and PostgreSQL
+
+- GitHub Actions run [38723881538](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38723881538) completed successfully on commit `76629a1c9e7bfb984db4b4661912b0713b67db58`; all six jobs passed.
+- The mixed workload test passed on MySQL 8.4 in 1,744 ms and PostgreSQL 17 in 819 ms. Each sent 1,000 simultaneous authenticated requests: 400 ticket reads, 400 notification reads, and 200 issue submissions. Every response passed its status/body assertion, and the test verified all 200 issues, assigned tickets, ticket-history rows, and both notification classes were persisted.
+- In the same run, MySQL passed 1,000 concurrent real logins in 9,403 ms (p95 8,711 ms) and 1,000 issue writes in 3,216 ms; PostgreSQL passed 1,000 concurrent real logins in 8,870 ms (p95 8,242 ms), 1,000 issue writes in 818 ms, and 5,000 authenticated DB-backed reads across five 1,000-request rounds. Admin pagination across 1,001 accounts and staff queue pagination also passed on both engines.
+- These are ephemeral CI database/runner results, useful evidence of burst correctness but not a guarantee of sustained 1,000-user production service. Live hosting/network latency, actual Supabase connection quotas, resource limits, multi-instance behavior, backup/recovery, and monitoring remain unverified.
