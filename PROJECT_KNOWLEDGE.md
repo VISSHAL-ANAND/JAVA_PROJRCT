@@ -1132,3 +1132,11 @@ A phase is complete only when:
 - The previous single-round CI result was 997 ms total, p50 351 ms, p95 622 ms, max 723 ms with a five-connection PostgreSQL pool (run [38708218745](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38708218745)). The five-round variant is pending verification and has a 90-second total budget with p95 below 30 seconds.
 - Cross-database write-path tests also passed in that run: 100 simultaneous issue submissions completed in 1,244 ms on MySQL and 233 ms on PostgreSQL, with issue, assigned ticket, history and notification assertions.
 - The shared-IP login-throttle regression passed (3 rate-limit tests, no failures) on the latest full CI run. Do not treat a new code change as complete until the strengthened 5,000-request test and all CI jobs pass.
+
+
+### 2026-10-15 — Add 100-way real password-verification/login load test
+
+- Added an opt-in integration test that creates 100 temporary student accounts and submits 100 concurrent successful `POST /api/auth/login` requests from the same apparent source IP. This exercises real PBKDF2 verification, user lookup, token creation, and the account-plus-source-address limiter rather than bypassing authentication.
+- Enabled the test in both MySQL 8.4 and PostgreSQL 17 integration jobs; it asserts every response is HTTP 200 with a token and reports p50/p95/max latency. The test removes temporary users through the CI admin connection.
+- The preceding five-round read-load test passed on PostgreSQL: 5,000 authenticated requests across 1,000 distinct users completed in 9,315 ms total, p50 255 ms, p95 2,086 ms, max 2,188 ms, using a five-connection pool (run [38708669488](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38708669488)).
+- This new login stress test is pending CI verification. Password hashing is CPU-intensive; do not extrapolate from 100 simultaneous logins to 1,000 simultaneous login attempts or claim production capacity without a dedicated staging load test.

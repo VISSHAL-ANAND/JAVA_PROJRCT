@@ -106,6 +106,7 @@ jobs:
       CAMPUSOS_MYSQL_IT_ENABLED: "true"
       CAMPUSOS_BROADCAST_SCALE_TEST_ENABLED: "true"
       CAMPUSOS_WRITE_LOAD_TEST_ENABLED: "true"
+      CAMPUSOS_LOGIN_LOAD_TEST_ENABLED: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -118,7 +119,7 @@ jobs:
       - name: Initialize MySQL schema
         run: mysql --host=127.0.0.1 --user=root --password=root < resources/campusos.sql
       - name: Run MySQL booking, broadcast and write-load integration tests
-        run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,EmergencyBroadcastScaleTest,ApiWriteLoadTest test
+        run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,EmergencyBroadcastScaleTest,ApiWriteLoadTest,ApiLoginLoadTest test
 
   load-smoke:
     name: 1,000-concurrent-request HTTP load smoke test
@@ -165,6 +166,7 @@ jobs:
       CAMPUSOS_IT_ENABLED: "true"
       CAMPUSOS_DB_LOAD_TEST_ENABLED: "true"
       CAMPUSOS_WRITE_LOAD_TEST_ENABLED: "true"
+      CAMPUSOS_LOGIN_LOAD_TEST_ENABLED: "true"
       CAMPUSOS_BROADCAST_SCALE_TEST_ENABLED: "true"
     steps:
       - name: Check out repository
