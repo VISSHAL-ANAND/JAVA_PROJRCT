@@ -890,3 +890,13 @@ A phase is complete only when:
 - Verification: reviewed the exact source changes; CI for the resulting commit is required to validate compilation, PostgreSQL integration, frontend build, and container build. Maven is unavailable locally, so no local test pass is claimed.
 - No live database or hosting/deployment changes were made.
 - Next priority: inspect transaction boundaries and error paths for concrete data-integrity defects, then complete pre-hosting release-gate review without deploying absent explicit authorization.
+
+
+### 2026-10-15 — Bound legacy unread-notification lookup
+
+- The legacy `NotificationDAO.findUnreadMessages()` query loaded every unread message for a user and ordered oldest-first without a stable tie-breaker. Updated it to return only the newest 100 unread messages, ordered by `created_at DESC, id DESC`, consistent with the bounded inbox API and preventing unbounded result growth.
+- Added a PostgreSQL integration regression test that inserts 105 unread messages and asserts the method returns exactly the newest 100 in deterministic order.
+- No schema/index change was made: the existing notification indexes support user/read filtering and recent notification access; this focused change bounds application memory/result size.
+- Verification: source and regression test are committed; GitHub Actions on the exact commit is the required validation. Local Maven execution is unavailable here, so no local test pass is claimed.
+- No live database or hosting/deployment changes were made.
+- Next priority: continue checking transactional rollback behavior and API body/error handling using concrete regression tests; keep live environment work behind explicit owner authorization.

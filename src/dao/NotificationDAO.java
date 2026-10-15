@@ -8,7 +8,7 @@ import java.util.List;
 
 public class NotificationDAO {
     public List<String> findUnreadMessages(int userId) throws SQLException {
-        String sql = "SELECT message FROM notifications WHERE user_id = ? AND is_read = FALSE ORDER BY created_at";
+        String sql = "SELECT message FROM notifications WHERE user_id = ? AND is_read = FALSE ORDER BY created_at DESC, id DESC LIMIT 100";
 
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {

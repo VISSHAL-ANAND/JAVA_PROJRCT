@@ -234,6 +234,34 @@ class PostgresWorkflowTest {
         assertTrue(((Number) overview.get("totalUsers")).intValue() >= 3);
         assertTrue(((Number) overview.get("totalTickets")).intValue() >= 2);
     }
+    @Test
+    void unreadNotificationLookupIsBoundedAndNewestFirst() throws Exception {
+        UserDAO users = new UserDAO();
+        NotificationDAO notifications = new NotificationDAO();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int userId = users.createUser("Unread Test " + suffix, "unread-" + suffix + "@example.test",
+                PasswordHasher.hash("IntegrationPass!2026"), "STUDENT", "UNREAD" + suffix, "CSE", null);
+
+        try (Connection connection = openFixtureConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO notifications(user_id, message, is_read, created_at) " +
+                             "VALUES(?, ?, FALSE, CURRENT_TIMESTAMP + (? * INTERVAL '1 second'))")) {
+            for (int i = 0; i < 105; i++) {
+                statement.setInt(1, userId);
+                statement.setString(2, "unread-" + i);
+                statement.setInt(3, i);
+                statement.addBatch();
+            }
+            int[] inserted = statement.executeBatch();
+            assertEquals(105, inserted.length);
+        }
+
+        List<String> unread = notifications.findUnreadMessages(userId);
+        assertEquals(100, unread.size(), "Unread lookup must not load an unbounded notification history");
+        assertEquals("unread-104", unread.get(0), "Newest unread message must be returned first");
+        assertEquals("unread-5", unread.get(99), "The result must contain only the 100 newest unread messages");
+    }
+
     private Connection openFixtureConnection() throws SQLException {
         String adminUrl = System.getenv("CAMPUSOS_IT_ADMIN_DB_URL");
         if (adminUrl == null || adminUrl.isBlank()) {
