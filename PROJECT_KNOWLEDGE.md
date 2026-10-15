@@ -965,3 +965,11 @@ A phase is complete only when:
 
 - The rerun caught one remaining reference to the mutable setup IDs in the second concurrency lambda. Updated both worker submissions to use the final fixture IDs; CI compile output pinpointed the remaining references.
 - Re-run the complete workflow on this exact fix. The MySQL integration task remains open until the MySQL service test itself passes, not merely compiles.
+
+
+### 2026-10-15 — Isolate MySQL integration job from database-absence smoke test
+
+- The MySQL booking integration test itself passed on MySQL 8.4: booking inserts, adjacent half-open intervals, overlap rejection, and simultaneous capacity-one requests all succeeded.
+- The job still exited non-zero because running the entire Maven suite with MySQL connection variables made an unrelated API smoke test expect a database-unavailable health response (503) while the configured MySQL database correctly made it healthy (200).
+- Narrowed the MySQL job to compile tests and execute only `MySqlBookingIntegrationTest`. The normal Java verification job continues to run the full unit/test suite without a configured database; the PostgreSQL job continues to run the full PostgreSQL-backed workflow suite.
+- Re-run all jobs on this exact workflow adjustment. No application production code or live database was changed.

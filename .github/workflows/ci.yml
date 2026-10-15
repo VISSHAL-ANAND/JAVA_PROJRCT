@@ -116,7 +116,7 @@ jobs:
       - name: Initialize MySQL schema
         run: mysql --host=127.0.0.1 --user=root --password=root < resources/campusos.sql
       - name: Run MySQL-backed booking integration tests
-        run: mvn --batch-mode --no-transfer-progress clean verify
+        run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest test
 
   postgres-integration:
     name: PostgreSQL workflow integration tests
