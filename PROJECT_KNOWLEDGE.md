@@ -1210,3 +1210,10 @@ A phase is complete only when:
 - Updated CI documentation to reflect the actual 1,000 simultaneous issue-write workload, rather than the former 100-request test, and recorded the current verified results.
 - Verification source: [GitHub Actions run 38721939842](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38721939842), completed successfully on `b16c829d3fce7e0d25d6140e2e40349497dcd786`; all six jobs passed. MySQL write burst: 1,000 requests in 2,228 ms. PostgreSQL write burst: 1,000 requests in 1,486 ms. PostgreSQL read workload: 5,000 requests over five 1,000-concurrent rounds in 3,131 ms (p50 306 ms, p95 495 ms, max 572 ms; pool size 5). All 1,000 issue-write integrity assertions passed on both engines.
 - Capacity boundary: these are burst smoke tests on ephemeral GitHub-hosted runners and CI databases. They do not prove sustained 1,000-user production capacity, real Supabase connectivity, a specific response-time SLO, or resilience to provider-level throttling/outages. Staging load tests and host/database sizing remain release gates.
+
+
+### 2026-10-15 — Expand concurrent real-login load test to 1,000 accounts
+
+- The 100-account shared-IP login test was passing, but the requested campus scale is 1,000 accounts. Expanded the integration test to create 1,000 distinct student fixtures and send 1,000 concurrent real password-verification login requests from the same apparent source address.
+- Every request must return HTTP 200 with a signed token; this specifically verifies that per-account throttling does not block unrelated students sharing campus NAT/proxy IPs. The test runs against both MySQL 8.4 and PostgreSQL 17 and cleans up its temporary accounts.
+- Extended individual/overall test timeouts to accommodate PBKDF2 password verification on shared CI runners. Do not treat this as verified until the next CI run completes with both database jobs green; if it fails, inspect real login behavior and resource saturation rather than silently reducing the target.

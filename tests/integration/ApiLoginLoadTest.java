@@ -28,11 +28,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Verifies simultaneous real password verification/login for distinct accounts behind one shared IP. */
 @EnabledIfEnvironmentVariable(named = "CAMPUSOS_LOGIN_LOAD_TEST_ENABLED", matches = "true")
 class ApiLoginLoadTest {
-    private static final int CONCURRENT_LOGINS = 100;
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final int CONCURRENT_LOGINS = 1_000;
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
     @Test
-    void handlesOneHundredConcurrentSuccessfulLoginsFromOneSharedSourceAddress() throws Exception {
+    void handlesOneThousandConcurrentSuccessfulLoginsFromOneSharedSourceAddress() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         String emailPrefix = "login-load-" + suffix + "-";
         String plainPassword = "ConcurrentLogin!Only-2026";
@@ -81,7 +81,7 @@ class ApiLoginLoadTest {
             }
 
             CompletableFuture.allOf(requests.toArray(CompletableFuture[]::new))
-                    .get(REQUEST_TIMEOUT.toSeconds() + 15, TimeUnit.SECONDS);
+                    .get(REQUEST_TIMEOUT.toSeconds() + 30, TimeUnit.SECONDS);
             long totalMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
             List<Long> sorted = new ArrayList<>(latencyMillis);
             Collections.sort(sorted);
@@ -92,10 +92,10 @@ class ApiLoginLoadTest {
                     CONCURRENT_LOGINS, sorted.size(), totalMillis, p50, p95, max);
 
             assertEquals(CONCURRENT_LOGINS, sorted.size(), "Every login must finish");
-            assertTrue(totalMillis < 60_000,
-                    "100 simultaneous password-verification logins exceeded the 60-second CI budget");
-            assertTrue(p95 < 45_000,
-                    "95th-percentile login latency exceeded the 45-second CI budget");
+            assertTrue(totalMillis < 120_000,
+                    "1,000 simultaneous password-verification logins exceeded the 120-second CI budget");
+            assertTrue(p95 < 90_000,
+                    "95th-percentile login latency exceeded the 90-second CI budget");
         } finally {
             if (server != null) server.stop();
             try {
