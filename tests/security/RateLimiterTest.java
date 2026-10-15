@@ -36,8 +36,10 @@ class RateLimiterTest {
             assertTrue(limiter.allow("unique-client-" + i));
         }
 
-        assertTrue(limiter.allow("legitimate-new-client"),
-                "A new client should not be globally rejected just because the bounded map is full");
+        for (int i = 0; i < 1_000; i++) {
+            assertTrue(limiter.allow("legitimate-new-client-" + i),
+                    "A new client should not be globally rejected when the bounded map is full");
+        }
 
         Field field = RateLimiter.class.getDeclaredField("buckets");
         field.setAccessible(true);

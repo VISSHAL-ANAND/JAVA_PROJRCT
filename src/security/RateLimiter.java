@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RateLimiter {
     private static final int CLEANUP_THRESHOLD = 5_000;
     private static final int MAX_BUCKETS = 10_000;
+    private static final int EVICTION_SAMPLE_SIZE = 32;
     private static final long CLEANUP_INTERVAL_MILLIS = 60_000L;
 
     private static final class Bucket {
@@ -77,14 +78,16 @@ public class RateLimiter {
 
     /**
      * Keep memory bounded without turning high-cardinality login traffic into a global
-     * lockout for every new key. At capacity, prefer an expired or unblocked least-recently
-     * used bucket; if all buckets are active, evict the oldest bucket as a last resort.
+     * lockout for every new key. Inspect only a bounded sample so each new key does not
+     * trigger a full 10,000-entry scan. Prefer an unblocked least-recently-used bucket from
+     * that sample; if all sampled buckets are blocked, evict the oldest sampled bucket.
      * This is a bounded, per-process limiter, not a substitute for a shared distributed limiter.
      */
     private void evictLeastRecentlyUsedBucket(Instant now) {
         String candidateKey = null;
         long oldestAccess = Long.MAX_VALUE;
         boolean candidateIsActive = true;
+        int inspected = 0;
         for (Map.Entry<String, Bucket> entry : buckets.entrySet()) {
             Bucket bucket = entry.getValue();
             synchronized (bucket) {
@@ -98,6 +101,7 @@ public class RateLimiter {
                     candidateIsActive = active;
                 }
             }
+            if (++inspected >= EVICTION_SAMPLE_SIZE) break;
         }
         if (candidateKey != null) buckets.remove(candidateKey);
     }

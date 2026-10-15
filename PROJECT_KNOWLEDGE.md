@@ -1396,3 +1396,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 - The latest cross-engine 1,000-login run showed PostgreSQL p95 8.84 s but MySQL p95 17.06 s on shared CI runners, while authenticated DB-read p95 stayed below 0.5 s. This isolates the login burst as CPU/password-hashing sensitive rather than primarily a database-read bottleneck.
 - Reduced the default worker-pool oversubscription from at least 16 workers / four per CPU to at least four / two per CPU (still capped at 64). Explicit `CAMPUSOS_HTTP_WORKER_THREADS` remains available for host-specific tuning.
 - This is a hypothesis to validate, not a claimed performance improvement. The next full CI run must confirm the 1,000-request HTTP smoke test and both database engines' login, write, mixed-load, booking, and read workloads. Production sizing still requires the guarded staging test.
+
+
+### 2026-10-15 — Bound rate-limiter eviction work under sustained high-cardinality traffic
+
+- Code review found that scanning the entire 10,000-entry limiter map for every new key at capacity could itself become a CPU-amplification path. Eviction now samples at most 32 buckets and removes the least-recently-used unblocked candidate in that sample, falling back to the oldest sampled candidate only when all are blocked.
+- Expanded the regression to insert 1,000 additional unique clients after filling the map, asserting all are admitted and the map remains exactly capped at 10,000 entries. Full CI must pass on the exact commit.
