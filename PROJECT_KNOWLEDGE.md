@@ -1233,3 +1233,11 @@ A phase is complete only when:
 - Added composite indexes for the admin directory, available staff directory, and recent-ticket ordering to both fresh MySQL and PostgreSQL schemas. Added idempotent upgrade migrations for existing databases and removed the now-redundant single-column user-role index after the replacement index is created.
 - Added schema-contract regression checks and documented the required migration for existing databases.
 - Verification is pending: both MySQL 8.4 and PostgreSQL 17 CI must pass before these index/migration changes are considered safe. No live database was modified.
+
+
+### 2026-10-15 — Add mixed read/write load verification for 1,000 concurrent requests
+
+- The preceding index/migration commit `2562278079935716d467366ef685245851b260d6` passed all six CI jobs, including MySQL 8.4, PostgreSQL 17, the frontend audit/build, Java verification, Docker build, and HTTP liveness load test (run [38723385531](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38723385531)).
+- Added `MixedWorkloadScaleTest`: 1,000 simultaneous authenticated HTTP requests against the real API, mixed as 400 reporter-ticket reads, 400 personal-notification reads, and 200 issue submissions. It asserts all requests succeed and verifies persisted issue/ticket/assignment/history/notification counts.
+- Enabled the same mixed workload against both MySQL 8.4 and PostgreSQL 17. This tests interaction between request dispatch, authentication, the five-connection JDBC pool, and concurrent writes instead of measuring each route only in isolation.
+- CI verification is pending. If it fails, fix the underlying correctness or resource-saturation problem and rerun the entire pipeline. Do not claim production readiness from CI burst tests alone.
