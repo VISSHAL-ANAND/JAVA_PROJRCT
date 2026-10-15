@@ -1402,3 +1402,11 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - Code review found that scanning the entire 10,000-entry limiter map for every new key at capacity could itself become a CPU-amplification path. Eviction now samples at most 32 buckets and removes the least-recently-used unblocked candidate in that sample, falling back to the oldest sampled candidate only when all are blocked.
 - Expanded the regression to insert 1,000 additional unique clients after filling the map, asserting all are admitted and the map remains exactly capped at 10,000 entries. Full CI must pass on the exact commit.
+
+
+### 2026-10-15 — Tighten the 1,000-login CI regression budget and record latest measurements
+
+- Latest full CI run [38741241527](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38741241527) passed all six jobs on commit `cbdb608be67a3975528309d86a6b1369e9bf4278`.
+- After CPU-aware worker sizing, 1,000 concurrent successful logins completed in 12.3 s on MySQL 8.4 (p95 11.6 s) and 13.1 s on PostgreSQL 17 (p95 12.2 s). Five rounds of 1,000 authenticated DB reads completed in 2.8 s on MySQL (p95 466 ms) and 3.7 s on PostgreSQL (p95 533 ms); mixed workload, 1,000 writes, 1,000 token revocations, 100-way booking contention, frontend, Java, and container checks passed.
+- Tightened the CI login test budget from total <75 s / p95 <60 s to total <30 s / p95 <20 s so meaningful performance regressions are detected. This is still more tolerant than the proposed dedicated-staging target (login p95 <10 s); do not call that target met until measured on the intended host and database.
+- Verification of the tightened threshold is pending a full run on the next commit.
