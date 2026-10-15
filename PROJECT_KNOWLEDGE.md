@@ -1164,3 +1164,11 @@ A phase is complete only when:
 - Increased the dedicated fixture to 1,000 students plus one admin. The test checks every database user is returned exactly once across all pages, each response is capped at 50 rows, all 1,001 fixture accounts are reachable, and invalid page/page-size values are rejected.
 - The previous six-job CI run [38709719029](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38709719029) passed, including 5,000 authenticated database-backed reads across 1,000 distinct users (five rounds of 1,000; 9,027 ms total, p50 298 ms, p95 1,277 ms, max 2,308 ms, PostgreSQL pool size 5), concurrent login/write tests, emergency fan-out, booking races, frontend audit/build and container checks.
 - The stronger 1,001-account pagination fixture is pending the next full CI run. These tests provide useful burst-load and data-visibility coverage, not a production capacity certification.
+
+
+### 2026-10-15 — Paginate staff/admin ticket queues for large campuses
+
+- The scale audit found the staff ticket DAO returned only the first 100 tickets with no UI navigation, silently hiding older/lower-priority work once the queue exceeded 100 rows.
+- Added deterministic page/limit SQL and total counts for both administrator-wide and staff-assigned queues, API validation for `page`/`pageSize`, bounded response metadata, and Previous/Next controls in the work-queue UI.
+- Added a cross-database HTTP integration test that creates 125 real tickets, verifies every ticket is reachable exactly once across pages, checks invalid paging inputs, and ensures results exceed the previous 100-ticket cap. CI enables it against MySQL 8.4 and PostgreSQL 17.
+- This change is pending full CI verification; do not claim the staff queue scale issue is fixed until both SQL engines and frontend build pass.

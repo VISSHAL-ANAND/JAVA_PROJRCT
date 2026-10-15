@@ -106,6 +106,7 @@ jobs:
       CAMPUSOS_MYSQL_IT_ENABLED: "true"
       CAMPUSOS_BROADCAST_SCALE_TEST_ENABLED: "true"
       CAMPUSOS_ADMIN_PAGINATION_TEST_ENABLED: "true"
+      CAMPUSOS_STAFF_TICKET_PAGINATION_TEST_ENABLED: "true"
       CAMPUSOS_WRITE_LOAD_TEST_ENABLED: "true"
       CAMPUSOS_LOGIN_LOAD_TEST_ENABLED: "true"
     steps:
@@ -120,7 +121,7 @@ jobs:
       - name: Initialize MySQL schema
         run: mysql --host=127.0.0.1 --user=root --password=root < resources/campusos.sql
       - name: Run MySQL booking, broadcast and write-load integration tests
-        run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,EmergencyBroadcastScaleTest,ApiWriteLoadTest,ApiLoginLoadTest,AdminUserPaginationTest test
+        run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,EmergencyBroadcastScaleTest,ApiWriteLoadTest,ApiLoginLoadTest,AdminUserPaginationTest,StaffTicketPaginationTest test
 
   load-smoke:
     name: 1,000-concurrent-request HTTP load smoke test

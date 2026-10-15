@@ -116,7 +116,17 @@ public class TicketDAO {
         }
     }
 
+    /** Backwards-compatible bounded first-page lookup. */
     public List<Map<String, Object>> findAssignedTo(int userId, boolean includeAll) throws SQLException {
+        return findAssignedTo(userId, includeAll, 100, 0L);
+    }
+
+    /** Returns a deterministic page of tickets visible to a staff member or administrator. */
+    public List<Map<String, Object>> findAssignedTo(int userId, boolean includeAll,
+                                                    int limit, long offset) throws SQLException {
+        if ((!includeAll && userId <= 0) || limit < 1 || limit > 100 || offset < 0) {
+            throw new IllegalArgumentException("Invalid staff ticket page");
+        }
         List<Map<String, Object>> tickets = new ArrayList<>();
         String filter = includeAll ? "" : "WHERE t.assigned_technician_id = ?";
         String q = """
@@ -128,11 +138,14 @@ public class TicketDAO {
                 ORDER BY CASE i.priority
                     WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END,
                     t.created_at ASC, t.id ASC
-                LIMIT 100
+                LIMIT ? OFFSET ?
                 """.formatted(filter);
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(q)) {
-            if (!includeAll) statement.setInt(1, userId);
+            int parameter = 1;
+            if (!includeAll) statement.setInt(parameter++, userId);
+            statement.setInt(parameter++, limit);
+            statement.setLong(parameter, offset);
             try (ResultSet rs = statement.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> ticket = new LinkedHashMap<>();
@@ -150,6 +163,19 @@ public class TicketDAO {
             }
         }
         return tickets;
+    }
+
+    public int countAssignedTo(int userId, boolean includeAll) throws SQLException {
+        if (!includeAll && userId <= 0) throw new IllegalArgumentException("Invalid staff member");
+        String filter = includeAll ? "" : " WHERE assigned_technician_id = ?";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT COUNT(*) FROM tickets" + filter)) {
+            if (!includeAll) statement.setInt(1, userId);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next()) throw new SQLException("Unable to count staff tickets");
+                return rs.getInt(1);
+            }
+        }
     }
 
     public void updateStatus(int ticketId, int actorId, String actorRole, String nextStatus) throws SQLException {

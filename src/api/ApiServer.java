@@ -374,8 +374,27 @@ public class ApiServer {
                     sendJson(exchange, 403, Map.of("success", false, "message", "Staff access required"));
                     return;
                 }
-                sendJson(exchange, 200, Map.of("success", true,
-                        "tickets", ticketDAO.findAssignedTo(principal.userId(), admin)));
+                int page = queryInteger(exchange, "page", 1);
+                int pageSize = queryInteger(exchange, "pageSize", 50);
+                if (page < 1 || page > 100_000_000) {
+                    throw new BadRequestException("Page must be a positive integer");
+                }
+                if (pageSize < 1 || pageSize > 100) {
+                    throw new BadRequestException("Page size must be between 1 and 100");
+                }
+                int totalTickets = ticketDAO.countAssignedTo(principal.userId(), admin);
+                long totalPages = Math.max(1L, (totalTickets + (long) pageSize - 1) / pageSize);
+                if (page > totalPages) {
+                    throw new BadRequestException("Page exceeds the available ticket pages");
+                }
+                long offset = (long) (page - 1) * pageSize;
+                sendJson(exchange, 200, Map.of(
+                        "success", true,
+                        "tickets", ticketDAO.findAssignedTo(principal.userId(), admin, pageSize, offset),
+                        "page", page,
+                        "pageSize", pageSize,
+                        "totalTickets", totalTickets,
+                        "totalPages", totalPages));
                 return;
             }
 
