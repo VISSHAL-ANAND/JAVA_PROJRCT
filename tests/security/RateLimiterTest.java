@@ -30,6 +30,22 @@ class RateLimiterTest {
                 () -> new RateLimiter(0, Duration.ofMinutes(1), Duration.ofMinutes(1)));
     }
     @Test
+    void highCardinalityTrafficCannotPermanentlyExhaustAllRateLimitBuckets() throws Exception {
+        RateLimiter limiter = new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15));
+        for (int i = 0; i < 10_000; i++) {
+            assertTrue(limiter.allow("unique-client-" + i));
+        }
+
+        assertTrue(limiter.allow("legitimate-new-client"),
+                "A new client should not be globally rejected just because the bounded map is full");
+
+        Field field = RateLimiter.class.getDeclaredField("buckets");
+        field.setAccessible(true);
+        java.util.Map<?, ?> buckets = (java.util.Map<?, ?>) field.get(limiter);
+        assertEquals(10_000, buckets.size(), "Rate-limit state must remain within its memory cap");
+    }
+
+    @Test
     void throttlesExpensiveBucketCleanup() throws ReflectiveOperationException {
         RateLimiter limiter = new RateLimiter(10, Duration.ofMinutes(1), Duration.ofMinutes(1));
         for (int i = 0; i <= 5_000; i++) {

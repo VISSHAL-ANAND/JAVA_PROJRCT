@@ -16,12 +16,14 @@ public class RateLimiter {
         int attempts;
         Instant windowStart = Instant.now();
         Instant blockedUntil = Instant.MIN;
+        long lastAccessMillis = System.currentTimeMillis();
     }
 
     private final int maxAttempts;
     private final Duration window;
     private final Duration blockDuration;
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final Object bucketCreationLock = new Object();
     private final AtomicLong nextCleanupAtMillis = new AtomicLong();
 
     public RateLimiter(int maxAttempts, Duration window, Duration blockDuration) {
@@ -41,8 +43,21 @@ public class RateLimiter {
         cleanupIfNeeded(now);
         if (buckets.size() >= MAX_BUCKETS && !buckets.containsKey(normalized)) return false;
 
-        Bucket bucket = buckets.computeIfAbsent(normalized, ignored -> new Bucket());
+        Bucket bucket = buckets.get(normalized);
+        if (bucket == null) {
+            synchronized (bucketCreationLock) {
+                bucket = buckets.get(normalized);
+                if (bucket == null) {
+                    if (buckets.size() >= MAX_BUCKETS) {
+                        evictLeastRecentlyUsedBucket(now);
+                    }
+                    bucket = new Bucket();
+                    buckets.put(normalized, bucket);
+                }
+            }
+        }
         synchronized (bucket) {
+            bucket.lastAccessMillis = now.toEpochMilli();
             if (now.isBefore(bucket.blockedUntil)) return false;
             if (Duration.between(bucket.windowStart, now).compareTo(window) >= 0) {
                 bucket.attempts = 0;
@@ -59,6 +74,33 @@ public class RateLimiter {
 
     public void reset(String key) {
         if (key != null) buckets.remove(key.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Keep memory bounded without turning high-cardinality login traffic into a global
+     * lockout for every new key. At capacity, prefer an expired or unblocked least-recently
+     * used bucket; if all buckets are active, evict the oldest bucket as a last resort.
+     * This is a bounded, per-process limiter, not a substitute for a shared distributed limiter.
+     */
+    private void evictLeastRecentlyUsedBucket(Instant now) {
+        String candidateKey = null;
+        long oldestAccess = Long.MAX_VALUE;
+        boolean candidateIsActive = true;
+        for (Map.Entry<String, Bucket> entry : buckets.entrySet()) {
+            Bucket bucket = entry.getValue();
+            synchronized (bucket) {
+                boolean active = now.isBefore(bucket.blockedUntil);
+                long lastAccess = bucket.lastAccessMillis;
+                if (candidateKey == null
+                        || (candidateIsActive && !active)
+                        || (candidateIsActive == active && lastAccess < oldestAccess)) {
+                    candidateKey = entry.getKey();
+                    oldestAccess = lastAccess;
+                    candidateIsActive = active;
+                }
+            }
+        }
+        if (candidateKey != null) buckets.remove(candidateKey);
     }
 
     private void cleanupIfNeeded(Instant now) {

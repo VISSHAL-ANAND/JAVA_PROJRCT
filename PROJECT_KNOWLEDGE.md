@@ -1368,3 +1368,11 @@ The older phase checklist below is a historical roadmap and includes items that 
 - GitHub Actions run [38738611266](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38738611266) completed successfully on commit `c417f208bb91ed2ad5c966a037beb43f89d3ea8b`; all six jobs passed.
 - The new `ApiServerSmokeTest.gracefulShutdownAllowsAnInFlightAuthorizedCheckToFinish` ran as part of PostgreSQL workflow CI and passed (the full smoke-test class reported seven tests, zero failures/errors/skips). MySQL's 1,000-token revocation load also passed in 1,510 ms; PostgreSQL's previous verified result was 487 ms.
 - Graceful shutdown and concurrent logout deadlock regression are now covered by automated tests. Sustained 1,000-VU staging load, live Supabase connectivity, and production host/database observability remain unverified and cannot be completed without an approved staging target.
+
+
+### 2026-10-15 — Prevent rate-limit bucket exhaustion from causing global login denial
+
+- Code review found that the in-memory rate limiter refused every unseen key after 10,000 buckets were created. High-cardinality failed-login traffic could therefore make unrelated new accounts fail closed until buckets aged out.
+- Changed bucket creation to remain synchronized and bounded; when full, the limiter evicts the least-recently-used bucket, preferring a non-blocked bucket. Added a regression test that fills all 10,000 slots and verifies a new client is still admitted while state remains bounded.
+- This is a resilience improvement, not a distributed brute-force defense: the limiter remains process-local and can trade per-key history under extreme high-cardinality pressure. Shared/distributed rate limiting remains a production hardening item.
+- Must be verified on the exact commit by full CI before considering the fix complete.
