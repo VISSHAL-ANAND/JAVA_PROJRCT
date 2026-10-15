@@ -47,7 +47,7 @@ class ApiInputValidationTest {
         String token = tokens.issue(new Student(12, "Student", "student@example.test", "", "S12", "CSE"));
         ApiServer server = new ApiServer(0, tokens, new UserDAO() {
             @Override public Optional<String> findRoleById(int userId) { return Optional.of("STUDENT"); }
-        });
+        }, TokenRevocationStore.noOp());
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();
