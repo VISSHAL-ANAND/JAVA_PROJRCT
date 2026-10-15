@@ -909,3 +909,12 @@ A phase is complete only when:
 - Added a schema-contract regression test to ensure both bootstrap schemas enforce these invariants and the existing-MySQL migration documents/applies them.
 - Verification is pending GitHub Actions for the exact commit; Maven is not available locally, so no local test pass is claimed.
 - No hosting/deployment changes were made. Next: continue the transactional and API error-path audit after CI is green.
+
+
+### 2026-10-15 — Make booking concurrency lock database-portable
+
+- The transaction audit found that `BookingDAO.createIfAvailable()` used PostgreSQL-only `pg_advisory_xact_lock`, while the documented local configuration and MySQL bootstrap schema claim MySQL support. This caused resource bookings to fail on MySQL before reaching the capacity check.
+- Replaced the advisory lock with a row-level `SELECT id FROM resources WHERE id = ? FOR UPDATE` lock inside the existing transaction. Both MySQL and PostgreSQL support this pattern; requests for the same resource serialize while capacity is checked and the booking is inserted. Missing resources are rejected while acquiring the lock.
+- The existing PostgreSQL integration test exercises simultaneous capacity-one booking attempts and must remain green. The test suite does not currently include a live MySQL service, so MySQL runtime verification remains a follow-up rather than a claimed pass.
+- No schema, live database, or hosting/deployment changes were made. CI on the exact commit is required; Maven is not available locally.
+- Next priority: continue database-portability and transaction rollback review; keep live environment work behind explicit authorization.

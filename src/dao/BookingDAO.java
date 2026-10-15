@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 public class BookingDAO {
-    private static final int BOOKING_LOCK_NAMESPACE = 1128351312;
-
     public int createIfAvailable(int resourceId, int userId, LocalDateTime start, LocalDateTime end) throws SQLException {
         String resourceSql = "SELECT quantity, available FROM resources WHERE id = ?";
         // Booking intervals are half-open [start, end). Occupancy can only increase
@@ -39,11 +37,14 @@ public class BookingDAO {
         try (Connection connection = DBConnection.getConnection()) {
             connection.setAutoCommit(false);
             try {
-                // Serialize booking attempts for this resource without requiring UPDATE on resources.
-                try (PreparedStatement lock = connection.prepareStatement("SELECT pg_advisory_xact_lock(?, ?)")) {
-                    lock.setInt(1, BOOKING_LOCK_NAMESPACE);
-                    lock.setInt(2, resourceId);
-                    lock.execute();
+                // Lock the resource row so capacity checks are serialized on both MySQL and PostgreSQL.
+                // The lock is held until this transaction commits or rolls back.
+                try (PreparedStatement lock = connection.prepareStatement(
+                        "SELECT id FROM resources WHERE id = ? FOR UPDATE")) {
+                    lock.setInt(1, resourceId);
+                    try (ResultSet rs = lock.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Resource not found");
+                    }
                 }
 
                 int capacity;
