@@ -103,7 +103,9 @@ public class ApiServer {
     }
 
     public void start() throws IOException {
-        server = HttpServer.create(new InetSocketAddress(port), 0);
+        // A zero backlog delegates to a small OS default and can reset connections during
+        // legitimate bursts. Size the accept backlog to absorb a 1,000-client arrival burst.
+        server = HttpServer.create(new InetSocketAddress(port), 2048);
         server.createContext("/api/health", this::handleHealth);
         server.createContext("/api/health/ready", this::handleReadiness);
         server.createContext("/api/auth/login", this::handleLogin);
@@ -117,16 +119,35 @@ public class ApiServer {
         server.createContext("/api/resources", this::handleResources);
         server.createContext("/api/bookings", this::handleBookings);
         server.createContext("/api/admin", this::handleAdmin);
-        int workerCount = Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2));
-        // Bound queued work so traffic spikes apply back-pressure instead of growing an
-        // unbounded task queue. CallerRunsPolicy slows the dispatcher when workers saturate.
+        int workerCount = configuredPositiveInt(
+                "CAMPUSOS_HTTP_WORKER_THREADS",
+                Math.max(16, Math.min(64, Runtime.getRuntime().availableProcessors() * 4)),
+                4, 128);
+        int queueCapacity = configuredPositiveInt("CAMPUSOS_HTTP_QUEUE_CAPACITY", 2048, 64, 10000);
+        // Keep request handling bounded while allowing a burst of 1,000 clients to queue
+        // without forcing the HttpServer dispatcher to execute slow database handlers.
+        // CallerRunsPolicy still applies back-pressure if both workers and queue are saturated.
         executor = new java.util.concurrent.ThreadPoolExecutor(
                 workerCount, workerCount, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
-                new java.util.concurrent.ArrayBlockingQueue<>(256),
+                new java.util.concurrent.ArrayBlockingQueue<>(queueCapacity),
                 new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         server.setExecutor(executor);
         server.start();
         LOGGER.info("CAMPUSOS HTTP API started on port " + server.getAddress().getPort());
+    }
+
+    private static int configuredPositiveInt(String name, int defaultValue, int minimum, int maximum) {
+        String configured = System.getenv(name);
+        if (configured == null || configured.isBlank()) return defaultValue;
+        try {
+            int parsed = Integer.parseInt(configured.trim());
+            if (parsed < minimum || parsed > maximum) {
+                throw new IllegalArgumentException(name + " must be between " + minimum + " and " + maximum);
+            }
+            return parsed;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(name + " must be a valid integer", e);
+        }
     }
 
     public int getPort() {

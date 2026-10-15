@@ -1193,3 +1193,11 @@ A phase is complete only when:
 - Increased the fixture to 1,000 distinct student accounts and 1,000 simultaneous `POST /api/issues` requests. Every response must be HTTP 201, and the database must contain exactly 1,000 matching issues, assigned tickets, history rows, and both classes of notifications. Test timeout is 90 seconds to detect pathological saturation while tolerating CI variability.
 - The test runs against both MySQL 8.4 and PostgreSQL 17 using the configured five-connection CI pool. The full workflow result is pending; if it fails, inspect whether the cause is an application correctness issue, queue/pool saturation, or only an unrealistic CI threshold before adjusting.
 - Previous verified CI run [38710767750](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38710767750) passed all six jobs, including the 1,001-account admin pagination test and 125-ticket staff queue pagination test on both database engines.
+
+
+### 2026-10-15 — Fix HTTP accept/worker saturation exposed by 1,000 concurrent writes
+
+- The 1,000-request write stress test failed on both PostgreSQL and MySQL with client-side connection resets before receiving HTTP response headers. The independent 1,000-request HTTP smoke test and database-backed read stress test passed, pointing to request burst handling rather than a compilation or database syntax issue.
+- Root cause found in server configuration: the JDK HTTP server used backlog `0` (OS default) and as few as four worker threads on small CI runners, with a queue of only 256 tasks. A simultaneous 1,000-client arrival could overrun the accept/request dispatch capacity.
+- Increased the accept backlog to 2,048, raised the default worker pool to 16–64 based on available processors, expanded the bounded request queue to 2,048, and added validated environment overrides (`CAMPUSOS_HTTP_WORKER_THREADS` 4–128 and `CAMPUSOS_HTTP_QUEUE_CAPACITY` 64–10,000). The queue remains bounded and `CallerRunsPolicy` still applies back-pressure if the system exceeds configured capacity.
+- This is a hypothesis-backed fix, not yet verified: the next MySQL and PostgreSQL 1,000-write CI tests must pass before the burst-capacity issue is considered resolved. This does not certify 1,000 concurrent users against production hardware or a live hosted database.
