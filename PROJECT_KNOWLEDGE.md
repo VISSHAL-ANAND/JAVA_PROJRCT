@@ -1059,3 +1059,9 @@ A phase is complete only when:
 - Increased the capacity-one race tests from two callers to 25 synchronized callers in both the MySQL 8.4 and PostgreSQL 17 integration suites.
 - Each test now requires exactly one successful reservation and 24 explicit capacity-conflict responses; unexpected SQL errors and timeouts fail the test. The PostgreSQL test varies the user identity across student/admin/technician fixtures; the MySQL test uses a shared fixture user.
 - This stresses the resource row/advisory-lock serialization with more waiting workers than the configured five-connection CI pool. The update is pending CI verification; no production database was touched.
+
+
+### 2026-10-15 — Fix compile error in expanded concurrent booking test
+
+- The first CI run after increasing the booking contention test to 25 callers failed compilation because the PostgreSQL integration test used `ArrayList` without importing it. All dependent Java/container/load jobs failed for that same test-compilation error; the frontend job passed.
+- Added the missing import. This is a test harness correction, not a production application change. Re-run all six CI jobs and inspect MySQL and PostgreSQL booking stress results before marking this task complete.
