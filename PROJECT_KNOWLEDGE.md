@@ -348,6 +348,13 @@ A phase is complete only when:
 - Added safe MySQL/PostgreSQL migration scripts for ticket history and query indexes. Added rate limiter memory bounds and normalized login keys. Added container build and non-root runtime, with local config excluded from the Docker context.
 - No hosting was performed. Vercel frontend/API environment settings and the Java container are documented but not deployed.
 
+### 2026-10-15 — Notification inbox query stability and index
+- Audited DAO list queries after the reporter-ticket pagination change. The notification inbox is explicitly capped at 100 rows but ordered only by `created_at`, so rows with equal timestamps could shift unpredictably between requests.
+- Added `id DESC` as a deterministic tie-breaker to the notification inbox query.
+- Added a composite `(user_id, created_at DESC, id DESC)` index to both PostgreSQL and MySQL bootstrap schemas so the inbox query's per-user filter and newest-first order have a matching index. The existing unread-only index remains because it serves a different filter.
+- No live database was changed; schema changes are for fresh/bootstrap setup and must be applied through an approved migration process to an existing deployment.
+- CI status for this commit: pending until the new run completes. No hosting or production DB changes were made.
+
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog

@@ -45,7 +45,7 @@ public class NotificationDAO {
 
     public List<java.util.Map<String, Object>> findByUser(int userId) throws SQLException {
         List<java.util.Map<String, Object>> items = new ArrayList<>();
-        String sql = "SELECT id, message, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 100";
+        String sql = "SELECT id, message, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 100";
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, userId);

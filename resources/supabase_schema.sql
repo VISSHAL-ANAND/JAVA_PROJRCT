@@ -100,6 +100,8 @@ create index if not exists idx_tickets_reported_by_created on public.tickets(rep
 create index if not exists idx_tickets_assignee_status on public.tickets(assigned_technician_id, status);
 create index if not exists idx_issues_priority on public.issues(priority);
 create index if not exists idx_notifications_user_read_created on public.notifications(user_id, is_read, created_at desc);
+-- Supports the inbox query that lists read and unread notifications together.
+create index if not exists idx_notifications_user_created_id on public.notifications(user_id, created_at desc, id desc);
 create index if not exists idx_bookings_resource_start on public.bookings(resource_id, start_time);
 create index if not exists idx_bookings_user_start on public.bookings(booked_by, start_time);
 create index if not exists idx_emergencies_created on public.emergencies(created_at desc);
