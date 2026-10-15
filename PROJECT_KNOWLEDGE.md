@@ -973,3 +973,10 @@ A phase is complete only when:
 - The job still exited non-zero because running the entire Maven suite with MySQL connection variables made an unrelated API smoke test expect a database-unavailable health response (503) while the configured MySQL database correctly made it healthy (200).
 - Narrowed the MySQL job to compile tests and execute only `MySqlBookingIntegrationTest`. The normal Java verification job continues to run the full unit/test suite without a configured database; the PostgreSQL job continues to run the full PostgreSQL-backed workflow suite.
 - Re-run all jobs on this exact workflow adjustment. No application production code or live database was changed.
+
+
+### 2026-10-15 — Extend MySQL integration coverage to issue/ticket lifecycle
+
+- Expanded the MySQL 8.4 integration suite beyond bookings to exercise the actual issue submission transaction, automatic staff assignment, reporter/staff ticket views, portable reporter summary SQL, assignment notifications, ticket history, and status transitions through CLOSED.
+- The test uses uniquely named fixtures and cleans up tickets, history, notifications, issues, and users. This supplements the booking interval/concurrency test; all MySQL runtime claims depend on the CI job result for the exact commit.
+- No production database or hosting changes were made.
