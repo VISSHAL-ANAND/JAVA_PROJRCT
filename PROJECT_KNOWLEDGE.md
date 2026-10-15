@@ -1263,3 +1263,9 @@ A phase is complete only when:
 - GitHub Actions run [38724691799](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38724691799) passed all six jobs. The new real-HTTP capacity-one booking test returned exactly one HTTP 201, 99 HTTP 409 responses, and zero unexpected responses in 159 ms on MySQL 8.4 and 121 ms on PostgreSQL 17; each database contained exactly one matching booking.
 - Tightened CI regression budgets so performance regressions are caught sooner: 5,000 authenticated reads must complete in under 30 seconds with p95 under 10 seconds; 1,000 issue writes under 30 seconds; 1,000 real logins under 75 seconds with p95 under 60 seconds; mixed 1,000-request workload under 20 seconds; and 100-way HTTP booking contention under 30 seconds. These limits are deliberately more tolerant than current measured results to allow shared-runner variability.
 - The tightened budgets are not yet verified on a full CI run. Re-run every job and adjust only if logs demonstrate a genuine runner-noise problem rather than an application regression.
+
+
+### 2026-10-15 — Extend booking stress test through ownership, listing, and cancellation
+
+- Extended the 100-way HTTP booking contention test beyond capacity correctness: it parses the winning booking ID, verifies the owner can see it in `GET /api/bookings/mine`, verifies another user cannot cancel it (HTTP 409), then verifies the owner can cancel it (HTTP 200) and the reservation disappears from both the list and database.
+- The updated test runs in both MySQL and PostgreSQL CI jobs. Verification is pending; do not mark the booking lifecycle fully verified until the next full run passes.

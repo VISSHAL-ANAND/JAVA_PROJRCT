@@ -1,6 +1,8 @@
 package integration;
 
 import api.ApiServer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dao.UserDAO;
 import database.DBConnection;
 import model.Student;
@@ -32,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @EnabledIfEnvironmentVariable(named = "CAMPUSOS_BOOKING_HTTP_SCALE_TEST_ENABLED", matches = "true")
 class BookingHttpScaleTest {
     private static final int CONTENDERS = 100;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Test
     void concurrentHttpBookingRequestsNeverExceedCapacityOne() throws Exception {
@@ -73,6 +76,8 @@ class BookingHttpScaleTest {
             LocalDateTime end = start.plusHours(1);
             AtomicInteger successes = new AtomicInteger();
             AtomicInteger conflicts = new AtomicInteger();
+            AtomicInteger winningUserIndex = new AtomicInteger(-1);
+            AtomicInteger acceptedBookingId = new AtomicInteger();
             List<String> unexpected = java.util.Collections.synchronizedList(new ArrayList<>());
             List<CompletableFuture<Void>> pending = new ArrayList<>(CONTENDERS);
             long startedAt = System.nanoTime();
@@ -117,6 +122,58 @@ class BookingHttpScaleTest {
                 try (ResultSet result = statement.executeQuery()) {
                     assertTrue(result.next());
                     assertEquals(1, result.getInt(1), "Database must contain exactly one accepted booking");
+                }
+            }
+
+            int winnerIndex = winningUserIndex.get();
+            int bookingId = acceptedBookingId.get();
+            assertTrue(winnerIndex >= 0 && winnerIndex < CONTENDERS, "The winning account must be known");
+            assertTrue(bookingId > 0, "The accepted booking ID must be known");
+
+            HttpResponse<String> mine = client.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + server.getPort() + "/api/bookings/mine"))
+                            .header("Authorization", "Bearer " + tokens.get(winnerIndex))
+                            .GET().build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, mine.statusCode(), mine.body());
+            JsonNode mineJson = JSON.readTree(mine.body());
+            assertTrue(mineJson.path("success").asBoolean());
+            assertTrue(mineJson.path("bookings").toString().contains("\\"id\\":" + bookingId),
+                    "The winning user must see the booking they created");
+
+            int otherIndex = (winnerIndex + 1) % CONTENDERS;
+            HttpResponse<String> wrongOwnerCancel = client.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + server.getPort()
+                                    + "/api/bookings/" + bookingId + "/cancel"))
+                            .header("Authorization", "Bearer " + tokens.get(otherIndex))
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(409, wrongOwnerCancel.statusCode(), wrongOwnerCancel.body());
+
+            HttpResponse<String> cancel = client.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + server.getPort()
+                                    + "/api/bookings/" + bookingId + "/cancel"))
+                            .header("Authorization", "Bearer " + tokens.get(winnerIndex))
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, cancel.statusCode(), cancel.body());
+
+            HttpResponse<String> afterCancel = client.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + server.getPort() + "/api/bookings/mine"))
+                            .header("Authorization", "Bearer " + tokens.get(winnerIndex))
+                            .GET().build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, afterCancel.statusCode(), afterCancel.body());
+            assertEquals(0, JSON.readTree(afterCancel.body()).path("bookings").size(),
+                    "Cancelled booking must disappear from the owner's list");
+
+            try (Connection connection = DBConnection.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "SELECT COUNT(*) FROM bookings WHERE resource_id = ? AND start_time = ? AND end_time = ?")) {
+                statement.setInt(1, resourceId);
+                statement.setTimestamp(2, java.sql.Timestamp.valueOf(start));
+                statement.setTimestamp(3, java.sql.Timestamp.valueOf(end));
+                try (ResultSet result = statement.executeQuery()) {
+                    assertTrue(result.next());
+                    assertEquals(0, result.getInt(1), "Cancelled booking must be removed from the database");
                 }
             }
         } finally {
