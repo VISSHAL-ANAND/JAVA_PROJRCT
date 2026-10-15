@@ -1269,3 +1269,11 @@ A phase is complete only when:
 
 - Extended the 100-way HTTP booking contention test beyond capacity correctness: it parses the winning booking ID, verifies the owner can see it in `GET /api/bookings/mine`, verifies another user cannot cancel it (HTTP 409), then verifies the owner can cancel it (HTTP 200) and the reservation disappears from both the list and database.
 - The updated test runs in both MySQL and PostgreSQL CI jobs. Verification is pending; do not mark the booking lifecycle fully verified until the next full run passes.
+
+
+### 2026-10-15 — Verify booking lifecycle and tightened 1,000-user regression budgets
+
+- GitHub Actions run [38725548005](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38725548005) completed successfully on commit `e5851c381f3baec99abc12ffd38f570e7058e8bd`; all six jobs passed.
+- The HTTP booking stress test passed on MySQL 8.4 (100 contenders, exactly 1 success and 99 conflicts, 229 ms) and PostgreSQL 17 (exactly 1 success and 99 conflicts, 152 ms). It also verified the owner can list and cancel the reservation, another user cannot cancel it, and cancellation removes the row.
+- The tightened budgets passed. MySQL: 1,000 concurrent logins in 12,688 ms (p95 11,733 ms), 1,000 issue writes in 1,767 ms, and mixed 1,000-request reads/writes in 2,027 ms. PostgreSQL: 1,000 logins in 17,392 ms (p95 16,190 ms), 1,000 issue writes in 1,090 ms, mixed workload in 1,051 ms, and 5,000 authenticated DB-backed reads in 2,301 ms (p95 314 ms) using a five-connection pool.
+- This validates bounded CI bursts and the booking lifecycle on both SQL engines. It does not certify sustained production capacity or validate a live Supabase project; staging load, connection quotas, host limits, multi-instance rate limiting, observability, backups, and recovery remain release gates.
