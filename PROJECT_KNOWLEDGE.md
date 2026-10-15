@@ -1361,3 +1361,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - GitHub Actions run [38738242919](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38738242919) passed all six jobs on commit `185e6278e11f13c2d82f66400487e86ad2e7920a`, including the MySQL deadlock regression test: 1,000 concurrent token revocations plus verification completed in 1,701 ms on MySQL 8.4 and 487 ms on PostgreSQL 17.
 - Added a focused HTTP regression test that holds a request inside authorization while shutdown begins, then confirms the in-flight request completes its expected 403 response before shutdown returns. This verifies the bounded drain behavior rather than only compiling it.
 - The new shutdown test requires a full CI run on the exact follow-up commit. No live database or hosting project was touched.
+
+
+### 2026-10-15 — Verify graceful shutdown regression on full CI
+
+- GitHub Actions run [38738611266](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38738611266) completed successfully on commit `c417f208bb91ed2ad5c966a037beb43f89d3ea8b`; all six jobs passed.
+- The new `ApiServerSmokeTest.gracefulShutdownAllowsAnInFlightAuthorizedCheckToFinish` ran as part of PostgreSQL workflow CI and passed (the full smoke-test class reported seven tests, zero failures/errors/skips). MySQL's 1,000-token revocation load also passed in 1,510 ms; PostgreSQL's previous verified result was 487 ms.
+- Graceful shutdown and concurrent logout deadlock regression are now covered by automated tests. Sustained 1,000-VU staging load, live Supabase connectivity, and production host/database observability remain unverified and cannot be completed without an approved staging target.
