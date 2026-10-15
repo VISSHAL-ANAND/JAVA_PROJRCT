@@ -56,6 +56,8 @@ class MySqlBookingIntegrationTest {
                 }
             }
 
+            final int testUserId = userId;
+            final int testResourceId = resourceId;
             BookingDAO bookings = new BookingDAO();
             LocalDateTime start = LocalDateTime.now().plusDays(3).withSecond(0).withNano(0);
             int firstBooking = bookings.createIfAvailable(resourceId, userId, start, start.plusHours(1));
@@ -67,7 +69,7 @@ class MySqlBookingIntegrationTest {
             assertTrue(adjacentBooking > 0);
 
             SQLException overlap = assertThrows(SQLException.class,
-                    () -> bookings.createIfAvailable(resourceId, userId,
+                    () -> bookings.createIfAvailable(testResourceId, testUserId,
                             start.plusMinutes(30), start.plusMinutes(45)));
             assertEquals("23P01", overlap.getSQLState());
 
@@ -78,7 +80,7 @@ class MySqlBookingIntegrationTest {
             ExecutorService executor = Executors.newFixedThreadPool(2);
             try {
                 Future<Integer> first = executor.submit(() -> attemptAfterGate(
-                        bookings, resourceId, userId, concurrentStart, ready, gate));
+                        bookings, testResourceId, testUserId, concurrentStart, ready, gate));
                 Future<Integer> second = executor.submit(() -> attemptAfterGate(
                         bookings, resourceId, userId, concurrentStart, ready, gate));
                 assertTrue(ready.await(5, TimeUnit.SECONDS), "Booking workers did not become ready");

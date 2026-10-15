@@ -952,3 +952,10 @@ A phase is complete only when:
 - This is intended to close the biggest database portability gap. The change is not considered verified until the new MySQL job and all existing CI jobs finish successfully; any failures must be fixed and CI rerun.
 - No live/production database or hosting settings were accessed or changed.
 - Next: after CI is green, extend MySQL coverage to other critical DAO workflows and continue the release-gate/security audit.
+
+
+### 2026-10-15 — Fix MySQL integration test compilation and await full CI
+
+- The first CI run for the new MySQL job caught a Java test-compilation error: fixture IDs assigned during database setup were captured directly by lambdas and therefore were not effectively final. The production application code was not implicated by this failure.
+- Fixed the test by copying the initialized fixture IDs into final local variables before using them in the overlap and concurrency lambdas.
+- The first run's CI results are being treated as a genuine failure; the task is not complete until a new run on the correction passes all Java, frontend, container, PostgreSQL and MySQL jobs.
