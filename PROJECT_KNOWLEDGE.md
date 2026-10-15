@@ -783,7 +783,7 @@ A phase is complete only when:
 - Full Maven suite was not run: Maven is not installed in this environment, and cloning the repository failed because `github.com` DNS resolution is unavailable. The last directly inspected full CI run is [38619188597](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38619188597) on `485cdbed`; all four jobs succeeded. It predates the later workflow SHA-pinning commits and the current rate-limiter change.
 - Current push CI for the latest `main` head cannot be verified through the available connected GitHub interface: combined commit statuses are empty, and the workflow-run wrapper returns only pull-request-triggered runs. The GitHub Actions web page is also inaccessible from this environment. Do not infer success or failure from missing status data.
 - No live Supabase project was accessed, no secrets were read, and no deployment was performed.
-- Next priority: fix login rate-limit behavior. `handleLogin` currently counts every login attempt before authentication and does not reset the source-IP bucket after a successful login; repeated legitimate logins behind a shared NAT can therefore trigger HTTP 429 for everyone using that IP. Add a regression for six sequential successful logins from one IP, then run the complete Maven/CI suite when push-run visibility or local Maven/network access is available.
+- Follow-up: the shared-IP lockout issue was addressed and regression coverage was added in the subsequent 2026-10-15 entry below. The new JUnit test and latest main-branch CI still require execution/verification.
 
 ### 2026-10-15 — Shared-IP login throttling regression and fix
 
