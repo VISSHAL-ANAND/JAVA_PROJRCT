@@ -803,3 +803,13 @@ A phase is complete only when:
 - Verification is blocked until either the Actions run for the current main head can be inspected or the repository can be built in an environment with Maven and dependency/network access. This environment has Java 21 but no Maven; the earlier repository clone failed at GitHub DNS resolution. The new HTTP regression test and full Maven suite therefore remain unexecuted here.
 - No live Supabase access, secret access, or deployment occurred.
 - Next action: obtain an inspectable Actions run for the current main commit or a Maven-enabled checkout, run `mvn --batch-mode --no-transfer-progress clean verify`, fix any failures, then continue the unfinished authorization review (including request-body limits, error handling, and deployment/proxy assumptions).
+
+
+### 2026-10-15 — Current main CI independently verified; authorization audit resumes
+
+- Remote `main` HEAD was confirmed as [a628736](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/a628736510ecf65e81fb516cc1999efacf8f018e) (`docs: record auth audit checkpoint and test blocker`), ahead of the previously known emergency regression commits. GitHub's compare endpoint confirms `9546869` is the merge base and `5d3ba96` is included in the 83 commits ahead of it; the emergency notification regression and its documentation are present in current `main`.
+- Retrieved the actual push-triggered GitHub Actions run [38678705534](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38678705534) for exact HEAD `a628736510ecf65e81fb516cc1999efacf8f018e`. Run conclusion: **success**. All four jobs completed successfully: Java `mvn clean verify`, PostgreSQL workflow integration tests (including schema/least-privilege role checks), frontend dependency audit + security tests + production build, and API container build + fail-closed auth-secret smoke test.
+- This resolves the previous *CI visibility* blocker for this exact commit. Local execution is still unavailable in this session: Java 21 exists, Maven is absent, and `git ls-remote` fails because this environment cannot resolve `github.com`. No local test result is claimed; CI is the verified test evidence.
+- Open pull requests: none returned by GitHub. Open issues: none returned by repository issue search. Only `main` was returned by branch search.
+- No production database, secrets, deployment, or hosting settings were accessed or changed.
+- Next priority: continue the route-by-route trust-boundary audit, focusing on proxy-derived client identity, authentication/rate-limit concurrency, and request failure handling. Make a code change only when a concrete exploitable defect and a regression test can be established; run the CI checks for the exact resulting commit.
