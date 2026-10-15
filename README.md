@@ -93,13 +93,13 @@ Java socket server (port 5050)
 | Technician selection by availability and specialization | Implemented in issue submission |
 | User ticket list from the configured SQL database | Implemented with ownership checks |
 | Live student ticket counts | Implemented in the current dashboard |
-| Technician ticket lifecycle (assigned → in progress → resolved → closed) | Implemented with role/assignment checks and status history; database integration testing pending |
+| Technician ticket lifecycle (assigned → in progress → resolved → closed) | Implemented with role/assignment checks and status history; issue-to-ticket lifecycle integration-tested on MySQL 8.4 and PostgreSQL 17 CI |
 | Admin overview, account creation, user directory, staff assignment, staff availability and ticket CSV export | Implemented; editing/deleting user identity and broader operational analytics remain incomplete |
-| Resource inventory, reservations, personal booking list and future cancellation | Implemented; live database/concurrency testing pending |
-| Notification inbox and mark-read | Implemented; live database testing pending |
-| Emergency feed and admin-only broadcast | Implemented; live database testing pending |
+| Resource inventory, reservations, personal booking list and future cancellation | Implemented; MySQL 8.4 CI verifies booking creation, adjacent intervals, conflicts and concurrent capacity-one requests; hosted Supabase still needs live verification |
+| Notification inbox and mark-read | Implemented; assignment notifications are integration-tested on MySQL 8.4 and PostgreSQL workflow CI; hosted Supabase still needs live verification |
+| Emergency feed and admin-only broadcast | Implemented and exercised by PostgreSQL workflow CI; hosted Supabase still needs live verification |
 | API authentication and route authorization | Signed bearer tokens and core role/ownership checks implemented; token revocation and comprehensive security testing remain |
-| Automated tests | 38 JUnit test methods across 12 test classes plus frontend security-helper tests; CI uses ephemeral PostgreSQL 17 for database-backed workflows. Live Supabase verification remains pending |
+| Automated tests | CI runs Java verification, frontend dependency audit/tests/build, container fail-closed checks, PostgreSQL 17 workflow integration, and MySQL 8.4 booking plus issue/ticket lifecycle integration. Live Supabase verification remains pending |
 
 A menu item or database table does not, by itself, mean its complete workflow is finished. This table is the intended source of truth for the current implementation.
 

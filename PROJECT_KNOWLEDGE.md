@@ -987,3 +987,12 @@ A phase is complete only when:
 - GitHub Actions run [38685816831](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38685816831) completed successfully on commit `20afe17872651cb2741d0475eeefd0c66d6efb34`: all five jobs passed, including MySQL 8.4 booking plus issue/ticket lifecycle integration, PostgreSQL workflow integration, Java verification, frontend build/audit/tests, and container checks.
 - Added a route-matrix regression test asserting anonymous GET and POST requests are rejected with HTTP 401 across protected ticket history, staff, notification, emergency, resource, booking, and admin endpoints. These checks run without requiring a database, so they verify authentication is enforced before protected data access.
 - Verification for the new route matrix is pending CI on the exact commit. Production database and deployment remain untouched.
+
+
+### 2026-10-15 — Verify cross-database integration and anonymous route coverage
+
+- GitHub Actions run [38686007919](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38686007919) completed successfully on commit `b435c4d9cbfa790d40e4e0aba6777bb4b2bdcd08`: all five jobs passed, including the new MySQL 8.4 integration tests and anonymous protected-route regression test.
+- MySQL integration now covers booking capacity and concurrency plus issue submission, technician assignment, ticket summary counts, notifications, ticket history and the full status lifecycle. PostgreSQL 17 workflow integration remains green.
+- Updated README feature-status claims to distinguish CI-backed MySQL/PostgreSQL coverage from still-pending live verification against the actual hosted Supabase project.
+- No live Supabase database, production secrets, or hosting settings were accessed or changed.
+- Next priority: continue the release-gate audit, especially token revocation/session lifecycle and hosted deployment prerequisites; do not deploy without explicit authorization.
