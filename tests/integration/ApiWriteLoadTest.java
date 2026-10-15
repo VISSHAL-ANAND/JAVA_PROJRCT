@@ -77,7 +77,7 @@ class ApiWriteLoadTest {
             CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new)).get(90, TimeUnit.SECONDS);
             long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
             System.out.printf("CAMPUSOS write load smoke: requests=%d totalMs=%d%n", REQUESTS, elapsed);
-            assertTrue(elapsed < 90_000, "1,000 concurrent issue submissions exceeded the 90-second CI budget");
+            assertTrue(elapsed < 30_000, "1,000 concurrent issue submissions exceeded the 30-second CI budget");
 
             try (Connection c = DBConnection.getConnection()) {
                 assertEquals(REQUESTS, count(c,

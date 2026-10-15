@@ -104,7 +104,7 @@ class MixedWorkloadScaleTest {
             System.out.printf("CAMPUSOS mixed load smoke: users=%d concurrentRequests=%d ticketReads=%d notificationReads=%d issueWrites=%d totalMs=%d%n",
                     TOTAL_USERS, TOTAL_REQUESTS, READ_TICKET_REQUESTS,
                     READ_NOTIFICATION_REQUESTS, WRITE_ISSUE_REQUESTS, elapsed);
-            assertTrue(elapsed < 90_000, "Mixed 1,000-request workload exceeded CI time budget");
+            assertTrue(elapsed < 20_000, "Mixed 1,000-request workload exceeded the 20-second CI budget");
 
             try (Connection connection = DBConnection.getConnection()) {
                 assertEquals(WRITE_ISSUE_REQUESTS, count(connection,

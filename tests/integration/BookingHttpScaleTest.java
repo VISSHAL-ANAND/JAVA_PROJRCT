@@ -107,7 +107,7 @@ class BookingHttpScaleTest {
             assertTrue(unexpected.isEmpty(), "Unexpected booking responses: " + unexpected);
             assertEquals(1, successes.get(), "Capacity-one resource must admit exactly one booking");
             assertEquals(CONTENDERS - 1, conflicts.get(), "Every losing booking must receive HTTP 409");
-            assertTrue(elapsed < 75_000, "Concurrent booking requests exceeded the CI time budget");
+            assertTrue(elapsed < 30_000, "Concurrent booking requests exceeded the 30-second CI budget");
             try (Connection connection = DBConnection.getConnection();
                  PreparedStatement statement = connection.prepareStatement(
                          "SELECT COUNT(*) FROM bookings WHERE resource_id = ? AND start_time = ? AND end_time = ?")) {

@@ -92,10 +92,10 @@ class ApiLoginLoadTest {
                     CONCURRENT_LOGINS, sorted.size(), totalMillis, p50, p95, max);
 
             assertEquals(CONCURRENT_LOGINS, sorted.size(), "Every login must finish");
-            assertTrue(totalMillis < 120_000,
-                    "1,000 simultaneous password-verification logins exceeded the 120-second CI budget");
-            assertTrue(p95 < 90_000,
-                    "95th-percentile login latency exceeded the 90-second CI budget");
+            assertTrue(totalMillis < 75_000,
+                    "1,000 simultaneous password-verification logins exceeded the 75-second CI budget");
+            assertTrue(p95 < 60_000,
+                    "95th-percentile login latency exceeded the 60-second CI budget");
         } finally {
             if (server != null) server.stop();
             try {

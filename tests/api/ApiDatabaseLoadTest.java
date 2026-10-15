@@ -114,10 +114,10 @@ class ApiDatabaseLoadTest {
                     System.getenv().getOrDefault("CAMPUSOS_DB_POOL_SIZE", "10 (default)"));
 
             assertEquals(TOTAL_REQUESTS, sorted.size(), "All requests across every round must finish");
-            assertTrue(totalMillis < 90_000,
-                    "5,000 authenticated DB requests exceeded the 90-second CI smoke-test budget");
-            assertTrue(p95 < 30_000,
-                    "95th-percentile authenticated DB latency exceeded the 30-second CI smoke-test budget");
+            assertTrue(totalMillis < 30_000,
+                    "5,000 authenticated DB requests exceeded the 30-second CI smoke-test budget");
+            assertTrue(p95 < 10_000,
+                    "95th-percentile authenticated DB latency exceeded the 10-second CI smoke-test budget");
         } finally {
             if (server != null) server.stop();
             try {

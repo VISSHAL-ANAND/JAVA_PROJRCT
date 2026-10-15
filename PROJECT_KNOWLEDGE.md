@@ -1256,3 +1256,10 @@ A phase is complete only when:
 - Added `BookingHttpScaleTest`, which creates 100 temporary student accounts and sends 100 simultaneous authenticated `POST /api/bookings` requests to the same capacity-one resource and time slot.
 - The test requires exactly one successful HTTP 201, 99 conflict HTTP 409 responses, no unexpected status codes, and exactly one matching database row. It runs against MySQL 8.4 and PostgreSQL 17, covering the real HTTP/auth/DAO path rather than only direct DAO concurrency.
 - Enabled the test in both database CI jobs and documented the coverage. CI verification is pending; any test failure must be fixed and the full workflow rerun. This remains a bounded contention test, not a substitute for production staging load.
+
+
+### 2026-10-15 — Verify HTTP booking contention and tighten CI performance budgets
+
+- GitHub Actions run [38724691799](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38724691799) passed all six jobs. The new real-HTTP capacity-one booking test returned exactly one HTTP 201, 99 HTTP 409 responses, and zero unexpected responses in 159 ms on MySQL 8.4 and 121 ms on PostgreSQL 17; each database contained exactly one matching booking.
+- Tightened CI regression budgets so performance regressions are caught sooner: 5,000 authenticated reads must complete in under 30 seconds with p95 under 10 seconds; 1,000 issue writes under 30 seconds; 1,000 real logins under 75 seconds with p95 under 60 seconds; mixed 1,000-request workload under 20 seconds; and 100-way HTTP booking contention under 30 seconds. These limits are deliberately more tolerant than current measured results to allow shared-runner variability.
+- The tightened budgets are not yet verified on a full CI run. Re-run every job and adjust only if logs demonstrate a genuine runner-noise problem rather than an application regression.
