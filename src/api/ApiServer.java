@@ -103,7 +103,13 @@ public class ApiServer {
         server.createContext("/api/resources", this::handleResources);
         server.createContext("/api/bookings", this::handleBookings);
         server.createContext("/api/admin", this::handleAdmin);
-        executor = Executors.newFixedThreadPool(Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2)));
+        int workerCount = Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors() * 2));
+        // Bound queued work so traffic spikes apply back-pressure instead of growing an
+        // unbounded task queue. CallerRunsPolicy slows the dispatcher when workers saturate.
+        executor = new java.util.concurrent.ThreadPoolExecutor(
+                workerCount, workerCount, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+                new java.util.concurrent.ArrayBlockingQueue<>(256),
+                new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         server.setExecutor(executor);
         server.start();
         LOGGER.info("CAMPUSOS HTTP API started on port " + server.getAddress().getPort());
