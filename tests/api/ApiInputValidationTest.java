@@ -5,6 +5,7 @@ import dao.UserDAO;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import security.AccessTokenService;
+import security.TokenRevocationStore;
 import security.RateLimiter;
 import java.time.Duration;
 

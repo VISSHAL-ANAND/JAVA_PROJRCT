@@ -968,4 +968,55 @@ class HttpPostgresWorkflowTest {
         return java.sql.DriverManager.getConnection(url, username, password);
     }
 
+
+    @Test
+    void logoutRevokesBearerTokenImmediately() throws Exception {
+        UserDAO users = new UserDAO();
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String email = "logout-" + suffix + "@example.test";
+        String password = "IntegrationPass!2026";
+        int userId = users.createUser("Logout Student " + suffix, email,
+                PasswordHasher.hash(password), "STUDENT", "LOGOUT" + suffix, "CSE", null);
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+            String base = "http://127.0.0.1:" + server.getPort();
+            HttpResponse<String> login = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(
+                                    java.util.Map.of("email", email, "password", password))))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, login.statusCode(), login.body());
+            String token = JSON.readTree(login.body()).path("token").asText();
+            assertFalse(token.isBlank());
+
+            HttpRequest protectedRequest = HttpRequest.newBuilder(
+                    URI.create(base + "/api/tickets/reporter/" + userId))
+                    .header("Authorization", "Bearer " + token).GET().build();
+            assertEquals(200, client.send(protectedRequest, HttpResponse.BodyHandlers.ofString()).statusCode());
+
+            HttpResponse<String> logout = client.send(
+                    HttpRequest.newBuilder(URI.create(base + "/api/auth/logout"))
+                            .header("Authorization", "Bearer " + token)
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, logout.statusCode(), logout.body());
+
+            HttpResponse<String> afterLogout = client.send(protectedRequest, HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, afterLogout.statusCode(), afterLogout.body());
+            assertTrue(afterLogout.body().contains("signed out"));
+        } finally {
+            server.stop();
+            try (java.sql.Connection connection = database.DBConnection.getConnection();
+                 java.sql.PreparedStatement statement = connection.prepareStatement("DELETE FROM users WHERE id = ?")) {
+                statement.setInt(1, userId);
+                statement.executeUpdate();
+            } finally {
+                database.DBConnection.closePool();
+            }
+        }
+    }
+
 }

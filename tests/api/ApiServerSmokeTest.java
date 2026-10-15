@@ -5,6 +5,7 @@ import model.Student;
 import dao.UserDAO;
 import java.util.Optional;
 import security.AccessTokenService;
+import security.TokenRevocationStore;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -22,7 +23,7 @@ class ApiServerSmokeTest {
         String token = tokens.issue(new Student(12, "Student", "student@example.test", "", "S12", "CSE"));
         ApiServer server = new ApiServer(0, tokens, new UserDAO() {
             @Override public Optional<String> findRoleById(int userId) { return Optional.of("STUDENT"); }
-        });
+        }, TokenRevocationStore.noOp());
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();
@@ -115,7 +116,7 @@ class ApiServerSmokeTest {
         UserDAO changedRole = new UserDAO() {
             @Override public Optional<String> findRoleById(int userId) { return Optional.of("ADMIN"); }
         };
-        ApiServer server = new ApiServer(0, tokens, changedRole);
+        ApiServer server = new ApiServer(0, tokens, changedRole, TokenRevocationStore.noOp());
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();

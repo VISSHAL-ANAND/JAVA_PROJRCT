@@ -91,6 +91,12 @@ CREATE TABLE IF NOT EXISTS emergencies (
     CONSTRAINT fk_emergency_creator FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS token_revocations (
+    token_hash CHAR(64) PRIMARY KEY,
+    expires_at TIMESTAMP NOT NULL,
+    INDEX idx_token_revocations_expiry (expires_at)
+);
+
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_tickets_status ON tickets(status);
 CREATE INDEX idx_tickets_priority ON issues(priority);

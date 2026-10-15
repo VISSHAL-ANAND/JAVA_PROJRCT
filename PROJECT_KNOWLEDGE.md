@@ -996,3 +996,11 @@ A phase is complete only when:
 - Updated README feature-status claims to distinguish CI-backed MySQL/PostgreSQL coverage from still-pending live verification against the actual hosted Supabase project.
 - No live Supabase database, production secrets, or hosting settings were accessed or changed.
 - Next priority: continue the release-gate audit, especially token revocation/session lifecycle and hosted deployment prerequisites; do not deploy without explicit authorization.
+
+
+### 2026-10-15 — Implement persistent bearer-token revocation and logout
+
+- Addressed the documented session-lifecycle gap with a persistent token revocation store. The database stores only a SHA-256 fingerprint of a bearer token and its expiry, never the plaintext token; expired revocation rows are cleaned up when a logout is processed.
+- Added `POST /api/auth/logout`; authenticated requests check the revocation store, and the frontend attempts server-side revocation before always clearing its local session state.
+- Added token-revocation tables to the MySQL and Supabase bootstrap schemas, one-time migrations for existing databases, and least-privilege PostgreSQL app-role grants. Added schema-contract, MySQL DAO, and PostgreSQL HTTP logout regression coverage.
+- This is a multi-file security/schema change and is not considered complete until all CI jobs pass on the exact commit. Existing deployed databases would need the appropriate migration before enabling this code; no live database or hosting configuration was modified.

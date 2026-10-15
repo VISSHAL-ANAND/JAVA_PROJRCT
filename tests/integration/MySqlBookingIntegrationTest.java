@@ -3,12 +3,14 @@ package integration;
 import dao.BookingDAO;
 import dao.NotificationDAO;
 import dao.TicketDAO;
+import dao.TokenRevocationDAO;
 import database.DBConnection;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import model.Issue;
 import model.Priority;
 import service.IssueService;
+import security.AccessTokenService;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -255,6 +257,18 @@ class MySqlBookingIntegrationTest {
             }
         }
         throw new SQLException("Unable to create MySQL integration fixture user");
+    }
+
+    @Test
+    void mysqlTokenRevocationIsPersistentAndPortable() throws Exception {
+        AccessTokenService tokens = new AccessTokenService();
+        String token = tokens.issue(new model.Student(999, "Revocation test", "revocation@example.test", "", "R999", "CSE"));
+        AccessTokenService.Principal principal = tokens.verify(token);
+        assertNotNull(principal);
+        TokenRevocationDAO revocations = new TokenRevocationDAO();
+        assertFalse(revocations.isRevoked(token));
+        revocations.revoke(token, principal.expiresAt());
+        assertTrue(revocations.isRevoked(token));
     }
 
     private int attemptAfterGate(BookingDAO bookings, int resourceId, int userId, LocalDateTime start,

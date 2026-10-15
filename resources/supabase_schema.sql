@@ -94,6 +94,12 @@ create table if not exists public.emergencies (
     created_at timestamptz not null default now()
 );
 
+create table if not exists public.token_revocations (
+    token_hash char(64) primary key,
+    expires_at timestamptz not null
+);
+create index if not exists idx_token_revocations_expiry on public.token_revocations(expires_at);
+
 create index if not exists idx_users_role on public.users(role);
 create index if not exists idx_tickets_status on public.tickets(status);
 create index if not exists idx_tickets_reported_by_created on public.tickets(reported_by, created_at desc);

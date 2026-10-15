@@ -11,6 +11,7 @@ import dao.EmergencyDAO;
 import dao.ResourceDAO;
 import dao.BookingDAO;
 import dao.AdminDAO;
+import dao.TokenRevocationDAO;
 import database.DBConnection;
 import exception.AuthenticationException;
 import model.Issue;
@@ -18,6 +19,7 @@ import model.User;
 import security.AccessTokenService;
 import security.PasswordHasher;
 import security.RateLimiter;
+import security.TokenRevocationStore;
 import service.AuthService;
 import service.IssueService;
 import service.EmergencyService;
@@ -58,6 +60,7 @@ public class ApiServer {
     private final BookingService bookingService = new BookingService();
     private final AccessTokenService tokens;
     private final RateLimiter loginRateLimiter;
+    private final TokenRevocationStore tokenRevocations;
     private HttpServer server;
     private ExecutorService executor;
 
@@ -75,17 +78,28 @@ public class ApiServer {
         this(port, tokens, new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)), userDAO);
     }
 
+    ApiServer(int port, AccessTokenService tokens, UserDAO userDAO, TokenRevocationStore tokenRevocations) {
+        this(port, tokens, new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
+                userDAO, new AuthService(userDAO), tokenRevocations);
+    }
+
     ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter, UserDAO userDAO) {
         this(port, tokens, loginRateLimiter, userDAO, new AuthService(userDAO));
     }
 
     ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter,
               UserDAO userDAO, AuthService authService) {
+        this(port, tokens, loginRateLimiter, userDAO, authService, new TokenRevocationDAO());
+    }
+
+    ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter,
+              UserDAO userDAO, AuthService authService, TokenRevocationStore tokenRevocations) {
         this.port = port;
         this.tokens = java.util.Objects.requireNonNull(tokens, "tokens");
         this.loginRateLimiter = java.util.Objects.requireNonNull(loginRateLimiter, "loginRateLimiter");
         this.userDAO = java.util.Objects.requireNonNull(userDAO, "userDAO");
         this.authService = java.util.Objects.requireNonNull(authService, "authService");
+        this.tokenRevocations = java.util.Objects.requireNonNull(tokenRevocations, "tokenRevocations");
     }
 
     public void start() throws IOException {
@@ -93,6 +107,7 @@ public class ApiServer {
         server.createContext("/api/health", this::handleHealth);
         server.createContext("/api/health/ready", this::handleReadiness);
         server.createContext("/api/auth/login", this::handleLogin);
+        server.createContext("/api/auth/logout", this::handleLogout);
         server.createContext("/api/issues", this::handleIssues);
         server.createContext("/api/tickets", this::handleTicketHistory);
         server.createContext("/api/tickets/reporter", this::handleReporterTickets);
@@ -182,6 +197,23 @@ public class ApiServer {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Login request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Server error"));
+        } finally { exchange.close(); }
+    }
+
+
+    private void handleLogout(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if (handleOptionsOrMethod(exchange, "POST")) return;
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+            String token = authorization.substring(7).trim();
+            tokenRevocations.revoke(token, principal.expiresAt());
+            sendJson(exchange, 200, Map.of("success", true, "message", "Signed out successfully"));
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "Unable to revoke access token");
+            sendJson(exchange, 503, Map.of("success", false, "message", "Sign-out service temporarily unavailable"));
         } finally { exchange.close(); }
     }
 
@@ -719,6 +751,10 @@ public class ApiServer {
             return null;
         }
         try {
+            if (tokenRevocations.isRevoked(token)) {
+                sendJson(exchange, 401, Map.of("success", false, "message", "Session has been signed out. Please sign in again."));
+                return null;
+            }
             java.util.Optional<String> role = userDAO.findRoleById(principal.userId());
             if (role.isEmpty() || !tokens.hasCurrentRole(principal, role.get())) {
                 sendJson(exchange, 401, Map.of("success", false, "message", "Account or permissions changed; sign in again."));

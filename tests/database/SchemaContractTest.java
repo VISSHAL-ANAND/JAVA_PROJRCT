@@ -39,6 +39,20 @@ class SchemaContractTest {
                 "Migration must tell operators how to identify negative existing quantities before applying checks");
     }
 
+    @Test
+    void mysqlAndPostgresSchemasIncludePersistentTokenRevocationStore() throws IOException {
+        String mysql = resource("campusos.sql").toLowerCase(java.util.Locale.ROOT);
+        String postgres = resource("supabase_schema.sql").toLowerCase(java.util.Locale.ROOT);
+        assertTrue(mysql.contains("create table if not exists token_revocations"));
+        assertTrue(mysql.contains("token_hash char(64) primary key"));
+        assertTrue(postgres.contains("create table if not exists public.token_revocations"));
+        assertTrue(postgres.contains("token_hash char(64) primary key"));
+        assertTrue(resource("migrations/mysql/003_token_revocations.sql")
+                .toLowerCase(java.util.Locale.ROOT).contains("token_revocations"));
+        assertTrue(resource("migrations/postgres/002_token_revocations.sql")
+                .toLowerCase(java.util.Locale.ROOT).contains("token_revocations"));
+    }
+
     private String resource(String name) throws IOException {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(name)) {
             if (input == null) throw new IOException("Missing classpath resource: " + name);
