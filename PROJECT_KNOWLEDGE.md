@@ -900,3 +900,12 @@ A phase is complete only when:
 - Verification: source and regression test are committed; GitHub Actions on the exact commit is the required validation. Local Maven execution is unavailable here, so no local test pass is claimed.
 - No live database or hosting/deployment changes were made.
 - Next priority: continue checking transactional rollback behavior and API body/error handling using concrete regression tests; keep live environment work behind explicit owner authorization.
+
+
+### 2026-10-15 — Align MySQL bootstrap schema integrity constraints
+
+- The data-integrity audit found a concrete mismatch: PostgreSQL's schema rejects negative resource quantities and booking intervals where `start_time >= end_time`, but the MySQL bootstrap schema did not. Service validation helps normal API requests, but database constraints are needed to protect direct DAO calls and future code paths.
+- Added matching MySQL 8 CHECK constraints for non-negative resource quantity and strictly positive booking duration. Added a one-time MySQL migration for existing databases; operators must inspect and correct any pre-existing invalid rows before applying it. No live database was touched.
+- Added a schema-contract regression test to ensure both bootstrap schemas enforce these invariants and the existing-MySQL migration documents/applies them.
+- Verification is pending GitHub Actions for the exact commit; Maven is not available locally, so no local test pass is claimed.
+- No hosting/deployment changes were made. Next: continue the transactional and API error-path audit after CI is green.

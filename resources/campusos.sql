@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS resources (
     name VARCHAR(150) NOT NULL,
     type VARCHAR(100) NOT NULL,
     quantity INT NOT NULL DEFAULT 0,
-    available BOOLEAN DEFAULT TRUE
+    available BOOLEAN DEFAULT TRUE,
+    CONSTRAINT chk_resources_quantity_nonnegative CHECK (quantity >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS bookings (
@@ -67,6 +68,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     booked_by INT NOT NULL,
     start_time DATETIME NOT NULL,
     end_time DATETIME NOT NULL,
+    CONSTRAINT chk_bookings_time_order CHECK (start_time < end_time),
     CONSTRAINT fk_booking_resource FOREIGN KEY (resource_id) REFERENCES resources(id),
     CONSTRAINT fk_booking_user FOREIGN KEY (booked_by) REFERENCES users(id)
 );
