@@ -1172,3 +1172,10 @@ A phase is complete only when:
 - Added deterministic page/limit SQL and total counts for both administrator-wide and staff-assigned queues, API validation for `page`/`pageSize`, bounded response metadata, and Previous/Next controls in the work-queue UI.
 - Added a cross-database HTTP integration test that creates 125 real tickets, verifies every ticket is reachable exactly once across pages, checks invalid paging inputs, and ensures results exceed the previous 100-ticket cap. CI enables it against MySQL 8.4 and PostgreSQL 17.
 - This change is pending full CI verification; do not claim the staff queue scale issue is fixed until both SQL engines and frontend build pass.
+
+
+### 2026-10-15 — Enable staff queue pagination regression on both database engines
+
+- The first staff-ticket pagination commit passed all six CI jobs, and MySQL executed the new 125-ticket API test successfully. Review of the workflow revealed the opt-in environment flag had only been added to the MySQL job, so PostgreSQL compiled but skipped this specific integration test.
+- Enabled `StaffTicketPaginationTest` in both MySQL 8.4 and PostgreSQL 17 jobs and removed a no-op loop from the test setup. The next CI run must show the test executing (not skipped) on both engines before cross-database pagination is considered verified.
+- Previous run: [38710401124](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38710401124), all six jobs green; MySQL staff pagination test passed with 125 fixtures beyond the former 100-row limit.

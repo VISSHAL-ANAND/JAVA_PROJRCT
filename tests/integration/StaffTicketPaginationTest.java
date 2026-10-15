@@ -72,10 +72,6 @@ class StaffTicketPaginationTest {
             int totalTickets = -1;
             int totalPages = -1;
 
-            for (int page = 1; page <= Math.max(1, totalPages); page++) {
-                // totalPages is learned from the first response below.
-                break;
-            }
             HttpResponse<String> first = client.send(
                     HttpRequest.newBuilder(URI.create(base + "?page=1&pageSize=50"))
                             .header("Authorization", "Bearer " + token).GET().build(),
