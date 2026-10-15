@@ -48,7 +48,7 @@ public class ApiServer {
     private final int port;
     private final ObjectMapper mapper = new ObjectMapper();
     private final IssueService issueService = new IssueService();
-    private final AuthService authService = new AuthService(new UserDAO());
+    private final AuthService authService;
     private final UserDAO userDAO;
     private final TicketDAO ticketDAO = new TicketDAO();
     private final NotificationDAO notificationDAO = new NotificationDAO();
@@ -77,10 +77,16 @@ public class ApiServer {
     }
 
     ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter, UserDAO userDAO) {
+        this(port, tokens, loginRateLimiter, userDAO, new AuthService(userDAO));
+    }
+
+    ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter,
+              UserDAO userDAO, AuthService authService) {
         this.port = port;
         this.tokens = java.util.Objects.requireNonNull(tokens, "tokens");
         this.loginRateLimiter = java.util.Objects.requireNonNull(loginRateLimiter, "loginRateLimiter");
         this.userDAO = java.util.Objects.requireNonNull(userDAO, "userDAO");
+        this.authService = java.util.Objects.requireNonNull(authService, "authService");
     }
 
     public void start() throws IOException {
@@ -154,6 +160,9 @@ public class ApiServer {
             String email = emailNode.asText().trim().toLowerCase(java.util.Locale.ROOT);
             String password = passwordNode.asText();
             User user = authService.authenticate(email, password);
+            // A successful authentication is not a failed login attempt. Release this IP's
+            // failure budget so shared campus/NAT addresses do not lock out other users.
+            loginRateLimiter.reset(rateLimitKey);
             Map<String, Object> userData = new LinkedHashMap<>();
             userData.put("id", user.getId());
             userData.put("name", user.getName());
