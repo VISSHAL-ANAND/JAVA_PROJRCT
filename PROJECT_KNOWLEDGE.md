@@ -1082,3 +1082,12 @@ A phase is complete only when:
 - Enabled the test in both the MySQL 8.4 integration job and the PostgreSQL 17 least-privilege application-role job. The test removes its own notification rows, emergency record and temporary accounts through the CI admin connection.
 - This specifically covers the important campus-wide emergency flow at the requested population size; it is a short CI transaction test, not a guarantee of push-delivery latency or sustained production throughput.
 - Wait for all CI jobs to finish on this exact change; fix and rerun any failures before moving on.
+
+
+### 2026-10-15 — Verify 1,000-recipient emergency notification fan-out
+
+- GitHub Actions run [38706464707](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38706464707) completed successfully on commit `7a0487bb43cc8320122c917a25b7498f821110af`; all six jobs passed.
+- The new `EmergencyBroadcastScaleTest` passed against both MySQL 8.4 and PostgreSQL 17. It creates 1,000 temporary accounts, issues an emergency through the real service layer, and asserts the notification count equals every database user except the creator; cleanup removes the test's fan-out notifications and fixtures.
+- The 1,000-distinct-user authenticated read test also passed: 1,000 concurrent requests completed in 1,498 ms total, p50 329 ms, p95 1,092 ms, max 1,141 ms with a five-connection pool.
+- The earlier 25-contender booking stress test remains green for both SQL engines. These are short CI tests, not production sustained-load certification.
+- Next priority: exercise mixed concurrent writes (issue submission, assignment, ticket history and notifications), then run a longer mixed read/write test and document staging gates.
