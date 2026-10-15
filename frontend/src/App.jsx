@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { isApiUrlSecure } from "./security.js";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8080" : "")).replace(/\/+$/, "");
 
 // Bound network waits so a sleeping/unreachable API never leaves the UI spinning forever.
 async function apiFetch(url, options = {}) {
