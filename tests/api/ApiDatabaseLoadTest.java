@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * CI load smoke test for an authenticated, database-backed read path.
- * Uses ephemeral PostgreSQL users and removes them after the run.
+ * Uses ephemeral accounts in isolated database CI jobs; PostgreSQL fixtures are cleaned with the admin connection.
  */
 class ApiDatabaseLoadTest {
     private static final int DISTINCT_USERS = 1_000;

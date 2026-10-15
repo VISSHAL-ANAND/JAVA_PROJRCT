@@ -1300,3 +1300,10 @@ A phase is complete only when:
 - The new CORS regression passed, proving the default local frontend origin is allowed, arbitrary hostile origins are not reflected, and `nosniff`, `no-store`, and `Vary: Origin` headers are set.
 - CI also passed `node --check load/staging-k6.mjs`. The 14-minute, 1,000-VU k6 profile is a manual staging-only tool guarded by explicit approval, HTTPS, exact hostname matching, and environment-supplied disposable test credentials.
 - The actual k6 run was deliberately not executed because no dedicated staging host/accounts/load window have been approved. The next release gate is owner-provided staging configuration and authorization, followed by a real load run and host/database metrics review. No hosting or live database was changed.
+
+
+### 2026-10-15 — Expand repeated 1,000-user database-read load to MySQL
+
+- Enabled the existing five-round, 1,000-concurrent authenticated database-read test in the MySQL 8.4 job as well as PostgreSQL 17. It now validates 5,000 authenticated ticket-read requests per engine.
+- The test's existing cleanup remains configured for the PostgreSQL least-privilege test role; MySQL test accounts are disposable and the entire MySQL service is destroyed with the CI job. No shared or live database is used.
+- This broadens CI coverage across both supported SQL engines. Do not claim verified until the new MySQL test and the complete workflow pass on the exact commit. No live database or hosting configuration was touched.
