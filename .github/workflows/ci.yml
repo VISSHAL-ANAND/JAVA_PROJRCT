@@ -80,6 +80,44 @@ jobs:
           fi
           echo "Container correctly fails closed without CAMPUSOS_AUTH_SECRET."
 
+
+  mysql-integration:
+    name: MySQL booking integration tests
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: campusos
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --user=root --password=root --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      CAMPUSOS_DB_URL: jdbc:mysql://localhost:3306/campusos?sslMode=DISABLED
+      CAMPUSOS_DB_USERNAME: root
+      CAMPUSOS_DB_PASSWORD: root
+      CAMPUSOS_DB_POOL_SIZE: "5"
+      CAMPUSOS_AUTH_SECRET: campusos-ci-auth-secret-value-at-least-32-characters
+      CAMPUSOS_MYSQL_IT_ENABLED: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Initialize MySQL schema
+        run: mysql --host=127.0.0.1 --user=root --password=root < resources/campusos.sql
+      - name: Run MySQL-backed booking integration tests
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
   postgres-integration:
     name: PostgreSQL workflow integration tests
     runs-on: ubuntu-latest

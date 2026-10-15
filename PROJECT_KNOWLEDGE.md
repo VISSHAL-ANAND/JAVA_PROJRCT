@@ -943,3 +943,12 @@ A phase is complete only when:
 - Changed the seed to `SELECT ? AS point_time`; JDBC binds the parameter with `setTimestamp`, and the `UNION` with the schema's `start_time` supplies the common temporal type. Existing PostgreSQL workflow booking tests will verify the behavior in CI.
 - This does not count as live MySQL runtime verification; the repository still needs a MySQL-backed integration job to establish that dialect end-to-end.
 - No production database or hosting settings were changed. Wait for and inspect CI on this exact commit before proceeding.
+
+
+### 2026-10-15 — Add real MySQL booking integration coverage to CI
+
+- Added a dedicated MySQL 8.4 service job to GitHub Actions, initialized from the tracked `resources/campusos.sql` bootstrap schema and configured through the same JDBC environment variables used by the application.
+- Added an environment-gated MySQL integration test for the actual `BookingDAO` path: generated IDs, booking creation, half-open adjacent intervals, overlap rejection, and two concurrent requests against a capacity-one resource. The test cleans up its own fixtures and is isolated from the PostgreSQL-only integration test.
+- This is intended to close the biggest database portability gap. The change is not considered verified until the new MySQL job and all existing CI jobs finish successfully; any failures must be fixed and CI rerun.
+- No live/production database or hosting settings were accessed or changed.
+- Next: after CI is green, extend MySQL coverage to other critical DAO workflows and continue the release-gate/security audit.
