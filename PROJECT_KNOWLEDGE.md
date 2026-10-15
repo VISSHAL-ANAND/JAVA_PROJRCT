@@ -1044,3 +1044,11 @@ A phase is complete only when:
 - Tightened the load test to create 1,000 distinct ephemeral student accounts and issue 1,000 simultaneous authenticated reporter-ticket requests, one per account, rather than reusing 100 accounts ten times.
 - This is a more representative concurrent-user smoke test for the authentication and database path. The latest preceding 100-user iteration passed all six CI jobs; its PostgreSQL test reported 1,000 concurrent DB-backed requests in 1,634 ms total, p50 445 ms, p95 1,178 ms, max 1,223 ms, using a five-connection pool. These numbers are from ephemeral GitHub-hosted CI and must not be treated as a production capacity guarantee.
 - The strengthened 1,000-distinct-user version is pending verification on the next commit; report its measured output only after CI completes.
+
+
+### 2026-10-15 — Verify 1,000 distinct concurrent database-backed users
+
+- GitHub Actions run [38705145092](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38705145092) completed successfully on commit `b3fc78d1428e304afd7f40deb08864f2c05c486c`; all six jobs passed: Java verification, frontend audit/tests/build, API container build, MySQL integration, PostgreSQL integration, and HTTP load smoke.
+- The strengthened PostgreSQL load test created 1,000 distinct ephemeral student accounts and sent 1,000 simultaneous authenticated GET requests through the actual reporter-ticket endpoint. Every request returned HTTP 200. With the CI Hikari pool set to five connections, measured load window was 1,628 ms total, p50 386 ms, p95 1,136 ms, max 1,175 ms.
+- The separate dependency-free HTTP test also passed 1,000 concurrent liveness requests. These are positive baseline smoke-test results for short bursts, not proof of production capacity, sustained load, concurrent login/password hashing, write-heavy workloads, or a real Supabase connection limit.
+- No live database or hosting resource was used. Next: stress-test concurrent resource booking invariants beyond two simultaneous callers, then add broader authenticated workflow/soak checks before staging.
