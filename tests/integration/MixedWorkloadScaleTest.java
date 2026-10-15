@@ -75,27 +75,27 @@ class MixedWorkloadScaleTest {
                                 base + "/api/tickets/reporter/" + userIds.get(i)))
                         .timeout(Duration.ofSeconds(45))
                         .header("Authorization", "Bearer " + tokens.get(i))
-                        .header("Accept", "application/json").GET().build(), 200, "\\"tickets\\":"));
+                        .header("Accept", "application/json").GET().build(), 200, "\"tickets\":"));
             }
             for (int i = 0; i < READ_NOTIFICATION_REQUESTS; i++) {
                 int userIndex = READ_TICKET_REQUESTS + i;
                 pending.add(send(client, HttpRequest.newBuilder(URI.create(base + "/api/notifications/me"))
                         .timeout(Duration.ofSeconds(45))
                         .header("Authorization", "Bearer " + tokens.get(userIndex))
-                        .header("Accept", "application/json").GET().build(), 200, "\\"success\\":true"));
+                        .header("Accept", "application/json").GET().build(), 200, "\"success\":true"));
             }
             URI issueEndpoint = URI.create(base + "/api/issues");
             for (int i = 0; i < WRITE_ISSUE_REQUESTS; i++) {
                 int userIndex = READ_TICKET_REQUESTS + READ_NOTIFICATION_REQUESTS + i;
-                String body = "{\\"title\\":\\"" + titlePrefix + i
-                        + "\\",\\"description\\":\\"Electrical fixture needs repair\\","
-                        + "\\"category\\":\\"" + category + "\\","
-                        + "\\"location\\":\\"Mixed Load Building\\"}";
+                String body = "{\"title\":\"" + titlePrefix + i
+                        + "\",\"description\":\"Electrical fixture needs repair\","
+                        + "\"category\":\"" + category + "\","
+                        + "\"location\":\"Mixed Load Building\"}";
                 pending.add(send(client, HttpRequest.newBuilder(issueEndpoint)
                         .timeout(Duration.ofSeconds(45))
                         .header("Authorization", "Bearer " + tokens.get(userIndex))
                         .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(body)).build(), 201, "\\"ticketId\\":"));
+                        .POST(HttpRequest.BodyPublishers.ofString(body)).build(), 201, "\"ticketId\":"));
             }
 
             CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))
