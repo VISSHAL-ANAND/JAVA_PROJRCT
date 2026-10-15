@@ -49,7 +49,6 @@ class BookingHttpScaleTest {
 
         try {
             for (int i = 0; i < CONTENDERS; i++) {
-                final int requestUserIndex = i;
                 String email = emailPrefix + i + "@example.test";
                 int id = users.createUser("Booking Scale User " + i, email, passwordHash,
                         "STUDENT", "BSCALE" + suffix + i, "CSE", null);
@@ -84,6 +83,7 @@ class BookingHttpScaleTest {
             long startedAt = System.nanoTime();
 
             for (int i = 0; i < CONTENDERS; i++) {
+                final int requestUserIndex = i;
                 String body = "{\"resourceId\":" + resourceId
                         + ",\"startTime\":\"" + start
                         + "\",\"endTime\":\"" + end + "\"}";
