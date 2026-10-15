@@ -1140,3 +1140,12 @@ A phase is complete only when:
 - Enabled the test in both MySQL 8.4 and PostgreSQL 17 integration jobs; it asserts every response is HTTP 200 with a token and reports p50/p95/max latency. The test removes temporary users through the CI admin connection.
 - The preceding five-round read-load test passed on PostgreSQL: 5,000 authenticated requests across 1,000 distinct users completed in 9,315 ms total, p50 255 ms, p95 2,086 ms, max 2,188 ms, using a five-connection pool (run [38708669488](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38708669488)).
 - This new login stress test is pending CI verification. Password hashing is CPU-intensive; do not extrapolate from 100 simultaneous logins to 1,000 simultaneous login attempts or claim production capacity without a dedicated staging load test.
+
+
+### 2026-10-15 — Verify five-round 1,000-user reads and 100-way concurrent logins
+
+- GitHub Actions run [38709005581](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38709005581) completed successfully on commit `af22a08c395ac29331225915141eff77643b0f83`; all six jobs passed, including frontend audit/build, Java verification, container build, MySQL, PostgreSQL, and the HTTP load smoke job.
+- The PostgreSQL test sent 5,000 authenticated DB-backed reads in five rounds of 1,000 concurrent requests across 1,000 distinct users. Total duration was 8,673 ms; p50 351 ms, p95 1,310 ms, max 2,088 ms; pool size five.
+- The new real login load test passed on both databases with 100 distinct accounts logging in concurrently from the same apparent IP: MySQL 1,764 ms total (p50 1,096 ms, p95 1,633 ms, max 1,758 ms); PostgreSQL 1,317 ms total (p50 706 ms, p95 1,246 ms, max 1,275 ms). Every login returned HTTP 200 and a token.
+- The cross-database 100-issue write test also passed (MySQL 1,244 ms; PostgreSQL 233 ms), along with 25-way capacity-one booking races and 1,000-recipient emergency broadcasts. These are CI smoke tests on ephemeral databases; production traffic shape, database tier limits, sustained uptime, and failover still require staging load tests.
+- Next audit target: admin user management currently uses a bounded first-page query; verify the frontend can navigate beyond 200 users rather than silently hiding users in a 1,000-person campus.
