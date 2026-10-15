@@ -1004,3 +1004,10 @@ A phase is complete only when:
 - Added `POST /api/auth/logout`; authenticated requests check the revocation store, and the frontend attempts server-side revocation before always clearing its local session state.
 - Added token-revocation tables to the MySQL and Supabase bootstrap schemas, one-time migrations for existing databases, and least-privilege PostgreSQL app-role grants. Added schema-contract, MySQL DAO, and PostgreSQL HTTP logout regression coverage.
 - This is a multi-file security/schema change and is not considered complete until all CI jobs pass on the exact commit. Existing deployed databases would need the appropriate migration before enabling this code; no live database or hosting configuration was modified.
+
+
+### 2026-10-15 — Fix revocation regression test isolation and least-privilege cleanup
+
+- CI caught two test harness issues in the first token-revocation run: two fake-DAO HTTP tests had not been switched to the no-op revocation adapter, so they attempted a real DB lookup; the new PostgreSQL logout test attempted fixture cleanup through the deliberately least-privilege app role, which correctly cannot delete users.
+- Updated all fake-DAO tests to inject the no-op revocation store and changed integration-fixture cleanup to use the dedicated CI admin connection. Application runtime authorization and least-privilege grants remain unchanged.
+- The MySQL token-revocation DAO test already passed on MySQL 8.4. The full workflow must pass on this correction before considering logout/revocation verified.

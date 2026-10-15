@@ -1009,7 +1009,10 @@ class HttpPostgresWorkflowTest {
             assertTrue(afterLogout.body().contains("signed out"));
         } finally {
             server.stop();
-            try (java.sql.Connection connection = database.DBConnection.getConnection();
+            try (java.sql.Connection connection = java.sql.DriverManager.getConnection(
+                        System.getenv("CAMPUSOS_IT_ADMIN_DB_URL"),
+                        System.getenv("CAMPUSOS_IT_ADMIN_DB_USERNAME"),
+                        System.getenv("CAMPUSOS_IT_ADMIN_DB_PASSWORD"));
                  java.sql.PreparedStatement statement = connection.prepareStatement("DELETE FROM users WHERE id = ?")) {
                 statement.setInt(1, userId);
                 statement.executeUpdate();
