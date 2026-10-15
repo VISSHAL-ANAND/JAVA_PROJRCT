@@ -1382,3 +1382,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - The first CI run correctly caught a leftover fail-closed capacity guard that rejected new keys before the new LRU eviction path could run. Removed the stale guard; bucket creation now evicts a bucket at capacity and then admits the new key while keeping the map bounded.
 - CI run [38739617765](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38739617765) failed in the new regression test as expected; Java verification and container build failed because of this same unit-test failure. Frontend and the standalone 1,000-request HTTP smoke test passed. Full CI must be green on the correction commit.
+
+
+### 2026-10-15 — Harden password hash parsing and clear temporary secrets
+
+- Hardened PBKDF2 verification against malformed stored hash strings and iteration-count abuse: accepted verification costs are bounded to 10,000–1,000,000 rounds, salt and derived-key lengths are validated, and malformed encodings return a generic verification failure instead of starting unbounded work.
+- Reused a thread-local PBKDF2 factory and explicitly cleared temporary password character arrays, PBEKeySpec passwords, derived key bytes, decoded salt, and expected hash bytes after use. The configured hash cost remains 120,000 rounds; it was not lowered to chase load-test performance.
+- Added tests for correct/wrong passwords, per-hash salts, blank-password rejection, malformed encodings, and excessive/weak iteration counts. Must pass full CI before this security hardening is considered verified.
