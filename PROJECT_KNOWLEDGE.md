@@ -784,3 +784,13 @@ A phase is complete only when:
 - Current push CI for the latest `main` head cannot be verified through the available connected GitHub interface: combined commit statuses are empty, and the workflow-run wrapper returns only pull-request-triggered runs. The GitHub Actions web page is also inaccessible from this environment. Do not infer success or failure from missing status data.
 - No live Supabase project was accessed, no secrets were read, and no deployment was performed.
 - Next priority: fix login rate-limit behavior. `handleLogin` currently counts every login attempt before authentication and does not reset the source-IP bucket after a successful login; repeated legitimate logins behind a shared NAT can therefore trigger HTTP 429 for everyone using that IP. Add a regression for six sequential successful logins from one IP, then run the complete Maven/CI suite when push-run visibility or local Maven/network access is available.
+
+### 2026-10-15 — Shared-IP login throttling regression and fix
+
+- Fixed the login handler to clear the source-IP failure bucket only after AuthService.authenticate succeeds. Successful logins no longer accumulate toward a shared-IP lockout; failed credentials still consume the IP budget and are throttled after the configured five attempts. Account/email-level throttling in AuthService remains in place.
+- Added a package-private AuthService injection point to ApiServer so login HTTP behavior can be tested without a live database; existing constructors keep their current production behavior.
+- Added tests/api/LoginRateLimitTest.java: six successful logins from the same loopback IP must all return HTTP 200, while five invalid attempts return HTTP 401 and the sixth returns HTTP 429 with Retry-After: 900.
+- Commits: [2acdb83](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/2acdb83782da715061ed454a668b5ab5ce17354f) (fix/test seam) and [49c4e8c](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/49c4e8c890e3759d10b49d4fbad76555e1ce76b5) (HTTP regression tests).
+- Verification limitation: reviewed the diff and test logic, but did not run the new JUnit tests or full Maven suite because Maven is not installed in this environment. The GitHub Actions workflow triggers on pushes to main, but the available GitHub status/run lookup cannot expose push-triggered runs; no CI pass/fail is claimed for these commits.
+- No live Supabase access, secret access, or deployment occurred.
+- Next priority: verify the complete CI run for the current main head when Actions run visibility or a Maven-enabled checkout is available; then continue the route-by-route authorization review, focusing on untrusted proxy headers, role/ownership checks, and abuse controls.
