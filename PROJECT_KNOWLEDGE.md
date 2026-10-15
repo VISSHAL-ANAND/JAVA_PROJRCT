@@ -1065,3 +1065,12 @@ A phase is complete only when:
 
 - The first CI run after increasing the booking contention test to 25 callers failed compilation because the PostgreSQL integration test used `ArrayList` without importing it. All dependent Java/container/load jobs failed for that same test-compilation error; the frontend job passed.
 - Added the missing import. This is a test harness correction, not a production application change. Re-run all six CI jobs and inspect MySQL and PostgreSQL booking stress results before marking this task complete.
+
+
+### 2026-10-15 — Verify 25-way booking contention and refreshed 1,000-user load test
+
+- GitHub Actions run [38705946833](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38705946833) completed successfully on commit `e79c7b33b2e3b58ca70c3df7441e413a45b0ee5e); all six jobs passed.
+- MySQL 8.4 and PostgreSQL 17 integration suites passed with 25 synchronized simultaneous attempts against a capacity-one resource: exactly one booking succeeds and the other 24 receive the expected capacity conflict.
+- The 1,000-distinct-user PostgreSQL load test also passed again: 1,000 simultaneous authenticated DB-backed requests completed in 1,720 ms total, p50 346 ms, p95 1,013 ms, max 1,090 ms with a five-connection pool.
+- These results establish useful CI regression coverage for short bursts and booking race invariants, but they are not a production capacity certification. Sustained load, realistic frontend journeys, concurrent login/password hashing, write-heavy load, actual Supabase tier limits, and failover behavior remain untested.
+- Next: audit notification/emergency fan-out and bounded work for large campus populations; then add longer mixed read/write load checks before staging.
