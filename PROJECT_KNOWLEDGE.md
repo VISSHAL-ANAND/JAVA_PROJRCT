@@ -1028,3 +1028,12 @@ A phase is complete only when:
 - This is an initial HTTP concurrency smoke test, **not** proof that 1,000 authenticated, database-backed users can be supported. The endpoint intentionally avoids DB load so it can isolate HTTP server worker/queue behavior; database throughput, login hashing, revocation/role queries, connection-pool saturation, realistic user journeys and production load still require separate tests.
 - Existing HTTP server worker/queue sizes and Hikari pool limits remain bounded. Do not increase pool size based only on user count; size it against the actual Supabase connection allowance and number of API instances.
 - Wait for the dedicated load job and all existing CI jobs on this exact commit. Fix regressions and rerun CI until green before proceeding.
+
+
+### 2026-10-15 — Add 1,000 concurrent authenticated database-backed requests
+
+- Added an opt-in PostgreSQL integration load test using 100 ephemeral student accounts and 1,000 simultaneous requests to the real authenticated reporter-ticket endpoint.
+- Each request passes signed-token verification, persistent revocation lookup, current-role lookup, the bounded ticket-page query and the reporter-summary query through the configured Hikari pool. The test asserts every request returns HTTP 200 and records p50/p95/max latency plus total duration.
+- The PostgreSQL CI job enables this test only after its schema and least-privilege application role are configured. Test users are deleted through the dedicated CI admin connection; no live database is touched.
+- Acceptance limits are intentionally broad CI smoke thresholds (45 seconds total, p95 below 30 seconds), not a claim that production is certified for 1,000 users. This CI environment has a local ephemeral PostgreSQL service and a pool size of five; real capacity still depends on the chosen Supabase tier, API instance resources, network latency, actual user mix, write contention and sustained-duration load.
+- Wait for all CI jobs, inspect the load-test latency output and fix any failures before calling this task verified.

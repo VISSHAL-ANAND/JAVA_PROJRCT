@@ -161,6 +161,7 @@ jobs:
       CAMPUSOS_DB_POOL_SIZE: "5"
       CAMPUSOS_AUTH_SECRET: campusos-ci-auth-secret-value-at-least-32-characters
       CAMPUSOS_IT_ENABLED: "true"
+      CAMPUSOS_DB_LOAD_TEST_ENABLED: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
