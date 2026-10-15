@@ -1249,3 +1249,10 @@ A phase is complete only when:
 - The mixed workload test passed on MySQL 8.4 in 1,744 ms and PostgreSQL 17 in 819 ms. Each sent 1,000 simultaneous authenticated requests: 400 ticket reads, 400 notification reads, and 200 issue submissions. Every response passed its status/body assertion, and the test verified all 200 issues, assigned tickets, ticket-history rows, and both notification classes were persisted.
 - In the same run, MySQL passed 1,000 concurrent real logins in 9,403 ms (p95 8,711 ms) and 1,000 issue writes in 3,216 ms; PostgreSQL passed 1,000 concurrent real logins in 8,870 ms (p95 8,242 ms), 1,000 issue writes in 818 ms, and 5,000 authenticated DB-backed reads across five 1,000-request rounds. Admin pagination across 1,001 accounts and staff queue pagination also passed on both engines.
 - These are ephemeral CI database/runner results, useful evidence of burst correctness but not a guarantee of sustained 1,000-user production service. Live hosting/network latency, actual Supabase connection quotas, resource limits, multi-instance behavior, backup/recovery, and monitoring remain unverified.
+
+
+### 2026-10-15 — Add HTTP-level concurrent booking-capacity stress test
+
+- Added `BookingHttpScaleTest`, which creates 100 temporary student accounts and sends 100 simultaneous authenticated `POST /api/bookings` requests to the same capacity-one resource and time slot.
+- The test requires exactly one successful HTTP 201, 99 conflict HTTP 409 responses, no unexpected status codes, and exactly one matching database row. It runs against MySQL 8.4 and PostgreSQL 17, covering the real HTTP/auth/DAO path rather than only direct DAO concurrency.
+- Enabled the test in both database CI jobs and documented the coverage. CI verification is pending; any test failure must be fixed and the full workflow rerun. This remains a bounded contention test, not a substitute for production staging load.
