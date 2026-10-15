@@ -813,3 +813,13 @@ A phase is complete only when:
 - Open pull requests: none returned by GitHub. Open issues: none returned by repository issue search. Only `main` was returned by branch search.
 - No production database, secrets, deployment, or hosting settings were accessed or changed.
 - Next priority: continue the route-by-route trust-boundary audit, focusing on proxy-derived client identity, authentication/rate-limit concurrency, and request failure handling. Make a code change only when a concrete exploitable defect and a regression test can be established; run the CI checks for the exact resulting commit.
+
+
+### 2026-10-15 — Confirmed CI completion and continued security review
+
+- Rechecked the push-triggered workflow for exact main commit [685530a](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/685530a6b0e905e256bc819a965b0e2c0e7f865c). Run [38678947293](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38678947293) completed with conclusion **success**. All four jobs passed: Java compile/Maven verification, PostgreSQL workflow integration tests, frontend dependency audit/security tests/production build, and Java API container build including fail-closed auth-secret smoke test.
+- Inspected current RateLimiter, AccessTokenService, login HTTP regression tests, API handlers, admin role gate, booking DAO/service, and PostgreSQL integration coverage. No confirmed defect from this read-only pass was patched; avoid speculative auth/rate-limit changes without a failing regression test.
+- Login rate limiting remains source-peer-IP based and in-memory, with a 10,000-bucket cap and cleanup throttled to once per minute. This is not a distributed limit across replicas; proxy-aware client identity must not be added unless the trusted-proxy boundary is explicit. Account-level throttling remains in AuthService.
+- Current CI is verified for 685530a; the repository was not locally cloned and Maven tests were not run locally in this environment. Remote CI is the test evidence.
+- Next review target: inspect request-body parsing/Content-Type enforcement and error response paths for unhandled malformed inputs, then inspect database transaction/rollback edges in issue creation, emergency notifications, and booking cancellation. Make a code change only when the defect is concrete and a regression test can demonstrate it.
+- No live database, credentials, deployment, or hosting settings were accessed or changed.
