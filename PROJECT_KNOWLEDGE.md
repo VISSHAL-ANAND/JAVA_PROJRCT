@@ -1118,3 +1118,9 @@ A phase is complete only when:
 
 - The first CI run of the shared-IP login fix found an over-escaped JSON literal in the new test helper, causing Java test-compilation errors; application code compiled in the prior test version, but the complete pipeline was red.
 - Corrected the test JSON string to emit valid `email` and `password` fields. Re-run the full workflow and verify the new regression itself passes, not just compilation.
+
+
+### 2026-10-15 — Finalize JSON literal escaping for login test
+
+- The first correction still left an extra backslash in the generated Java source. Replaced the helper line with a raw literal and checked the exact file content before committing.
+- CI remains the source of truth for this fix; do not mark the shared-IP regression complete until the full run is green.

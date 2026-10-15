@@ -109,7 +109,7 @@ class LoginRateLimitTest {
     }
 
     private HttpResponse<String> login(ApiServer server, String email) throws Exception {
-        String body = "{\\"email\\":\\"" + email + "\\",\\"password\\":\\"correct-password\\"}";
+        String body = "{\"email\":\"" + email + "\",\"password\":\"correct-password\"}";
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://127.0.0.1:" + server.getPort() + "/api/auth/login"))
                 .header("Content-Type", "application/json")
