@@ -141,6 +141,8 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
+      - name: Validate staging load-test script syntax
+        run: node --check load/staging-k6.mjs
       - name: Run 1,000-concurrent-request HTTP load smoke test
         run: mvn --batch-mode --no-transfer-progress -Dtest=ApiLoadTest test
 

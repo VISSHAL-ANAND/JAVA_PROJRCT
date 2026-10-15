@@ -1284,3 +1284,11 @@ A phase is complete only when:
 - Added an HTTP-level regression test proving the default local frontend origin is explicitly allowed, an arbitrary hostile origin is not reflected in `Access-Control-Allow-Origin`, and the API sends `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, and `Vary: Origin`.
 - This protects the default CORS/security-header behavior from accidental regressions. Production still must configure `CAMPUSOS_CORS_ORIGINS` to the exact deployed frontend origin and use HTTPS; the test does not validate a live hosting configuration.
 - Full CI verification is pending for this test and documentation update.
+
+
+### 2026-10-15 — Add guarded sustained 1,000-VU staging load profile
+
+- Added `load/staging-k6.mjs` and `load/README.md` for an opt-in 14-minute sustained staging profile: ramp to 1,000 virtual users, hold for five minutes, and exercise login, ticket reads, notification reads, resource reads, and occasional issue writes.
+- Safety gates require an explicit staging approval string, HTTPS, an exact expected hostname match, and test-account credentials supplied only via environment variables. The script never runs automatically against a hosted environment; CI only performs a Node syntax check.
+- Proposed staging targets are <1% failed HTTP requests, >99% successful checks, API p95 <2 seconds, and login p95 <10 seconds. They must be measured against a dedicated disposable staging database; they are not production guarantees.
+- Live staging execution remains blocked until the owner supplies/approves the dedicated staging host, 1,000 disposable test accounts, and load-test window. No deployment or live data change was performed.
