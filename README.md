@@ -348,13 +348,13 @@ Do not commit `.env.local`. For production, set `VITE_API_BASE_URL` in the front
 
 The intended hosting split is:
 
-- **Frontend:** Vercel, with project root set to `frontend`, build command `npm run build`, and output directory `dist`.
-- **Java API:** a Java/container-capable host using the repository's `Dockerfile`. The container runs `api.ApiServerMain` and listens on the host-provided `PORT`.
+- **Frontend:** Vercel, with the repository root as the project root. The root `vercel.json` installs the locked frontend dependencies, builds `frontend`, publishes `frontend/dist`, and routes browser navigation to the SPA entry point.
+- **Java API:** a Java/container-capable host using the repository's `Dockerfile`. Vercel's static frontend deployment does not host this long-running Java HTTP server.
 - **Database:** a dedicated Supabase PostgreSQL project, using the reviewed schema and a restricted JDBC role.
 
-Before hosting, configure these values on the **Java API host** only: `CAMPUSOS_DB_URL`, `CAMPUSOS_DB_USERNAME`, `CAMPUSOS_DB_PASSWORD`, `CAMPUSOS_DB_POOL_SIZE`, `CAMPUSOS_AUTH_SECRET`, and `CAMPUSOS_CORS_ORIGINS`. Set `VITE_API_BASE_URL` on Vercel to the public Java API origin. Never put database credentials or the auth secret in Vercel's `VITE_*` variables.
+Before hosting, configure these values on the **Java API host** only: `CAMPUSOS_DB_URL`, `CAMPUSOS_DB_USERNAME`, `CAMPUSOS_DB_PASSWORD`, `CAMPUSOS_DB_POOL_SIZE`, `CAMPUSOS_AUTH_SECRET`, and `CAMPUSOS_CORS_ORIGINS`. Set `VITE_API_BASE_URL` in Vercel to the public Java API origin using HTTPS. Production builds now fail closed if this variable is missing rather than silently trying the developer's localhost. Never put database credentials or the auth secret in Vercel's `VITE_*` variables.
 
-Use `/api/health` as a liveness check and `/api/health/ready` as a database-aware readiness check. Hosting has not been configured or deployed; the Supabase schema and connection still require verification against a dedicated CAMPUSOS project.
+Use `/api/health` as a liveness check and `/api/health/ready` as a database-aware readiness check. Hosting has not been configured or deployed; the Supabase schema and connection still require verification against a dedicated CAMPUSOS project. Do not run database keep-alive jobs against a live project until its plan, supported policy, and actual pause behavior are confirmed.
 
 ## API reference
 
