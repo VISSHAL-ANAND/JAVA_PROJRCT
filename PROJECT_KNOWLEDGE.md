@@ -1389,3 +1389,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Hardened PBKDF2 verification against malformed stored hash strings and iteration-count abuse: accepted verification costs are bounded to 10,000–1,000,000 rounds, salt and derived-key lengths are validated, and malformed encodings return a generic verification failure instead of starting unbounded work.
 - Reused a thread-local PBKDF2 factory and explicitly cleared temporary password character arrays, PBEKeySpec passwords, derived key bytes, decoded salt, and expected hash bytes after use. The configured hash cost remains 120,000 rounds; it was not lowered to chase load-test performance.
 - Added tests for correct/wrong passwords, per-hash salts, blank-password rejection, malformed encodings, and excessive/weak iteration counts. Must pass full CI before this security hardening is considered verified.
+
+
+### 2026-10-15 — Tune default HTTP worker count for CPU-bound login bursts
+
+- The latest cross-engine 1,000-login run showed PostgreSQL p95 8.84 s but MySQL p95 17.06 s on shared CI runners, while authenticated DB-read p95 stayed below 0.5 s. This isolates the login burst as CPU/password-hashing sensitive rather than primarily a database-read bottleneck.
+- Reduced the default worker-pool oversubscription from at least 16 workers / four per CPU to at least four / two per CPU (still capped at 64). Explicit `CAMPUSOS_HTTP_WORKER_THREADS` remains available for host-specific tuning.
+- This is a hypothesis to validate, not a claimed performance improvement. The next full CI run must confirm the 1,000-request HTTP smoke test and both database engines' login, write, mixed-load, booking, and read workloads. Production sizing still requires the guarded staging test.

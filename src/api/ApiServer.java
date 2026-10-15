@@ -121,12 +121,14 @@ public class ApiServer {
         server.createContext("/api/admin", this::handleAdmin);
         int workerCount = configuredPositiveInt(
                 "CAMPUSOS_HTTP_WORKER_THREADS",
-                Math.max(16, Math.min(64, Runtime.getRuntime().availableProcessors() * 4)),
+                Math.max(4, Math.min(64, Runtime.getRuntime().availableProcessors() * 2)),
                 4, 128);
         int queueCapacity = configuredPositiveInt("CAMPUSOS_HTTP_QUEUE_CAPACITY", 2048, 64, 10000);
-        // Keep request handling bounded while allowing a burst of 1,000 clients to queue
-        // without forcing the HttpServer dispatcher to execute slow database handlers.
-        // CallerRunsPolicy still applies back-pressure if both workers and queue are saturated.
+        // Size the default pool at roughly two workers per available CPU, with a small
+        // minimum. Password verification is CPU-bound; oversubscribing a small host with
+        // 16+ workers by default increased 1,000-way login latency in CI. Operators can
+        // override the count after measuring their actual host. The bounded queue absorbs
+        // bursts, while CallerRunsPolicy applies back-pressure if the queue also saturates.
         executor = new java.util.concurrent.ThreadPoolExecutor(
                 workerCount, workerCount, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
                 new java.util.concurrent.ArrayBlockingQueue<>(queueCapacity),
