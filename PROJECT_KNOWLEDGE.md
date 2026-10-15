@@ -1112,3 +1112,9 @@ A phase is complete only when:
 - The 1,000-user review found the API-level login limiter keyed only by remote IP. Behind a campus NAT or reverse proxy, five failed attempts from one account could therefore block unrelated students sharing the same apparent IP.
 - Changed the outer limiter key to the normalized account email plus source address, while preserving the existing account-level limiter in `AuthService`. A regression test now proves repeated failures for one account are still throttled while a different account from the same apparent IP can sign in.
 - This is important for multi-user campuses and reverse-proxy hosting. CI must verify the new regression and all six existing jobs before the fix is considered complete.
+
+
+### 2026-10-15 — Correct escaping in account-isolation rate-limit regression test
+
+- The first CI run of the shared-IP login fix found an over-escaped JSON literal in the new test helper, causing Java test-compilation errors; application code compiled in the prior test version, but the complete pipeline was red.
+- Corrected the test JSON string to emit valid `email` and `password` fields. Re-run the full workflow and verify the new regression itself passes, not just compilation.
