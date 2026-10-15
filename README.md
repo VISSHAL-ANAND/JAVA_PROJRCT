@@ -284,7 +284,7 @@ GitHub Actions currently verifies:
 - Docker image build for the HTTP-only Java API.
 - PostgreSQL 17 schema application and database-backed workflow test (user creation/authentication, issue priority, assignment/status transitions/history, notifications, emergency broadcast, and booking capacity/cancellation).
 - A dedicated HTTP load smoke test sends 1,000 concurrent requests to the dependency-free liveness endpoint and records total duration plus p50/p95/max latency. This checks HTTP worker-pool behavior only; it does not prove 1,000 concurrent database-backed users or production capacity.
-- The PostgreSQL integration job also sends 1,000 concurrent authenticated requests across 100 ephemeral test accounts through the reporter-ticket API. This exercises token revocation lookup, current-role lookup, ticket queries, and the configured JDBC pool; it is a repeatable CI smoke test, not a production-scale certification.
+- The PostgreSQL integration job also sends 1,000 concurrent authenticated requests, each with its own ephemeral student account and signed token, through the reporter-ticket API. This exercises token revocation lookup, current-role lookup, ticket queries, and the configured JDBC pool; it is a repeatable CI smoke test, not a production-scale certification.
 
 The PostgreSQL service test is a clean local PostgreSQL compatibility check, **not** a connection test against the actual Supabase project.
 

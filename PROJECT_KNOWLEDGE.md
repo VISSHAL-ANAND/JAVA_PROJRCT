@@ -1032,8 +1032,15 @@ A phase is complete only when:
 
 ### 2026-10-15 — Add 1,000 concurrent authenticated database-backed requests
 
-- Added an opt-in PostgreSQL integration load test using 100 ephemeral student accounts and 1,000 simultaneous requests to the real authenticated reporter-ticket endpoint.
+- Added an opt-in PostgreSQL integration load test using 1,000 distinct ephemeral student accounts and 1,000 simultaneous requests to the real authenticated reporter-ticket endpoint; every request has its own user ID and signed token.
 - Each request passes signed-token verification, persistent revocation lookup, current-role lookup, the bounded ticket-page query and the reporter-summary query through the configured Hikari pool. The test asserts every request returns HTTP 200 and records p50/p95/max latency plus total duration.
 - The PostgreSQL CI job enables this test only after its schema and least-privilege application role are configured. Test users are deleted through the dedicated CI admin connection; no live database is touched.
 - Acceptance limits are intentionally broad CI smoke thresholds (45 seconds total, p95 below 30 seconds), not a claim that production is certified for 1,000 users. This CI environment has a local ephemeral PostgreSQL service and a pool size of five; real capacity still depends on the chosen Supabase tier, API instance resources, network latency, actual user mix, write contention and sustained-duration load.
 - Wait for all CI jobs, inspect the load-test latency output and fix any failures before calling this task verified.
+
+
+### 2026-10-15 — Strengthen the database load test to represent 1,000 distinct users
+
+- Tightened the load test to create 1,000 distinct ephemeral student accounts and issue 1,000 simultaneous authenticated reporter-ticket requests, one per account, rather than reusing 100 accounts ten times.
+- This is a more representative concurrent-user smoke test for the authentication and database path. The latest preceding 100-user iteration passed all six CI jobs; its PostgreSQL test reported 1,000 concurrent DB-backed requests in 1,634 ms total, p50 445 ms, p95 1,178 ms, max 1,223 ms, using a five-connection pool. These numbers are from ephemeral GitHub-hosted CI and must not be treated as a production capacity guarantee.
+- The strengthened 1,000-distinct-user version is pending verification on the next commit; report its measured output only after CI completes.

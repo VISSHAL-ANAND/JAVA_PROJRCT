@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Uses ephemeral PostgreSQL users and removes them after the run.
  */
 class ApiDatabaseLoadTest {
-    private static final int DISTINCT_USERS = 100;
+    private static final int DISTINCT_USERS = 1_000;
     private static final int CONCURRENT_REQUESTS = 1_000;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
