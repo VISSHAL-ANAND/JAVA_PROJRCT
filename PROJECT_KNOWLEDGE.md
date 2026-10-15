@@ -918,3 +918,11 @@ A phase is complete only when:
 - The existing PostgreSQL integration test exercises simultaneous capacity-one booking attempts and must remain green. The test suite does not currently include a live MySQL service, so MySQL runtime verification remains a follow-up rather than a claimed pass.
 - No schema, live database, or hosting/deployment changes were made. CI on the exact commit is required; Maven is not available locally.
 - Next priority: continue database-portability and transaction rollback review; keep live environment work behind explicit authorization.
+
+
+### 2026-10-15 — CI caught least-privilege incompatibility in portable booking lock
+
+- CI run [38683733044](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38683733044) failed on commit `e758f47`: Java verification, frontend tests/build, and container checks passed, but PostgreSQL workflow integration failed because `SELECT ... FOR UPDATE` requires UPDATE privilege on `resources`, intentionally not granted to the least-privilege app role.
+- Corrective approach: retain PostgreSQL transaction-scoped advisory locking on PostgreSQL, where the role can acquire the lock without extra table privileges; use a resource-row `FOR UPDATE` lock on MySQL. This preserves same-resource booking serialization without broadening PostgreSQL permissions.
+- Re-run the full CI workflow on the correction before considering the booking-lock task complete. MySQL runtime behavior remains unverified unless a MySQL service test is added.
+- No live database, production secrets, or hosting/deployment settings were accessed or changed.

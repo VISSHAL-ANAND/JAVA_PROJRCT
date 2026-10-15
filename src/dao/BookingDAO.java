@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 public class BookingDAO {
+    private static final int BOOKING_LOCK_NAMESPACE = 1128351312;
+
     public int createIfAvailable(int resourceId, int userId, LocalDateTime start, LocalDateTime end) throws SQLException {
         String resourceSql = "SELECT quantity, available FROM resources WHERE id = ?";
         // Booking intervals are half-open [start, end). Occupancy can only increase
@@ -37,15 +39,7 @@ public class BookingDAO {
         try (Connection connection = DBConnection.getConnection()) {
             connection.setAutoCommit(false);
             try {
-                // Lock the resource row so capacity checks are serialized on both MySQL and PostgreSQL.
-                // The lock is held until this transaction commits or rolls back.
-                try (PreparedStatement lock = connection.prepareStatement(
-                        "SELECT id FROM resources WHERE id = ? FOR UPDATE")) {
-                    lock.setInt(1, resourceId);
-                    try (ResultSet rs = lock.executeQuery()) {
-                        if (!rs.next()) throw new IllegalArgumentException("Resource not found");
-                    }
-                }
+                lockResourceForBooking(connection, resourceId);
 
                 int capacity;
                 try (PreparedStatement statement = connection.prepareStatement(resourceSql)) {
@@ -96,6 +90,29 @@ public class BookingDAO {
                 throw new SQLException("Unable to create booking", e);
             } finally {
                 connection.setAutoCommit(true);
+            }
+        }
+    }
+
+    private void lockResourceForBooking(Connection connection, int resourceId) throws SQLException {
+        // PostgreSQL's least-privilege app role intentionally has no UPDATE privilege
+        // on resources, which PostgreSQL requires for SELECT ... FOR UPDATE. A
+        // transaction-scoped advisory lock gives equivalent per-resource serialization.
+        if ("PostgreSQL".equalsIgnoreCase(connection.getMetaData().getDatabaseProductName())) {
+            try (PreparedStatement lock = connection.prepareStatement("SELECT pg_advisory_xact_lock(?, ?)")) {
+                lock.setInt(1, BOOKING_LOCK_NAMESPACE);
+                lock.setInt(2, resourceId);
+                lock.execute();
+            }
+            return;
+        }
+
+        // MySQL uses a row lock, held until this transaction commits or rolls back.
+        try (PreparedStatement lock = connection.prepareStatement(
+                "SELECT id FROM resources WHERE id = ? FOR UPDATE")) {
+            lock.setInt(1, resourceId);
+            try (ResultSet rs = lock.executeQuery()) {
+                if (!rs.next()) throw new IllegalArgumentException("Resource not found");
             }
         }
     }
