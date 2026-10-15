@@ -1156,3 +1156,11 @@ A phase is complete only when:
 - The scale audit found that `UserDAO.findUsers()` silently returned only the first 200 users and the React admin directory had no pagination controls. This would hide accounts in a campus with 1,000+ users.
 - Replaced the fixed first-200 query with deterministic page/limit SQL, added a total-user count and page metadata to `GET /api/admin/users?page=1&pageSize=50`, and added Previous/Next/Refresh controls plus total account/page indicators to the admin UI. API page size is capped at 100.
 - Added a cross-database integration test plan to verify every account is reachable exactly once across pages and malformed/out-of-range page inputs are rejected. The test and full CI verification are pending.
+
+
+### 2026-10-15 — Raise admin directory pagination test to 1,000 campus accounts
+
+- The first pagination regression passed on both MySQL and PostgreSQL, but its fixture created only 121 accounts. That proved multi-page behavior without exercising the requested 1,000-user campus size.
+- Increased the dedicated fixture to 1,000 students plus one admin. The test checks every database user is returned exactly once across all pages, each response is capped at 50 rows, all 1,001 fixture accounts are reachable, and invalid page/page-size values are rejected.
+- The previous six-job CI run [38709719029](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38709719029) passed, including 5,000 authenticated database-backed reads across 1,000 distinct users (five rounds of 1,000; 9,027 ms total, p50 298 ms, p95 1,277 ms, max 2,308 ms, PostgreSQL pool size 5), concurrent login/write tests, emergency fan-out, booking races, frontend audit/build and container checks.
+- The stronger 1,001-account pagination fixture is pending the next full CI run. These tests provide useful burst-load and data-visibility coverage, not a production capacity certification.

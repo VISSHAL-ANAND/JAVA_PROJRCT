@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @EnabledIfEnvironmentVariable(named = "CAMPUSOS_ADMIN_PAGINATION_TEST_ENABLED", matches = "true")
 class AdminUserPaginationTest {
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final int FIXTURE_USERS = 120;
+    private static final int FIXTURE_USERS = 1_000;
 
     @Test
     void adminCanPageThroughEveryUserWithoutDuplicatesOrTruncation() throws Exception {
@@ -83,7 +83,7 @@ class AdminUserPaginationTest {
                 }
             }
             assertEquals(totalUsers, seen.size(), "Every user must appear on exactly one page");
-            assertTrue(seen.containsAll(fixtureIds), "All 121 test accounts must be reachable");
+            assertTrue(seen.containsAll(fixtureIds), "All 1,001 test accounts must be reachable");
 
             HttpResponse<String> invalidPage = client.send(
                     HttpRequest.newBuilder(URI.create(base + "?page=0&pageSize=50"))
