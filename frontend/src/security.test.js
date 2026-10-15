@@ -22,3 +22,7 @@ test("allows HTTP during local development", () => {
 test("rejects invalid API origins in production", () => {
   assert.equal(isApiUrlSecure("not a URL", true), false);
 });
+
+test("rejects a missing production API URL", () => {
+  assert.equal(isApiUrlSecure("", true), false);
+});
