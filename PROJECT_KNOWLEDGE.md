@@ -1316,3 +1316,10 @@ A phase is complete only when:
 - The same run passed 1,000 concurrent logins (MySQL 13,063 ms total, p95 12,154 ms; PostgreSQL 12,542 ms total, p95 11,726 ms), 1,000 issue writes per database, 1,000 mixed reads/writes per database, emergency notification fan-out, 100-way booking contention and cancellation, pagination, frontend audit/build, Java verification, and container build.
 - These are repeatable ephemeral CI burst tests, not proof of sustained production capacity. The 1,000-login p95 is over 10 seconds on the shared CI runners, so the dedicated staging run must measure login latency on the actual planned host and may require a larger CPU tier or tuning. The guarded 14-minute, 1,000-VU staging profile remains unrun until an approved disposable staging host, accounts, and test window exist.
 - No deployment, live Supabase access, or production database modification occurred.
+
+
+### 2026-10-15 — Add 1,000-token logout-revocation concurrency test
+
+- Added a disposable-database integration load test that concurrently writes and verifies 1,000 unique token revocations using 32 workers and the configured JDBC pool. Enabled it in both MySQL 8.4 and PostgreSQL 17 CI jobs.
+- The test is specifically intended to expose lock contention in token-revocation cleanup, which currently runs as part of every logout. Observe actual timings before changing cleanup semantics; do not mark the change verified until all CI jobs pass on the exact commit.
+- No hosted database or deployment was accessed.
