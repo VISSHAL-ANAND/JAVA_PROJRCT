@@ -365,6 +365,23 @@ A phase is complete only when:
 
 ## 13. Next actions — ordered backlog
 
+### Current execution status — 2026-10-15
+
+The older phase checklist below is a historical roadmap and includes items that have since been completed. Use this current summary plus the newest dated engineering-log entries as the source of truth.
+
+**Verified in CI on MySQL 8.4 and PostgreSQL 17:** 1,000 concurrent logins; 1,000 concurrent issue writes with persisted ticket/assignment/history/notification checks; a 1,000-request mixed read/write burst; emergency broadcast to 1,000 accounts; 100-way booking contention plus owner-only cancellation; five rounds of 1,000 authenticated DB-backed reads (5,000 requests per engine); 1,000 concurrent token revocations; pagination; Java tests; frontend dependency audit/build; and container build. These are disposable shared-runner burst tests, not sustained production certification.
+
+**Still required before production:**
+1. Run the guarded 14-minute, 1,000-VU k6 profile against a dedicated approved HTTPS staging deployment and disposable accounts. This is the main evidence gap for sustained 1,000-user behavior.
+2. Review staging CPU/memory, request worker saturation, JDBC active/pending connections, database connections/locks, error rate, and p95 latency. CI's 1,000-login p95 was ~11.7–12.5 seconds on shared runners, so measure the intended host and adjust CPU/pool sizing only from actual measurements.
+3. Apply the appropriate schema migrations to a dedicated staging Supabase project, verify the least-privilege app role and connection pooler settings, then run the complete authenticated smoke-test matrix against it. No live project has been tested.
+4. Complete production security review: audit trail, distributed rate limiting for multi-instance deployments, sessionStorage/XSS risk, secret/history scanning, and final route/role/ownership audit.
+5. Configure HTTPS, exact CORS origins, stable auth secret, host termination grace of at least 15 seconds, health/readiness checks, log/metric collection, backups, restore verification, and a rollback plan.
+6. Review each visible role workflow end-to-end and close remaining product gaps such as full user editing/deletion and operational audit/history views.
+
+**No deployment until the owner explicitly authorizes hosting.** Do not run the staging load script until the host, disposable accounts, and test window are explicitly approved.
+
+
 ### Phase 0 — Repository safety and reproducibility
 - [x] Add/verify `.gitignore` for Maven output, Node dependencies/build output, IDE files, and logs.
 - [x] Add a safe config example and environment-based database credential overrides; document them in README.
@@ -1330,3 +1347,10 @@ A phase is complete only when:
 - The first 1,000-token revocation stress run exposed a real MySQL deadlock: every logout transaction attempted the same expired-row cleanup DELETE before inserting its own revocation. PostgreSQL passed, but MySQL rolled back one of the concurrent transactions. The failure was observed in CI run [38737422344](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38737422344).
 - Changed expired-token cleanup to run at most once per process every five minutes using an atomic gate. Each logout still writes its own token fingerprint and expiry in a transaction; only nonessential housekeeping is throttled. The new 1,000-token load test remains enabled on both SQL engines and must pass on the exact fix commit before this is considered resolved.
 - No live database or hosting resource was modified.
+
+
+### 2026-10-15 — Add bounded graceful HTTP shutdown
+
+- Replaced immediate HTTP-server stop and unconditional worker interruption with a five-second drain for in-flight exchanges, followed by orderly executor shutdown and a five-second termination wait. If work does not drain, the executor is force-stopped; interruption is preserved.
+- Updated deployment notes to require at least a 15-second platform termination grace period and refreshed the current release-gate summary with the latest cross-engine 1,000-user coverage.
+- The change is not verified until all CI jobs pass on this exact commit. No hosting configuration was changed.

@@ -156,8 +156,24 @@ public class ApiServer {
     }
 
     public void stop() {
-        if (server != null) server.stop(0);
-        if (executor != null) executor.shutdownNow();
+        HttpServer currentServer = server;
+        if (currentServer != null) {
+            // Stop accepting new requests and give active exchanges up to five seconds to drain.
+            currentServer.stop(5);
+        }
+
+        ExecutorService currentExecutor = executor;
+        if (currentExecutor != null) {
+            currentExecutor.shutdown();
+            try {
+                if (!currentExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    currentExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                currentExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
 
