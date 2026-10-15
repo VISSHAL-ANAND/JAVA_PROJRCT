@@ -29,4 +29,23 @@ class RateLimiterTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new RateLimiter(0, Duration.ofMinutes(1), Duration.ofMinutes(1)));
     }
+    @Test
+    void throttlesExpensiveBucketCleanup() throws ReflectiveOperationException {
+        RateLimiter limiter = new RateLimiter(10, Duration.ofMinutes(1), Duration.ofMinutes(1));
+        for (int i = 0; i <= 5_000; i++) {
+            assertTrue(limiter.allow("client-" + i));
+        }
+
+        Field field = RateLimiter.class.getDeclaredField("nextCleanupAtMillis");
+        field.setAccessible(true);
+        AtomicLong nextCleanupAtMillis = (AtomicLong) field.get(limiter);
+        long scheduledCleanup = nextCleanupAtMillis.get();
+        assertTrue(scheduledCleanup > System.currentTimeMillis(),
+                "Crossing the cleanup threshold should schedule the next sweep");
+
+        assertTrue(limiter.allow("follow-up-client"));
+        assertEquals(scheduledCleanup, nextCleanupAtMillis.get(),
+                "A request must not trigger another full bucket scan within the cleanup interval");
+    }
+
 }
