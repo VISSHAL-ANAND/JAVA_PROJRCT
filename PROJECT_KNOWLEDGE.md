@@ -1019,3 +1019,12 @@ A phase is complete only when:
 - Updated README to document the logout endpoint, persistent revocation behavior, the migration/grant requirement for existing databases, and the remaining security and hosted-project release blockers.
 - The change is verified against ephemeral CI databases only. It does not establish compatibility with a real Supabase project, and no live database, production secret, or hosting project was accessed.
 - Next blocker: live staging verification requires an owner-approved dedicated CAMPUSOS Supabase project and API hosting configuration. Do not use unrelated projects or deploy without explicit authorization.
+
+
+### 2026-10-15 — Add 1,000-concurrent-request HTTP load smoke test
+
+- Added a dedicated CI job that sends 1,000 simultaneous asynchronous requests to `GET /api/health`, verifies every response is HTTP 200 with the expected body, and records total duration plus p50/p95/max request latency.
+- The test is opt-in and isolated from normal unit tests; CI gives it a five-minute job limit and asserts the run completes within 30 seconds with p95 below 20 seconds.
+- This is an initial HTTP concurrency smoke test, **not** proof that 1,000 authenticated, database-backed users can be supported. The endpoint intentionally avoids DB load so it can isolate HTTP server worker/queue behavior; database throughput, login hashing, revocation/role queries, connection-pool saturation, realistic user journeys and production load still require separate tests.
+- Existing HTTP server worker/queue sizes and Hikari pool limits remain bounded. Do not increase pool size based only on user count; size it against the actual Supabase connection allowance and number of API instances.
+- Wait for the dedicated load job and all existing CI jobs on this exact commit. Fix regressions and rerun CI until green before proceeding.

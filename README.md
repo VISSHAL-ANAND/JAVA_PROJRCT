@@ -283,6 +283,7 @@ GitHub Actions currently verifies:
 - React dependency installation and Vite production build.
 - Docker image build for the HTTP-only Java API.
 - PostgreSQL 17 schema application and database-backed workflow test (user creation/authentication, issue priority, assignment/status transitions/history, notifications, emergency broadcast, and booking capacity/cancellation).
+- A dedicated HTTP load smoke test sends 1,000 concurrent requests to the dependency-free liveness endpoint and records total duration plus p50/p95/max latency. This checks HTTP worker-pool behavior only; it does not prove 1,000 concurrent database-backed users or production capacity.
 
 The PostgreSQL service test is a clean local PostgreSQL compatibility check, **not** a connection test against the actual Supabase project.
 
