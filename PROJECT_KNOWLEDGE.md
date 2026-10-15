@@ -1323,3 +1323,10 @@ A phase is complete only when:
 - Added a disposable-database integration load test that concurrently writes and verifies 1,000 unique token revocations using 32 workers and the configured JDBC pool. Enabled it in both MySQL 8.4 and PostgreSQL 17 CI jobs.
 - The test is specifically intended to expose lock contention in token-revocation cleanup, which currently runs as part of every logout. Observe actual timings before changing cleanup semantics; do not mark the change verified until all CI jobs pass on the exact commit.
 - No hosted database or deployment was accessed.
+
+
+### 2026-10-15 — Fix concurrent logout deadlocks found by 1,000-token stress test
+
+- The first 1,000-token revocation stress run exposed a real MySQL deadlock: every logout transaction attempted the same expired-row cleanup DELETE before inserting its own revocation. PostgreSQL passed, but MySQL rolled back one of the concurrent transactions. The failure was observed in CI run [38737422344](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38737422344).
+- Changed expired-token cleanup to run at most once per process every five minutes using an atomic gate. Each logout still writes its own token fingerprint and expiry in a transaction; only nonessential housekeeping is throttled. The new 1,000-token load test remains enabled on both SQL engines and must pass on the exact fix commit before this is considered resolved.
+- No live database or hosting resource was modified.
