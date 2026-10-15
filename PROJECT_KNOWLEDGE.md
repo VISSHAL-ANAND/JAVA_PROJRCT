@@ -794,3 +794,12 @@ A phase is complete only when:
 - Verification limitation: reviewed the diff and test logic, but did not run the new JUnit tests or full Maven suite because Maven is not installed in this environment. The GitHub Actions workflow triggers on pushes to main, but the available GitHub status/run lookup cannot expose push-triggered runs; no CI pass/fail is claimed for these commits.
 - No live Supabase access, secret access, or deployment occurred.
 - Next priority: verify the complete CI run for the current main head when Actions run visibility or a Maven-enabled checkout is available; then continue the route-by-route authorization review, focusing on untrusted proxy headers, role/ownership checks, and abuse controls.
+
+### 2026-10-15 — Authorization review checkpoint; verification blocker remains
+
+- Started the next route-by-route security review after the shared-IP throttle change. Inspected the HTTP handlers for issue submission, reporter ticket reads, ticket history/status, staff tickets, notifications, emergencies, resources, bookings, admin user management/assignment, and the corresponding ticket/user/booking DAO authorization checks.
+- In the reviewed paths, found existing bearer-token/current-role checks, student ticket ownership checks, staff assignment checks, admin role gates, and booking cancellation ownership checks. This is a partial review, not a security sign-off; no new production code change was justified by the inspected segment alone.
+- Checked the current main head after the login-throttle commits: the workflow file has a push trigger for main, but the connected combined-status query returns no entries and the connected workflow-run lookup only exposes pull-request-triggered runs. These empty results do not prove that CI passed or failed.
+- Verification is blocked until either the Actions run for the current main head can be inspected or the repository can be built in an environment with Maven and dependency/network access. This environment has Java 21 but no Maven; the earlier repository clone failed at GitHub DNS resolution. The new HTTP regression test and full Maven suite therefore remain unexecuted here.
+- No live Supabase access, secret access, or deployment occurred.
+- Next action: obtain an inspectable Actions run for the current main commit or a Maven-enabled checkout, run `mvn --batch-mode --no-transfer-progress clean verify`, fix any failures, then continue the unfinished authorization review (including request-body limits, error handling, and deployment/proxy assumptions).
