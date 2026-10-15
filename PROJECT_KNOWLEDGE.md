@@ -872,3 +872,12 @@ A phase is complete only when:
 - Kept the original one-argument DAO method as a bounded first-page compatibility wrapper. No schema change is required; the existing reporter/created-at index supports this access pattern, with `id` as a deterministic tie-breaker.
 - Extended the PostgreSQL-backed HTTP workflow test to verify pagination metadata, bounded result size, summary counts, and rejection of page zero. CI must pass on the new commit before this task is considered complete.
 - Browser/device review, representative-data query-plan inspection, and load testing remain staging gates. No deployment or database changes were performed.
+
+
+### 2026-10-15 — Stable ordering for recent emergency feed
+
+- Updated `EmergencyDAO.findRecent()` to order the bounded 50-item emergency feed by `created_at DESC, id DESC`. Emergencies created at the same timestamp now have deterministic ordering rather than database-dependent tie order.
+- Updated the existing emergency timestamp index in both PostgreSQL/Supabase and MySQL schema bootstrap files to include the `id DESC` tie-breaker, keeping the index aligned with the query without adding a separate redundant index.
+- Verification: source/schema review completed; GitHub Actions on this commit is the required build and integration verification. Local Maven execution is unavailable in this environment, so no local test pass is claimed.
+- No live database was modified and no hosting/deployment was performed.
+- Next priority: continue reviewing bounded list queries and transaction boundaries for a concrete correctness/performance issue; keep all live-environment work behind explicit owner authorization.

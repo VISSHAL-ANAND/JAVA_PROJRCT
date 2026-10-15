@@ -18,7 +18,7 @@ public class EmergencyDAO {
                 SELECT e.id, e.title, e.message, e.created_at, u.name AS created_by_name
                 FROM emergencies e
                 JOIN users u ON u.id = e.created_by
-                ORDER BY e.created_at DESC
+                ORDER BY e.created_at DESC, e.id DESC
                 LIMIT 50
                 """;
         try (Connection connection = DBConnection.getConnection();

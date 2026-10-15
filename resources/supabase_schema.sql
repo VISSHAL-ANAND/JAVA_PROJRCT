@@ -105,7 +105,8 @@ create index if not exists idx_notifications_user_created_id on public.notificat
 create index if not exists idx_bookings_resource_start on public.bookings(resource_id, start_time);
 create index if not exists idx_bookings_user_start on public.bookings(booked_by, start_time);
 create index if not exists idx_bookings_user_start_id on public.bookings(booked_by, start_time desc, id desc);
-create index if not exists idx_emergencies_created on public.emergencies(created_at desc);
+-- Supports the recent emergency feed's stable created_at/id ordering.
+create index if not exists idx_emergencies_created on public.emergencies(created_at desc, id desc);
 
 -- Application access must use a dedicated database role/connection string, not the Supabase service-role API key.
 -- Do not expose CAMPUSOS_DB_PASSWORD or CAMPUSOS_AUTH_SECRET to the browser.
