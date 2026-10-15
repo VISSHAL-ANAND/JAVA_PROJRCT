@@ -98,4 +98,5 @@ CREATE INDEX idx_tickets_reported_by_created ON tickets(reported_by, created_at)
 CREATE INDEX idx_tickets_assignee_status ON tickets(assigned_technician_id, status);
 CREATE INDEX idx_bookings_resource_start ON bookings(resource_id, start_time);
 CREATE INDEX idx_bookings_user_start ON bookings(booked_by, start_time);
+CREATE INDEX idx_bookings_user_start_id ON bookings(booked_by, start_time DESC, id DESC);
 CREATE INDEX idx_emergencies_created ON emergencies(created_at);

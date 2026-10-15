@@ -107,7 +107,7 @@ public class BookingDAO {
                 FROM bookings b
                 JOIN resources r ON r.id = b.resource_id
                 WHERE b.booked_by = ?
-                ORDER BY b.start_time DESC
+                ORDER BY b.start_time DESC, b.id DESC
                 LIMIT 100
                 """;
         try (Connection connection = DBConnection.getConnection();

@@ -355,6 +355,12 @@ A phase is complete only when:
 - No live database was changed; schema changes are for fresh/bootstrap setup and must be applied through an approved migration process to an existing deployment.
 - CI status for this commit: pending until the new run completes. No hosting or production DB changes were made.
 
+### 2026-10-15 — Booking history ordering and index
+- Continued the bounded-query audit after notification inbox optimization. The personal booking history was already capped at 100 rows, but sorting only by start_time could produce unstable ordering when bookings share a start time.
+- Added booking ID as a descending tie-breaker and added matching per-user ordering indexes to both PostgreSQL and MySQL bootstrap schemas.
+- Existing resource/user booking indexes remain; no live database was modified. Existing deployments require a reviewed migration to gain the new index.
+- CI for this commit is pending until the new GitHub Actions run completes. No hosting or production DB changes were made.
+
 <!-- APPEND NEW DATED ENTRIES BELOW; keep older entries intact. -->
 
 ## 13. Next actions — ordered backlog

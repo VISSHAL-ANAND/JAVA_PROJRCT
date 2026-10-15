@@ -104,6 +104,7 @@ create index if not exists idx_notifications_user_read_created on public.notific
 create index if not exists idx_notifications_user_created_id on public.notifications(user_id, created_at desc, id desc);
 create index if not exists idx_bookings_resource_start on public.bookings(resource_id, start_time);
 create index if not exists idx_bookings_user_start on public.bookings(booked_by, start_time);
+create index if not exists idx_bookings_user_start_id on public.bookings(booked_by, start_time desc, id desc);
 create index if not exists idx_emergencies_created on public.emergencies(created_at desc);
 
 -- Application access must use a dedicated database role/connection string, not the Supabase service-role API key.
