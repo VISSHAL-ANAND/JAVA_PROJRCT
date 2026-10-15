@@ -1179,3 +1179,9 @@ A phase is complete only when:
 - The first staff-ticket pagination commit passed all six CI jobs, and MySQL executed the new 125-ticket API test successfully. Review of the workflow revealed the opt-in environment flag had only been added to the MySQL job, so PostgreSQL compiled but skipped this specific integration test.
 - Enabled `StaffTicketPaginationTest` in both MySQL 8.4 and PostgreSQL 17 jobs and removed a no-op loop from the test setup. The next CI run must show the test executing (not skipped) on both engines before cross-database pagination is considered verified.
 - Previous run: [38710401124](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38710401124), all six jobs green; MySQL staff pagination test passed with 125 fixtures beyond the former 100-row limit.
+
+
+### 2026-10-15 — Correct CI environment flag placement for staff pagination test
+
+- The first attempt to enable staff-ticket pagination on both database engines accidentally duplicated the YAML key in the MySQL job instead of adding it to PostgreSQL. GitHub rejected the workflow before starting any jobs (run [38710634714](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38710634714)); no tests ran on that commit.
+- Removed the duplicate key and added exactly one opt-in flag to each database job. The corrected workflow must trigger and execute the new regression on both MySQL and PostgreSQL before this task is complete.
