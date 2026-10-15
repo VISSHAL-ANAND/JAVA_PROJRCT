@@ -1376,3 +1376,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Changed bucket creation to remain synchronized and bounded; when full, the limiter evicts the least-recently-used bucket, preferring a non-blocked bucket. Added a regression test that fills all 10,000 slots and verifies a new client is still admitted while state remains bounded.
 - This is a resilience improvement, not a distributed brute-force defense: the limiter remains process-local and can trade per-key history under extreme high-cardinality pressure. Shared/distributed rate limiting remains a production hardening item.
 - Must be verified on the exact commit by full CI before considering the fix complete.
+
+
+### 2026-10-15 — Correct the rate-limiter saturation regression
+
+- The first CI run correctly caught a leftover fail-closed capacity guard that rejected new keys before the new LRU eviction path could run. Removed the stale guard; bucket creation now evicts a bucket at capacity and then admits the new key while keeping the map bounded.
+- CI run [38739617765](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38739617765) failed in the new regression test as expected; Java verification and container build failed because of this same unit-test failure. Frontend and the standalone 1,000-request HTTP smoke test passed. Full CI must be green on the correction commit.

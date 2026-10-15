@@ -41,7 +41,6 @@ public class RateLimiter {
         String normalized = key.trim().toLowerCase(Locale.ROOT);
         Instant now = Instant.now();
         cleanupIfNeeded(now);
-        if (buckets.size() >= MAX_BUCKETS && !buckets.containsKey(normalized)) return false;
 
         Bucket bucket = buckets.get(normalized);
         if (bucket == null) {
