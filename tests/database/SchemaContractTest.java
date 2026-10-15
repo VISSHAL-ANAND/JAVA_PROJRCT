@@ -53,6 +53,22 @@ class SchemaContractTest {
                 .toLowerCase(java.util.Locale.ROOT).contains("token_revocations"));
     }
 
+    @Test
+    void largeCampusDirectoryAndRecentTicketQueriesHaveSupportingIndexes() throws IOException {
+        String mysql = resource("campusos.sql").toLowerCase(java.util.Locale.ROOT);
+        String postgres = resource("supabase_schema.sql").toLowerCase(java.util.Locale.ROOT);
+        assertTrue(mysql.contains("create index idx_users_role_name_id on users(role, name, id)"));
+        assertTrue(mysql.contains("create index idx_users_role_available_name_id on users(role, available, name, id)"));
+        assertTrue(mysql.contains("create index idx_tickets_created_id on tickets(created_at desc, id desc)"));
+        assertTrue(postgres.contains("idx_users_role_name_id on public.users(role, name, id)"));
+        assertTrue(postgres.contains("idx_users_role_available_name_id on public.users(role, available, name, id)"));
+        assertTrue(postgres.contains("idx_tickets_created_id on public.tickets(created_at desc, id desc)"));
+        assertTrue(resource("migrations/mysql/004_large_campus_query_indexes.sql")
+                .toLowerCase(java.util.Locale.ROOT).contains("idx_tickets_created_id"));
+        assertTrue(resource("migrations/postgres/003_large_campus_query_indexes.sql")
+                .toLowerCase(java.util.Locale.ROOT).contains("idx_tickets_created_id"));
+    }
+
     private String resource(String name) throws IOException {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(name)) {
             if (input == null) throw new IOException("Missing classpath resource: " + name);

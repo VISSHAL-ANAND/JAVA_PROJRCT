@@ -1225,3 +1225,11 @@ A phase is complete only when:
 - Verified 1,000 simultaneous successful logins with distinct accounts sharing a single apparent source IP. PostgreSQL: 9,649 ms total, p50 4,813 ms, p95 8,841 ms, max 9,262 ms. MySQL: 14,028 ms total, p50 7,442 ms, p95 12,919 ms, max 13,447 ms. All 1,000 requests returned success and a token.
 - In the same run, the 1,000-write burst passed on PostgreSQL (3,265 ms) and MySQL (1,911 ms), and PostgreSQL completed 5,000 authenticated database-backed reads in 2,013 ms (p50 171 ms, p95 273 ms, max 310 ms) with a five-connection pool.
 - This materially improves confidence in 1,000-account burst handling but remains CI smoke testing. Production capacity depends on the real API host CPU/memory, database plan/connection limits, network latency, sustained request mix, and monitoring/recovery configuration. A staging load test is still required before release.
+
+
+### 2026-10-15 — Add query indexes for large campus directories and ticket queues
+
+- Query review found that admin user pagination sorts by `role, name, id`, the staff directory filters available staff and sorts by the same keys, and the admin ticket queue sorts by `created_at DESC, id DESC`. Existing indexes did not fully match those common sort/filter patterns.
+- Added composite indexes for the admin directory, available staff directory, and recent-ticket ordering to both fresh MySQL and PostgreSQL schemas. Added idempotent upgrade migrations for existing databases and removed the now-redundant single-column user-role index after the replacement index is created.
+- Added schema-contract regression checks and documented the required migration for existing databases.
+- Verification is pending: both MySQL 8.4 and PostgreSQL 17 CI must pass before these index/migration changes are considered safe. No live database was modified.

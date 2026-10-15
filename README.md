@@ -270,7 +270,7 @@ CAMPUSOS_DB_PASSWORD=<database-role-password>
 CAMPUSOS_DB_POOL_SIZE=5
 ```
 
-1. Apply `resources/supabase_schema.sql` to a **dedicated CAMPUSOS Supabase project**, not an unrelated project.
+1. Apply `resources/supabase_schema.sql` to a **dedicated CAMPUSOS Supabase project**, not an unrelated project. For existing databases, apply the matching one-time migration `resources/migrations/mysql/004_large_campus_query_indexes.sql` or `resources/migrations/postgres/003_large_campus_query_indexes.sql` after reviewing its index changes.
 2. Review and run `resources/supabase_app_role.sql.example` with a strong password placeholder replaced in the Supabase SQL Editor. Do not commit the real password.
 3. Configure these values only on the Java API host, not as `VITE_` frontend variables.
 4. Set `CAMPUSOS_AUTH_SECRET` to a separate stable random secret and set `CAMPUSOS_CORS_ORIGINS` to the exact deployed Vercel origin.

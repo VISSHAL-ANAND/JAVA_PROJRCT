@@ -100,8 +100,10 @@ create table if not exists public.token_revocations (
 );
 create index if not exists idx_token_revocations_expiry on public.token_revocations(expires_at);
 
-create index if not exists idx_users_role on public.users(role);
+create index if not exists idx_users_role_name_id on public.users(role, name, id);
+create index if not exists idx_users_role_available_name_id on public.users(role, available, name, id);
 create index if not exists idx_tickets_status on public.tickets(status);
+create index if not exists idx_tickets_created_id on public.tickets(created_at desc, id desc);
 create index if not exists idx_tickets_reported_by_created on public.tickets(reported_by, created_at desc);
 create index if not exists idx_tickets_assignee_status on public.tickets(assigned_technician_id, status);
 create index if not exists idx_issues_priority on public.issues(priority);
