@@ -881,3 +881,12 @@ A phase is complete only when:
 - Verification: source/schema review completed; GitHub Actions on this commit is the required build and integration verification. Local Maven execution is unavailable in this environment, so no local test pass is claimed.
 - No live database was modified and no hosting/deployment was performed.
 - Next priority: continue reviewing bounded list queries and transaction boundaries for a concrete correctness/performance issue; keep all live-environment work behind explicit owner authorization.
+
+
+### 2026-10-15 — Deterministic ordering for resource, user, and staff-ticket lists
+
+- Continued the bounded-list query audit and added primary-key tie-breakers to resource inventory (`name, id`), assignable staff (`role, name, id`), administrator user list (`role, name, id`), open-ticket IDs (`created_at, id`), and staff ticket queue (`priority rank, created_at, id`). Equal names/timestamps/priorities no longer rely on unspecified database row order.
+- No schema/index changes were needed: this task is about deterministic ordering, not claiming a query-performance improvement. Existing result limits are unchanged.
+- Verification: reviewed the exact source changes; CI for the resulting commit is required to validate compilation, PostgreSQL integration, frontend build, and container build. Maven is unavailable locally, so no local test pass is claimed.
+- No live database or hosting/deployment changes were made.
+- Next priority: inspect transaction boundaries and error paths for concrete data-integrity defects, then complete pre-hosting release-gate review without deploying absent explicit authorization.

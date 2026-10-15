@@ -6,7 +6,7 @@ public class ResourceDAO{
 
  public List<Map<String,Object>> findAvailableResources() throws SQLException {
   List<Map<String,Object>> items=new ArrayList<>();
-  String q="SELECT id,name,type,quantity FROM resources WHERE available=TRUE AND quantity>0 ORDER BY name LIMIT 100";
+  String q="SELECT id,name,type,quantity FROM resources WHERE available=TRUE AND quantity>0 ORDER BY name, id LIMIT 100";
   try(Connection c=DBConnection.getConnection();PreparedStatement s=c.prepareStatement(q);ResultSet r=s.executeQuery()){
    while(r.next()){Map<String,Object> item=new LinkedHashMap<>();item.put("id",r.getInt("id"));item.put("name",r.getString("name"));item.put("type",r.getString("type"));item.put("quantity",r.getInt("quantity"));items.add(item);}
   }

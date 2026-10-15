@@ -45,7 +45,7 @@ public class UserDAO {
 
     public java.util.List<java.util.Map<String, Object>> findAssignableStaff() throws SQLException {
         java.util.List<java.util.Map<String, Object>> staff = new java.util.ArrayList<>();
-        String sql = "SELECT id, name, role, specialization FROM users WHERE role IN ('MAINTENANCE','TECHNICIAN') AND available = TRUE ORDER BY role, name LIMIT 100";
+        String sql = "SELECT id, name, role, specialization FROM users WHERE role IN ('MAINTENANCE','TECHNICIAN') AND available = TRUE ORDER BY role, name, id LIMIT 100";
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql);
              ResultSet rs = statement.executeQuery()) {
@@ -64,7 +64,7 @@ public class UserDAO {
 
     public java.util.List<java.util.Map<String, Object>> findUsers() throws SQLException {
         java.util.List<java.util.Map<String, Object>> users = new java.util.ArrayList<>();
-        String sql = "SELECT id, name, email, role, department, specialization, available, created_at FROM users ORDER BY role, name LIMIT 200";
+        String sql = "SELECT id, name, email, role, department, specialization, available, created_at FROM users ORDER BY role, name, id LIMIT 200";
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql);
              ResultSet rs = statement.executeQuery()) {

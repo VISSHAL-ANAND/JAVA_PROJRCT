@@ -7,7 +7,7 @@ import java.util.*;
 public class TicketDAO {
     public List<Integer> findOpenTicketIds() throws SQLException {
         List<Integer> ids = new ArrayList<>();
-        String q = "SELECT id FROM tickets WHERE status IN ('OPEN','ASSIGNED','IN_PROGRESS') ORDER BY created_at";
+        String q = "SELECT id FROM tickets WHERE status IN ('OPEN','ASSIGNED','IN_PROGRESS') ORDER BY created_at, id";
         try (Connection c = DBConnection.getConnection();
              PreparedStatement s = c.prepareStatement(q);
              ResultSet r = s.executeQuery()) {
@@ -127,7 +127,7 @@ public class TicketDAO {
                 %s
                 ORDER BY CASE i.priority
                     WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END,
-                    t.created_at ASC
+                    t.created_at ASC, t.id ASC
                 LIMIT 100
                 """.formatted(filter);
         try (Connection connection = DBConnection.getConnection();
