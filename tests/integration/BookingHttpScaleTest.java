@@ -49,6 +49,7 @@ class BookingHttpScaleTest {
 
         try {
             for (int i = 0; i < CONTENDERS; i++) {
+                final int requestUserIndex = i;
                 String email = emailPrefix + i + "@example.test";
                 int id = users.createUser("Booking Scale User " + i, email, passwordHash,
                         "STUDENT", "BSCALE" + suffix + i, "CSE", null);
@@ -94,8 +95,20 @@ class BookingHttpScaleTest {
                         .build();
                 pending.add(client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                         .thenAccept(response -> {
-                            if (response.statusCode() == 201 && response.body().contains("\"bookingId\"")) {
-                                successes.incrementAndGet();
+                            if (response.statusCode() == 201) {
+                                try {
+                                    JsonNode json = JSON.readTree(response.body());
+                                    int id = json.path("bookingId").asInt();
+                                    if (!json.path("success").asBoolean() || id <= 0) {
+                                        unexpected.add("Malformed success response: " + response.body());
+                                    } else {
+                                        acceptedBookingId.set(id);
+                                        winningUserIndex.set(requestUserIndex);
+                                        successes.incrementAndGet();
+                                    }
+                                } catch (Exception e) {
+                                    unexpected.add("Invalid JSON success response: " + response.body());
+                                }
                             } else if (response.statusCode() == 409) {
                                 conflicts.incrementAndGet();
                             } else {
@@ -137,7 +150,12 @@ class BookingHttpScaleTest {
             assertEquals(200, mine.statusCode(), mine.body());
             JsonNode mineJson = JSON.readTree(mine.body());
             assertTrue(mineJson.path("success").asBoolean());
-            assertTrue(mineJson.path("bookings").toString().contains("\\"id\\":" + bookingId),
+            assertTrue(mineJson.path("bookings").isArray());
+            boolean foundBooking = false;
+            for (JsonNode booking : mineJson.path("bookings")) {
+                if (booking.path("id").asInt() == bookingId) foundBooking = true;
+            }
+            assertTrue(foundBooking, "The winning user must see the booking they created");
                     "The winning user must see the booking they created");
 
             int otherIndex = (winnerIndex + 1) % CONTENDERS;
