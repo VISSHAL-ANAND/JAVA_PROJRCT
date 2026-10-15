@@ -495,7 +495,7 @@ This is a keyword-based rule system, not an AI classifier. The current assignmen
 
 ## Security notes
 
-The codebase includes security-related foundations:
+The API also has a CI regression test for the default CORS allowlist and security headers; production must still set the exact deployed frontend origin in `CAMPUSOS_CORS_ORIGINS`. The codebase includes security-related foundations:
 
 - **Password hashing:** PBKDF2-HMAC-SHA256 with a random salt and a stored hash format of `pbkdf2$iterations$salt$hash`.
 - **Login rate limiting:** Repeated attempts are limited per account; the HTTP layer also buckets failures by account plus source address so one user's failures do not lock out everyone behind a shared campus/NAT/proxy IP.

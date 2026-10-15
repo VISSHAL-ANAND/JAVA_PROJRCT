@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApiServerSmokeTest {
@@ -245,4 +246,38 @@ class ApiServerSmokeTest {
             server.stop();
         }
     }
+    @Test
+    void corsDoesNotReflectUntrustedOriginsAndSecurityHeadersArePresent() throws Exception {
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+            String url = "http://127.0.0.1:" + server.getPort() + "/api/health";
+
+            HttpResponse<String> trusted = client.send(
+                    HttpRequest.newBuilder(URI.create(url))
+                            .header("Origin", "http://localhost:5173")
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, trusted.statusCode());
+            assertEquals("http://localhost:5173",
+                    trusted.headers().firstValue("Access-Control-Allow-Origin").orElse(""));
+            assertEquals("nosniff", trusted.headers().firstValue("X-Content-Type-Options").orElse(""));
+            assertEquals("no-store", trusted.headers().firstValue("Cache-Control").orElse(""));
+            assertEquals("Origin", trusted.headers().firstValue("Vary").orElse(""));
+
+            HttpResponse<String> untrusted = client.send(
+                    HttpRequest.newBuilder(URI.create(url))
+                            .header("Origin", "https://attacker.invalid")
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, untrusted.statusCode());
+            assertFalse(untrusted.headers().firstValue("Access-Control-Allow-Origin").isPresent(),
+                    "The API must not reflect arbitrary origins into CORS headers");
+        } finally {
+            server.stop();
+        }
+    }
+
+
 }

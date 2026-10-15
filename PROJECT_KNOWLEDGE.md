@@ -1277,3 +1277,10 @@ A phase is complete only when:
 - The HTTP booking stress test passed on MySQL 8.4 (100 contenders, exactly 1 success and 99 conflicts, 229 ms) and PostgreSQL 17 (exactly 1 success and 99 conflicts, 152 ms). It also verified the owner can list and cancel the reservation, another user cannot cancel it, and cancellation removes the row.
 - The tightened budgets passed. MySQL: 1,000 concurrent logins in 12,688 ms (p95 11,733 ms), 1,000 issue writes in 1,767 ms, and mixed 1,000-request reads/writes in 2,027 ms. PostgreSQL: 1,000 logins in 17,392 ms (p95 16,190 ms), 1,000 issue writes in 1,090 ms, mixed workload in 1,051 ms, and 5,000 authenticated DB-backed reads in 2,301 ms (p95 314 ms) using a five-connection pool.
 - This validates bounded CI bursts and the booking lifecycle on both SQL engines. It does not certify sustained production capacity or validate a live Supabase project; staging load, connection quotas, host limits, multi-instance rate limiting, observability, backups, and recovery remain release gates.
+
+
+### 2026-10-15 — Add CORS allowlist and security-header regression coverage
+
+- Added an HTTP-level regression test proving the default local frontend origin is explicitly allowed, an arbitrary hostile origin is not reflected in `Access-Control-Allow-Origin`, and the API sends `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, and `Vary: Origin`.
+- This protects the default CORS/security-header behavior from accidental regressions. Production still must configure `CAMPUSOS_CORS_ORIGINS` to the exact deployed frontend origin and use HTTPS; the test does not validate a live hosting configuration.
+- Full CI verification is pending for this test and documentation update.
