@@ -1354,3 +1354,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Replaced immediate HTTP-server stop and unconditional worker interruption with a five-second drain for in-flight exchanges, followed by orderly executor shutdown and a five-second termination wait. If work does not drain, the executor is force-stopped; interruption is preserved.
 - Updated deployment notes to require at least a 15-second platform termination grace period and refreshed the current release-gate summary with the latest cross-engine 1,000-user coverage.
 - The change is not verified until all CI jobs pass on this exact commit. No hosting configuration was changed.
+
+
+### 2026-10-15 — Verify graceful shutdown and 1,000-token revocation load
+
+- GitHub Actions run [38738242919](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38738242919) passed all six jobs on commit `185e6278e11f13c2d82f66400487e86ad2e7920a`, including the MySQL deadlock regression test: 1,000 concurrent token revocations plus verification completed in 1,701 ms on MySQL 8.4 and 487 ms on PostgreSQL 17.
+- Added a focused HTTP regression test that holds a request inside authorization while shutdown begins, then confirms the in-flight request completes its expected 403 response before shutdown returns. This verifies the bounded drain behavior rather than only compiling it.
+- The new shutdown test requires a full CI run on the exact follow-up commit. No live database or hosting project was touched.

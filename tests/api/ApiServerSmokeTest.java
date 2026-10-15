@@ -12,6 +12,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -279,5 +282,63 @@ class ApiServerSmokeTest {
         }
     }
 
+
+
+    @Test
+    void gracefulShutdownAllowsAnInFlightAuthorizedCheckToFinish() throws Exception {
+        CountDownLatch roleLookupEntered = new CountDownLatch(1);
+        CountDownLatch releaseRoleLookup = new CountDownLatch(1);
+        AccessTokenService tokens = new AccessTokenService();
+        String token = tokens.issue(new Student(12, "Student", "student@example.test", "", "S12", "CSE"));
+        UserDAO delayedUserDAO = new UserDAO() {
+            @Override
+            public Optional<String> findRoleById(int userId) {
+                roleLookupEntered.countDown();
+                try {
+                    if (!releaseRoleLookup.await(3, TimeUnit.SECONDS)) {
+                        throw new AssertionError("Timed out waiting to release role lookup");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return Optional.empty();
+                }
+                return Optional.of("STUDENT");
+            }
+        };
+        ApiServer server = new ApiServer(0, tokens, delayedUserDAO, TokenRevocationStore.noOp());
+        server.start();
+        boolean stopped = false;
+        try {
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+            HttpRequest request = HttpRequest.newBuilder(
+                            URI.create("http://127.0.0.1:" + server.getPort() + "/api/admin/users"))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Authorization", "Bearer " + token)
+                    .GET().build();
+            CompletableFuture<HttpResponse<String>> response =
+                    client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+            assertTrue(roleLookupEntered.await(2, TimeUnit.SECONDS),
+                    "Request should be inside the handler before shutdown begins");
+
+            CompletableFuture<Void> release = CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(150);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    releaseRoleLookup.countDown();
+                }
+            });
+            server.stop();
+            stopped = true;
+            HttpResponse<String> completed = response.get(2, TimeUnit.SECONDS);
+            release.get(2, TimeUnit.SECONDS);
+            assertEquals(403, completed.statusCode(),
+                    "The in-flight request should finish its authorization response during shutdown");
+        } finally {
+            releaseRoleLookup.countDown();
+            if (!stopped) server.stop();
+        }
+    }
 
 }
