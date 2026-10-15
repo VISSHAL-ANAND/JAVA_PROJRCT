@@ -164,28 +164,35 @@ class PostgresWorkflowTest {
         assertTrue(bookings.cancelFutureBooking(bookingId, studentId));
         assertTrue(bookings.findByUser(studentId).isEmpty());
 
-        // Two simultaneous requests for a capacity-one resource must not both succeed.
-        CountDownLatch ready = new CountDownLatch(2);
+        // A burst of 25 simultaneous requests must still honor capacity one.
+        final int contenderCount = 25;
+        CountDownLatch ready = new CountDownLatch(contenderCount);
         CountDownLatch startGate = new CountDownLatch(1);
-        ExecutorService pool = Executors.newFixedThreadPool(2);
+        ExecutorService pool = Executors.newFixedThreadPool(contenderCount);
         try {
-            Future<Integer> firstAttempt = pool.submit(() -> {
-                ready.countDown();
-                if (!startGate.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("Booking test start timed out");
-                return bookings.createIfAvailable(resourceId, studentId, start.plusHours(3), end.plusHours(3));
-            });
-            Future<Integer> secondAttempt = pool.submit(() -> {
-                ready.countDown();
-                if (!startGate.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("Booking test start timed out");
-                return bookings.createIfAvailable(resourceId, adminId, start.plusHours(3), end.plusHours(3));
-            });
-            assertTrue(ready.await(5, TimeUnit.SECONDS), "Booking workers did not become ready");
+            List<Future<Integer>> attempts = new ArrayList<>(contenderCount);
+            for (int i = 0; i < contenderCount; i++) {
+                final int contenderUserId = switch (i % 3) {
+                    case 0 -> studentId;
+                    case 1 -> adminId;
+                    default -> technicianId;
+                };
+                attempts.add(pool.submit(() -> {
+                    ready.countDown();
+                    if (!startGate.await(10, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Booking test start timed out");
+                    }
+                    return bookings.createIfAvailable(
+                            resourceId, contenderUserId, start.plusHours(3), end.plusHours(3));
+                }));
+            }
+            assertTrue(ready.await(10, TimeUnit.SECONDS), "Booking workers did not become ready");
             startGate.countDown();
             int successes = 0;
             int conflicts = 0;
-            for (Future<Integer> attempt : List.of(firstAttempt, secondAttempt)) {
+            for (Future<Integer> attempt : attempts) {
                 try {
-                    assertTrue(attempt.get(10, TimeUnit.SECONDS) > 0);
+                    assertTrue(attempt.get(30, TimeUnit.SECONDS) > 0);
                     successes++;
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof SQLException sql && "23P01".equals(sql.getSQLState())) {
@@ -195,8 +202,9 @@ class PostgresWorkflowTest {
                     }
                 }
             }
-            assertEquals(1, successes);
-            assertEquals(1, conflicts);
+            assertEquals(1, successes, "Exactly one concurrent booking should succeed");
+            assertEquals(contenderCount - 1, conflicts,
+                    "Every other concurrent booking must receive a capacity conflict");
         } finally {
             pool.shutdownNow();
         }

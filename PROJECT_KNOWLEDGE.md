@@ -1052,3 +1052,10 @@ A phase is complete only when:
 - The strengthened PostgreSQL load test created 1,000 distinct ephemeral student accounts and sent 1,000 simultaneous authenticated GET requests through the actual reporter-ticket endpoint. Every request returned HTTP 200. With the CI Hikari pool set to five connections, measured load window was 1,628 ms total, p50 386 ms, p95 1,136 ms, max 1,175 ms.
 - The separate dependency-free HTTP test also passed 1,000 concurrent liveness requests. These are positive baseline smoke-test results for short bursts, not proof of production capacity, sustained load, concurrent login/password hashing, write-heavy workloads, or a real Supabase connection limit.
 - No live database or hosting resource was used. Next: stress-test concurrent resource booking invariants beyond two simultaneous callers, then add broader authenticated workflow/soak checks before staging.
+
+
+### 2026-10-15 — Strengthen booking race tests to 25 simultaneous contenders per database
+
+- Increased the capacity-one race tests from two callers to 25 synchronized callers in both the MySQL 8.4 and PostgreSQL 17 integration suites.
+- Each test now requires exactly one successful reservation and 24 explicit capacity-conflict responses; unexpected SQL errors and timeouts fail the test. The PostgreSQL test varies the user identity across student/admin/technician fixtures; the MySQL test uses a shared fixture user.
+- This stresses the resource row/advisory-lock serialization with more waiting workers than the configured five-connection CI pool. The update is pending CI verification; no production database was touched.

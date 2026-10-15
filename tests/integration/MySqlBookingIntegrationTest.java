@@ -81,24 +81,26 @@ class MySqlBookingIntegrationTest {
                             start.plusMinutes(30), start.plusMinutes(45)));
             assertEquals("23P01", overlap.getSQLState());
 
-            // Two simultaneous requests for a capacity-one resource must not both commit.
+            // A burst of 25 simultaneous requests must still honor capacity one.
             LocalDateTime concurrentStart = start.plusHours(4);
-            CountDownLatch ready = new CountDownLatch(2);
+            final int contenderCount = 25;
+            CountDownLatch ready = new CountDownLatch(contenderCount);
             CountDownLatch gate = new CountDownLatch(1);
-            ExecutorService executor = Executors.newFixedThreadPool(2);
+            ExecutorService executor = Executors.newFixedThreadPool(contenderCount);
             try {
-                Future<Integer> first = executor.submit(() -> attemptAfterGate(
-                        bookings, testResourceId, testUserId, concurrentStart, ready, gate));
-                Future<Integer> second = executor.submit(() -> attemptAfterGate(
-                        bookings, testResourceId, testUserId, concurrentStart, ready, gate));
-                assertTrue(ready.await(5, TimeUnit.SECONDS), "Booking workers did not become ready");
+                java.util.List<Future<Integer>> attempts = new java.util.ArrayList<>(contenderCount);
+                for (int i = 0; i < contenderCount; i++) {
+                    attempts.add(executor.submit(() -> attemptAfterGate(
+                            bookings, testResourceId, testUserId, concurrentStart, ready, gate)));
+                }
+                assertTrue(ready.await(10, TimeUnit.SECONDS), "Booking workers did not become ready");
                 gate.countDown();
 
                 int successes = 0;
                 int conflicts = 0;
-                for (Future<Integer> attempt : java.util.List.of(first, second)) {
+                for (Future<Integer> attempt : attempts) {
                     try {
-                        assertTrue(attempt.get(15, TimeUnit.SECONDS) > 0);
+                        assertTrue(attempt.get(30, TimeUnit.SECONDS) > 0);
                         successes++;
                     } catch (ExecutionException e) {
                         if (e.getCause() instanceof SQLException sql && "23P01".equals(sql.getSQLState())) {
@@ -109,7 +111,8 @@ class MySqlBookingIntegrationTest {
                     }
                 }
                 assertEquals(1, successes, "Exactly one concurrent booking should succeed");
-                assertEquals(1, conflicts, "The other concurrent booking should receive a capacity conflict");
+                assertEquals(contenderCount - 1, conflicts,
+                        "Every other concurrent booking must receive a capacity conflict");
             } finally {
                 executor.shutdownNow();
             }
