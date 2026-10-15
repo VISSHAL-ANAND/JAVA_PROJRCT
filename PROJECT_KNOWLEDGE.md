@@ -1410,3 +1410,11 @@ The older phase checklist below is a historical roadmap and includes items that 
 - After CPU-aware worker sizing, 1,000 concurrent successful logins completed in 12.3 s on MySQL 8.4 (p95 11.6 s) and 13.1 s on PostgreSQL 17 (p95 12.2 s). Five rounds of 1,000 authenticated DB reads completed in 2.8 s on MySQL (p95 466 ms) and 3.7 s on PostgreSQL (p95 533 ms); mixed workload, 1,000 writes, 1,000 token revocations, 100-way booking contention, frontend, Java, and container checks passed.
 - Tightened the CI login test budget from total <75 s / p95 <60 s to total <30 s / p95 <20 s so meaningful performance regressions are detected. This is still more tolerant than the proposed dedicated-staging target (login p95 <10 s); do not call that target met until measured on the intended host and database.
 - Verification of the tightened threshold is pending a full run on the next commit.
+
+
+### 2026-10-15 — Verify tightened login budget and final load/security changes
+
+- GitHub Actions run [38741673620](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38741673620) completed successfully on commit `1f17731b23ebc99814ec9cb66b2d31a591a024a5`; all six jobs passed.
+- The tightened 1,000-login budget passed on both database engines: MySQL 8.4 completed 1,000 concurrent successful logins in 12.7 s (p50 6.5 s, p95 11.8 s); PostgreSQL 17 completed in 12.0 s (p50 6.1 s, p95 11.2 s). Both stayed below the new 30 s total / 20 s p95 CI ceilings.
+- Five rounds of 1,000 authenticated DB reads completed in 3.8 s on MySQL (p95 602 ms) and 3.0 s on PostgreSQL (p95 477 ms). Both database jobs also passed 1,000 token revocations, the 1,000-request mixed workload, 1,000 writes, and 100-way booking contention. HTTP 1,000-request smoke, frontend audit/build, Java verification, and container security checks passed.
+- The CI burst tests support concurrency correctness under the ephemeral CI resources; they do not prove sustained 1,000-VU performance on the planned hosting tier. Staging login p95 target (<10 s), live Supabase behavior, production monitoring, distributed rate limiting, backup/recovery, and rollback remain release gates.
