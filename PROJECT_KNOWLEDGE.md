@@ -2,7 +2,7 @@
 
 > **Purpose:** This is the persistent handover document for CAMPUSOS. Update it after every meaningful investigation, code change, test, bug fix, design decision, and deployment change. It records what is known, what is verified, what remains incomplete, and the next safe step.
 >
-> **Last reviewed:** 2026-10-14  
+> **Last reviewed:** 2026-10-15  
 > **Primary branch:** `main`  
 > **Repository:** https://github.com/VISSHAL-ANAND/JAVA_PROJRCT
 
@@ -771,3 +771,16 @@ A phase is complete only when:
 - CI run [38619188597](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38619188597) passed on `485cdbed`: Java verification, PostgreSQL integration tests, frontend `npm audit` (0 vulnerabilities), five frontend security unit tests, Vite build, and the container fail-closed smoke test all passed.
 - No deployment was performed.
 - Next priority: perform a final code/configuration audit for concrete security gaps and check current dependency/secret posture; do not access production credentials or deploy.
+
+
+### 2026-10-15 — Rate limiter cleanup hot-path hardening; current CI limitation
+
+- Code review found that once the login rate limiter held at least 5,000 client buckets, `cleanupIfNeeded` scanned the entire concurrent map on every login request. At the 10,000-bucket cap, this made a bounded-memory defense impose repeated O(n) work on the authentication hot path.
+- Changed `src/security/RateLimiter.java` to schedule a full stale-bucket sweep at most once per 60 seconds using an atomic compare-and-set gate. The existing 5,000-bucket threshold, 10,000-bucket cap, expiry rules, per-key synchronization, and fail-closed behavior for new keys at capacity remain intact.
+- Added `RateLimiterTest.throttlesExpensiveBucketCleanup`, which crosses the cleanup threshold and asserts an immediate follow-up request does not reschedule another full scan.
+- Commits: [975b6ca](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/975b6caa0dd72bbc9e062fb25fc2ba4f058f225c) (implementation) and [ea1114c](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/commit/ea1114c8c1266bb205081a1fbf219c32ffdbff09) (regression test).
+- Targeted verification performed locally against the current fetched source: standalone Java 21 compilation and harness passed rate-limit/reset behavior plus the cleanup-throttle regression. The five frontend URL-security unit tests also passed under Node 22.16.0 using the exact current source/test files.
+- Full Maven suite was not run: Maven is not installed in this environment, and cloning the repository failed because `github.com` DNS resolution is unavailable. The last directly inspected full CI run is [38619188597](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38619188597) on `485cdbed`; all four jobs succeeded. It predates the later workflow SHA-pinning commits and the current rate-limiter change.
+- Current push CI for the latest `main` head cannot be verified through the available connected GitHub interface: combined commit statuses are empty, and the workflow-run wrapper returns only pull-request-triggered runs. The GitHub Actions web page is also inaccessible from this environment. Do not infer success or failure from missing status data.
+- No live Supabase project was accessed, no secrets were read, and no deployment was performed.
+- Next priority: continue the final route/configuration audit for a concrete security or data-integrity defect, then verify the complete main-branch CI once push-run visibility or local Maven/network access is available.
