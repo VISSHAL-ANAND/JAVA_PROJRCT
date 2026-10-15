@@ -5,10 +5,12 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class RateLimiter {
     private static final int CLEANUP_THRESHOLD = 5_000;
     private static final int MAX_BUCKETS = 10_000;
+    private static final long CLEANUP_INTERVAL_MILLIS = 60_000L;
 
     private static final class Bucket {
         int attempts;
@@ -20,6 +22,7 @@ public class RateLimiter {
     private final Duration window;
     private final Duration blockDuration;
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final AtomicLong nextCleanupAtMillis = new AtomicLong();
 
     public RateLimiter(int maxAttempts, Duration window, Duration blockDuration) {
         if (maxAttempts < 1 || window == null || window.isNegative() || window.isZero()
@@ -60,6 +63,15 @@ public class RateLimiter {
 
     private void cleanupIfNeeded(Instant now) {
         if (buckets.size() < CLEANUP_THRESHOLD) return;
+
+        // The login hot path must not scan thousands of buckets on every request.
+        long nowMillis = now.toEpochMilli();
+        long scheduledAt = nextCleanupAtMillis.get();
+        if (nowMillis < scheduledAt
+                || !nextCleanupAtMillis.compareAndSet(scheduledAt, nowMillis + CLEANUP_INTERVAL_MILLIS)) {
+            return;
+        }
+
         buckets.entrySet().removeIf(entry -> {
             Bucket bucket = entry.getValue();
             synchronized (bucket) {
