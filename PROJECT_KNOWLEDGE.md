@@ -1098,3 +1098,10 @@ A phase is complete only when:
 - Enabled `ApiWriteLoadTest` in both the MySQL 8.4 targeted integration job and the PostgreSQL 17 least-privilege full integration job.
 - The test sends 100 concurrent authenticated issue submissions through `POST /api/issues`, then verifies every issue, assigned ticket, ticket-history record, technician notification and reporter notification was persisted.
 - The test compiles and is skipped in jobs without `CAMPUSOS_WRITE_LOAD_TEST_ENABLED=true`; its first actual database-backed run is pending. Do not treat compile success alone as validation.
+
+
+### 2026-10-15 — Verify MySQL concurrent issue write path; enable equivalent PostgreSQL coverage
+
+- GitHub Actions run [38707339299](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38707339299) completed successfully on commit `fb4df073ec53e939b200e3d0a27cb910f17a18f8). The MySQL write-load test passed: 100 concurrent authenticated issue submissions completed in 1,054 ms, and all issue/ticket/assignment/history/notification assertions passed.
+- The first workflow edit enabled the write-load flag only in the MySQL job; the PostgreSQL suite compiled the test but skipped it. Added the missing PostgreSQL job flag so the same 100-request workflow is tested using the least-privilege app role as well.
+- PostgreSQL runtime verification is pending the next full CI run; do not treat the earlier run as cross-database write-load validation.

@@ -164,6 +164,7 @@ jobs:
       CAMPUSOS_AUTH_SECRET: campusos-ci-auth-secret-value-at-least-32-characters
       CAMPUSOS_IT_ENABLED: "true"
       CAMPUSOS_DB_LOAD_TEST_ENABLED: "true"
+      CAMPUSOS_WRITE_LOAD_TEST_ENABLED: "true"
       CAMPUSOS_BROADCAST_SCALE_TEST_ENABLED: "true"
     steps:
       - name: Check out repository
