@@ -1,6 +1,7 @@
 package dao;
 
 import database.DBConnection;
+import util.CsvExport;
 import java.sql.*;
 import java.util.*;
 
@@ -22,4 +23,40 @@ public class AdminDAO {
         }
         return result;
     }
+    /** Exports the 10,000 most recent tickets for an administrator's operational report. */
+    public String exportTicketReportCsv() throws SQLException {
+        String sql = """
+                SELECT t.id, i.title, i.category, i.location, i.priority, t.status, t.created_at,
+                       reporter.name AS reporter_name, reporter.email AS reporter_email,
+                       assignee.name AS assigned_staff
+                FROM tickets t
+                JOIN issues i ON i.id = t.issue_id
+                JOIN users reporter ON reporter.id = t.reported_by
+                LEFT JOIN users assignee ON assignee.id = t.assigned_technician_id
+                ORDER BY t.created_at DESC, t.id DESC
+                LIMIT 10000
+                """;
+        StringBuilder csv = new StringBuilder();
+        csv.append(CsvExport.row("ticket_id", "title", "category", "location", "priority",
+                "status", "created_at", "reporter_name", "reporter_email", "assigned_staff"));
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                csv.append(CsvExport.row(
+                        rs.getInt("id"),
+                        rs.getString("title"),
+                        rs.getString("category"),
+                        rs.getString("location"),
+                        rs.getString("priority"),
+                        rs.getString("status"),
+                        rs.getTimestamp("created_at"),
+                        rs.getString("reporter_name"),
+                        rs.getString("reporter_email"),
+                        rs.getString("assigned_staff")));
+            }
+        }
+        return csv.toString();
+    }
+
 }
