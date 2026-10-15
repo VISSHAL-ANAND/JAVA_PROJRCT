@@ -105,6 +105,7 @@ jobs:
       CAMPUSOS_AUTH_SECRET: campusos-ci-auth-secret-value-at-least-32-characters
       CAMPUSOS_MYSQL_IT_ENABLED: "true"
       CAMPUSOS_BROADCAST_SCALE_TEST_ENABLED: "true"
+      CAMPUSOS_WRITE_LOAD_TEST_ENABLED: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,8 +117,8 @@ jobs:
           cache: maven
       - name: Initialize MySQL schema
         run: mysql --host=127.0.0.1 --user=root --password=root < resources/campusos.sql
-      - name: Run MySQL booking and emergency broadcast integration tests
-        run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,EmergencyBroadcastScaleTest test
+      - name: Run MySQL booking, broadcast and write-load integration tests
+        run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,EmergencyBroadcastScaleTest,ApiWriteLoadTest test
 
   load-smoke:
     name: 1,000-concurrent-request HTTP load smoke test

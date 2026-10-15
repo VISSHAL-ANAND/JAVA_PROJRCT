@@ -1091,3 +1091,10 @@ A phase is complete only when:
 - The 1,000-distinct-user authenticated read test also passed: 1,000 concurrent requests completed in 1,498 ms total, p50 329 ms, p95 1,092 ms, max 1,141 ms with a five-connection pool.
 - The earlier 25-contender booking stress test remains green for both SQL engines. These are short CI tests, not production sustained-load certification.
 - Next priority: exercise mixed concurrent writes (issue submission, assignment, ticket history and notifications), then run a longer mixed read/write test and document staging gates.
+
+
+### 2026-10-15 — Enable cross-database mixed concurrent-write verification
+
+- Enabled `ApiWriteLoadTest` in both the MySQL 8.4 targeted integration job and the PostgreSQL 17 least-privilege full integration job.
+- The test sends 100 concurrent authenticated issue submissions through `POST /api/issues`, then verifies every issue, assigned ticket, ticket-history record, technician notification and reporter notification was persisted.
+- The test compiles and is skipped in jobs without `CAMPUSOS_WRITE_LOAD_TEST_ENABLED=true`; its first actual database-backed run is pending. Do not treat compile success alone as validation.
