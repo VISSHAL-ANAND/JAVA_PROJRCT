@@ -527,6 +527,16 @@ public class ApiServer {
                 return;
             }
             String path = exchange.getRequestURI().getPath();
+            if ("/api/admin/reports/tickets.csv".equals(path)) {
+                if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                exchange.getResponseHeaders().set("Content-Type", "text/csv; charset=UTF-8");
+                exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"campusos-tickets.csv\"");
+                send(exchange, 200, new AdminDAO().exportTicketReportCsv());
+                return;
+            }
             if ("/api/admin/overview".equals(path) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
                 sendJson(exchange, 200, Map.of("success", true, "overview", new AdminDAO().getOverview()));
                 return;
