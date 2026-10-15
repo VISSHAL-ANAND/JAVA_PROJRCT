@@ -980,3 +980,10 @@ A phase is complete only when:
 - Expanded the MySQL 8.4 integration suite beyond bookings to exercise the actual issue submission transaction, automatic staff assignment, reporter/staff ticket views, portable reporter summary SQL, assignment notifications, ticket history, and status transitions through CLOSED.
 - The test uses uniquely named fixtures and cleans up tickets, history, notifications, issues, and users. This supplements the booking interval/concurrency test; all MySQL runtime claims depend on the CI job result for the exact commit.
 - No production database or hosting changes were made.
+
+
+### 2026-10-15 — Verify MySQL and PostgreSQL CI, expand anonymous-route regression coverage
+
+- GitHub Actions run [38685816831](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38685816831) completed successfully on commit `20afe17872651cb2741d0475eeefd0c66d6efb34`: all five jobs passed, including MySQL 8.4 booking plus issue/ticket lifecycle integration, PostgreSQL workflow integration, Java verification, frontend build/audit/tests, and container checks.
+- Added a route-matrix regression test asserting anonymous GET and POST requests are rejected with HTTP 401 across protected ticket history, staff, notification, emergency, resource, booking, and admin endpoints. These checks run without requiring a database, so they verify authentication is enforced before protected data access.
+- Verification for the new route matrix is pending CI on the exact commit. Production database and deployment remain untouched.

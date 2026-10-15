@@ -134,6 +134,50 @@ class ApiServerSmokeTest {
 
 
     @Test
+    void everyProtectedRouteRejectsAnonymousRequestsBeforeDatabaseAccess() throws Exception {
+        ApiServer server = new ApiServer(0);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+            String base = "http://127.0.0.1:" + server.getPort();
+            for (String path : java.util.List.of(
+                    "/api/tickets/1/history",
+                    "/api/staff/tickets",
+                    "/api/notifications/me",
+                    "/api/emergencies",
+                    "/api/resources",
+                    "/api/bookings/mine",
+                    "/api/admin/users",
+                    "/api/admin/overview",
+                    "/api/admin/reports/tickets.csv")) {
+                HttpResponse<String> response = client.send(
+                        HttpRequest.newBuilder(URI.create(base + path))
+                                .timeout(Duration.ofSeconds(3)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                assertEquals(401, response.statusCode(), "Anonymous GET must be rejected: " + path);
+            }
+
+            for (String path : java.util.List.of(
+                    "/api/emergencies",
+                    "/api/bookings",
+                    "/api/notifications/1/read",
+                    "/api/staff/tickets/1/status",
+                    "/api/admin/users",
+                    "/api/admin/tickets/1/assign")) {
+                HttpResponse<String> response = client.send(
+                        HttpRequest.newBuilder(URI.create(base + path))
+                                .timeout(Duration.ofSeconds(3))
+                                .header("Content-Type", "application/json")
+                                .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
+                        HttpResponse.BodyHandlers.ofString());
+                assertEquals(401, response.statusCode(), "Anonymous POST must be rejected: " + path);
+            }
+        } finally {
+            server.stop();
+        }
+    }
+
+    @Test
     void healthEndpointRespondsAndProtectedRoutesRejectAnonymousRequests() throws Exception {
         ApiServer server = new ApiServer(0);
         server.start();
