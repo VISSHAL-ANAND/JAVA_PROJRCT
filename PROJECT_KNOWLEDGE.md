@@ -1074,3 +1074,11 @@ A phase is complete only when:
 - The 1,000-distinct-user PostgreSQL load test also passed again: 1,000 simultaneous authenticated DB-backed requests completed in 1,720 ms total, p50 346 ms, p95 1,013 ms, max 1,090 ms with a five-connection pool.
 - These results establish useful CI regression coverage for short bursts and booking race invariants, but they are not a production capacity certification. Sustained load, realistic frontend journeys, concurrent login/password hashing, write-heavy load, actual Supabase tier limits, and failover behavior remain untested.
 - Next: audit notification/emergency fan-out and bounded work for large campus populations; then add longer mixed read/write load checks before staging.
+
+
+### 2026-10-15 — Add 1,000-recipient emergency broadcast integration test
+
+- Added a cross-database integration test that creates 1,000 temporary campus accounts, creates an emergency through the real `EmergencyService`, and verifies the set-based SQL fan-out produces exactly one notification for every user except the creator.
+- Enabled the test in both the MySQL 8.4 integration job and the PostgreSQL 17 least-privilege application-role job. The test removes its own notification rows, emergency record and temporary accounts through the CI admin connection.
+- This specifically covers the important campus-wide emergency flow at the requested population size; it is a short CI transaction test, not a guarantee of push-delivery latency or sustained production throughput.
+- Wait for all CI jobs to finish on this exact change; fix and rerun any failures before moving on.
