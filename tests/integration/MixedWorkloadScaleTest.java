@@ -35,9 +35,10 @@ class MixedWorkloadScaleTest {
     private static final int WRITE_ISSUE_REQUESTS = 200;
     private static final int TOTAL_REQUESTS =
             READ_TICKET_REQUESTS + READ_NOTIFICATION_REQUESTS + WRITE_ISSUE_REQUESTS;
+    private static final int ROUNDS = 5;
 
     @Test
-    void mixedConcurrentReadsAndWritesRemainCorrectAcrossOneThousandRequests() throws Exception {
+    void sustainedMixedWorkloadRemainsCorrectAcrossFiveThousandRequests() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         String emailPrefix = "mixed-load-" + suffix + "-";
         String titlePrefix = "Mixed Load " + suffix + " - ";
@@ -67,59 +68,65 @@ class MixedWorkloadScaleTest {
             server.start();
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
             String base = "http://127.0.0.1:" + server.getPort();
-            List<CompletableFuture<Void>> pending = new ArrayList<>(TOTAL_REQUESTS);
-            long startedAt = System.nanoTime();
-
-            for (int i = 0; i < READ_TICKET_REQUESTS; i++) {
-                pending.add(send(client, HttpRequest.newBuilder(URI.create(
-                                base + "/api/tickets/reporter/" + userIds.get(i)))
-                        .timeout(Duration.ofSeconds(45))
-                        .header("Authorization", "Bearer " + tokens.get(i))
-                        .header("Accept", "application/json").GET().build(), 200, "\"tickets\":"));
-            }
-            for (int i = 0; i < READ_NOTIFICATION_REQUESTS; i++) {
-                int userIndex = READ_TICKET_REQUESTS + i;
-                pending.add(send(client, HttpRequest.newBuilder(URI.create(base + "/api/notifications/me"))
-                        .timeout(Duration.ofSeconds(45))
-                        .header("Authorization", "Bearer " + tokens.get(userIndex))
-                        .header("Accept", "application/json").GET().build(), 200, "\"success\":true"));
-            }
             URI issueEndpoint = URI.create(base + "/api/issues");
-            for (int i = 0; i < WRITE_ISSUE_REQUESTS; i++) {
-                int userIndex = READ_TICKET_REQUESTS + READ_NOTIFICATION_REQUESTS + i;
-                String body = "{\"title\":\"" + titlePrefix + i
-                        + "\",\"description\":\"Electrical fixture needs repair\","
-                        + "\"category\":\"" + category + "\","
-                        + "\"location\":\"Mixed Load Building\"}";
-                pending.add(send(client, HttpRequest.newBuilder(issueEndpoint)
-                        .timeout(Duration.ofSeconds(45))
-                        .header("Authorization", "Bearer " + tokens.get(userIndex))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(body)).build(), 201, "\"ticketId\":"));
-            }
+            for (int round = 1; round <= ROUNDS; round++) {
+                List<CompletableFuture<Void>> pending = new ArrayList<>(TOTAL_REQUESTS);
+                String roundTitlePrefix = titlePrefix + "round-" + round + " - ";
+                long startedAt = System.nanoTime();
 
-            CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))
-                    .get(90, TimeUnit.SECONDS);
-            long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
-            System.out.printf("CAMPUSOS mixed load smoke: users=%d concurrentRequests=%d ticketReads=%d notificationReads=%d issueWrites=%d totalMs=%d%n",
-                    TOTAL_USERS, TOTAL_REQUESTS, READ_TICKET_REQUESTS,
-                    READ_NOTIFICATION_REQUESTS, WRITE_ISSUE_REQUESTS, elapsed);
-            assertTrue(elapsed < 20_000, "Mixed 1,000-request workload exceeded the 20-second CI budget");
+                for (int i = 0; i < READ_TICKET_REQUESTS; i++) {
+                    pending.add(send(client, HttpRequest.newBuilder(URI.create(
+                                    base + "/api/tickets/reporter/" + userIds.get(i)))
+                            .timeout(Duration.ofSeconds(45))
+                            .header("Authorization", "Bearer " + tokens.get(i))
+                            .header("Accept", "application/json").GET().build(), 200, "\"tickets\":"));
+                }
+                for (int i = 0; i < READ_NOTIFICATION_REQUESTS; i++) {
+                    int userIndex = READ_TICKET_REQUESTS + i;
+                    pending.add(send(client, HttpRequest.newBuilder(URI.create(base + "/api/notifications/me"))
+                            .timeout(Duration.ofSeconds(45))
+                            .header("Authorization", "Bearer " + tokens.get(userIndex))
+                            .header("Accept", "application/json").GET().build(), 200, "\"success\":true"));
+                }
+                for (int i = 0; i < WRITE_ISSUE_REQUESTS; i++) {
+                    int userIndex = READ_TICKET_REQUESTS + READ_NOTIFICATION_REQUESTS + i;
+                    String body = "{\"title\":\"" + roundTitlePrefix + i
+                            + "\",\"description\":\"Electrical fixture needs repair\","
+                            + "\"category\":\"" + category + "\","
+                            + "\"location\":\"Mixed Load Building\"}";
+                    pending.add(send(client, HttpRequest.newBuilder(issueEndpoint)
+                            .timeout(Duration.ofSeconds(45))
+                            .header("Authorization", "Bearer " + tokens.get(userIndex))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(body)).build(), 201, "\"ticketId\":"));
+                }
+
+                CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))
+                        .get(90, TimeUnit.SECONDS);
+                long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+                System.out.printf("CAMPUSOS mixed load soak: round=%d/%d users=%d concurrentRequests=%d "
+                                + "ticketReads=%d notificationReads=%d issueWrites=%d totalMs=%d%n",
+                        round, ROUNDS, TOTAL_USERS, TOTAL_REQUESTS, READ_TICKET_REQUESTS,
+                        READ_NOTIFICATION_REQUESTS, WRITE_ISSUE_REQUESTS, elapsed);
+                assertTrue(elapsed < 20_000,
+                        "Mixed 1,000-request workload exceeded the 20-second budget in round " + round);
+            }
 
             try (Connection connection = DBConnection.getConnection()) {
-                assertEquals(WRITE_ISSUE_REQUESTS, count(connection,
+                int expectedWrites = WRITE_ISSUE_REQUESTS * ROUNDS;
+                assertEquals(expectedWrites, count(connection,
                         "SELECT COUNT(*) FROM issues WHERE title LIKE ?", titlePrefix + "%"));
-                assertEquals(WRITE_ISSUE_REQUESTS, count(connection,
+                assertEquals(expectedWrites, count(connection,
                         "SELECT COUNT(*) FROM tickets t JOIN issues i ON i.id=t.issue_id "
                                 + "WHERE i.title LIKE ? AND t.status='ASSIGNED' AND t.assigned_technician_id=?",
                         titlePrefix + "%", technicianId));
-                assertEquals(WRITE_ISSUE_REQUESTS, count(connection,
+                assertEquals(expectedWrites, count(connection,
                         "SELECT COUNT(*) FROM ticket_history h JOIN tickets t ON t.id=h.ticket_id "
                                 + "JOIN issues i ON i.id=t.issue_id WHERE i.title LIKE ?", titlePrefix + "%"));
-                assertEquals(WRITE_ISSUE_REQUESTS, count(connection,
+                assertEquals(expectedWrites, count(connection,
                         "SELECT COUNT(*) FROM notifications WHERE user_id=? "
                                 + "AND message LIKE 'New ticket #% assigned to you.'", technicianId));
-                assertEquals(WRITE_ISSUE_REQUESTS, count(connection,
+                assertEquals(expectedWrites, count(connection,
                         "SELECT COUNT(*) FROM notifications WHERE message LIKE "
                                 + "'Ticket #% has been assigned to a technician.' AND user_id IN "
                                 + "(SELECT id FROM users WHERE email LIKE ?)", emailPrefix + "%@example.test"));
