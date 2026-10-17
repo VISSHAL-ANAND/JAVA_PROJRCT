@@ -366,7 +366,7 @@ The intended hosting split is:
 
 Before hosting, configure these values on the **Java API host** only: `CAMPUSOS_DB_URL`, `CAMPUSOS_DB_USERNAME`, `CAMPUSOS_DB_PASSWORD`, `CAMPUSOS_DB_POOL_SIZE`, `CAMPUSOS_AUTH_SECRET`, and `CAMPUSOS_CORS_ORIGINS`. Set `VITE_API_BASE_URL` in Vercel to the public Java API origin using HTTPS. Production builds now fail closed if this variable is missing rather than silently trying the developer's localhost. Never put database credentials or the auth secret in Vercel's `VITE_*` variables.
 
-Use `/api/health` as a liveness check and `/api/health/ready` as a database-aware readiness check. Hosting has not been configured or deployed; the Supabase schema and connection still require verification against a dedicated CAMPUSOS project. Do not run database keep-alive jobs against a live project until its plan, supported policy, and actual pause behavior are confirmed.
+Use `/api/health` as a liveness check and `/api/health/ready` as a database-aware readiness check. Authenticated administrators can inspect bounded, per-instance capacity counters at `/api/admin/metrics` (response counts/errors/latency buckets, HTTP worker and queue state, and Hikari pool active/idle/waiting counts). These counters are not a distributed dashboard and contain no credentials, connection URLs, or account identifiers; aggregate them across instances in the hosting platform's monitoring system. Hosting has not been configured or deployed; the Supabase schema and connection still require verification against a dedicated CAMPUSOS project. Do not run database keep-alive jobs against a live project until its plan, supported policy, and actual pause behavior are confirmed.
 
 ## API reference
 
@@ -442,7 +442,7 @@ GET /api/tickets/reporter/1
 
 Returns a JSON object containing the ticket list, including fields such as ID, title, category, location, priority, status and creation time.
 
-The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. The API includes staff ticket workflow, ticket history, notifications, resource booking/cancellation, emergency feed/broadcast, and admin user/assignment routes. Persistent token revocation is checked on protected requests. Verification against a dedicated live Supabase project and rate-limit hardening across instances remain release blockers.
+The ticket endpoint requires a valid bearer token and only returns tickets when the requested reporter ID matches the authenticated user. Issue submission is limited to `STUDENT` and `FACULTY` tokens. The API includes staff ticket workflow, ticket history, notifications, resource booking/cancellation, emergency feed/broadcast, and admin user/assignment routes. Persistent token revocation is checked on protected requests. Verification against a dedicated live Supabase project, centralized alerting/audit trail, and complete security review remain release blockers.
 
 ### Other authenticated API routes
 
@@ -463,6 +463,7 @@ The ticket endpoint requires a valid bearer token and only returns tickets when 
 | GET | `/api/emergencies` | Authenticated user |
 | POST | `/api/emergencies` | ADMIN only; creates alert and notifications |
 | GET | `/api/admin/overview` | ADMIN only |
+| GET | `/api/admin/metrics` | ADMIN only; per-instance HTTP latency buckets, worker queue, and JDBC pool counters |
 | GET | `/api/admin/reports/tickets.csv` | ADMIN only; downloads the 10,000 most recent tickets with spreadsheet-formula protection |
 | GET | `/api/admin/users` | ADMIN only |
 | POST | `/api/admin/users` | ADMIN only; password is hashed server-side and minimum length is 12 characters |

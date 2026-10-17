@@ -1492,3 +1492,11 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - CI run [39060437669](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060437669) confirmed the production handler now compiles and the outage regression passes, but the dependency-free Java unit job failed because `ApiInputValidationTest.loginRateLimitReturns429AfterConfiguredAttempts` still relied on a real database-less `UserDAO`. With the corrected behavior, that fake environment returns 503 rather than the test's intended invalid-credentials 401.
 - Updated the rate-limit unit test to inject an `AuthService` fake that deterministically returns invalid credentials and no-op persistence adapters. The test now isolates the behavior it intends to verify: first invalid login gets 401, the next request gets 429. Full CI must pass on this correction.
+
+
+### 2026-10-18 — Add admin-only capacity metrics for diagnosing 1,000-user load
+
+- Added `GET /api/admin/metrics`, protected by the same signed-token, revocation, current-role, and admin-role checks as other admin endpoints. It reports only this process's response/error counters, bounded latency histogram, uptime, HTTP worker/queue/task counters, and Hikari active/idle/total/waiting connection counts. It does not expose URLs, credentials, SQL, or user identifiers.
+- Added a pool-metrics snapshot to `DBConnection` that never opens a new connection, and an HTTP regression test covering anonymous denial, student denial, admin success, counter progression, and secret exclusion.
+- Updated README's API reference and operations section. This gives the team visibility into whether a 1,000-user load test is saturating HTTP workers or JDBC connections; it does not itself increase capacity and metrics are per-instance only.
+- This change includes the previous verified login-outage classification fix: CI run [39060609004](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060609004) passed all six jobs on commit `8671735fdaed7c7492e3da5405bf65a5b42e2e17`, including the dependency-free unit suite, MySQL/PostgreSQL integration suites, container build, and 1,000-request HTTP smoke test. Full CI for the metrics change is pending.

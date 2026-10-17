@@ -27,6 +27,36 @@ public final class DBConnection {
         }
     }
 
+    /** Snapshot pool counters without opening a connection or exposing configuration secrets. */
+    public static java.util.Map<String, Object> poolMetrics() {
+        HikariDataSource current = dataSource;
+        java.util.Map<String, Object> metrics = new java.util.LinkedHashMap<>();
+        if (current == null || current.isClosed()) {
+            metrics.put("initialized", false);
+            metrics.put("activeConnections", 0);
+            metrics.put("idleConnections", 0);
+            metrics.put("totalConnections", 0);
+            metrics.put("threadsAwaitingConnection", 0);
+            metrics.put("maximumPoolSize", 0);
+            return metrics;
+        }
+        metrics.put("initialized", true);
+        metrics.put("maximumPoolSize", current.getMaximumPoolSize());
+        com.zaxxer.hikari.HikariPoolMXBean pool = current.getHikariPoolMXBean();
+        if (pool == null) {
+            metrics.put("activeConnections", 0);
+            metrics.put("idleConnections", 0);
+            metrics.put("totalConnections", 0);
+            metrics.put("threadsAwaitingConnection", 0);
+        } else {
+            metrics.put("activeConnections", pool.getActiveConnections());
+            metrics.put("idleConnections", pool.getIdleConnections());
+            metrics.put("totalConnections", pool.getTotalConnections());
+            metrics.put("threadsAwaitingConnection", pool.getThreadsAwaitingConnection());
+        }
+        return metrics;
+    }
+
     private static HikariDataSource getDataSource() throws SQLException {
         HikariDataSource current = dataSource;
         if (current != null && !current.isClosed()) return current;

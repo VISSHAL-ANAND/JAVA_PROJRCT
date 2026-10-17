@@ -41,12 +41,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ApiServer {
     private static final Logger LOGGER = Logger.getLogger(ApiServer.class.getName());
     private static final int MAX_BODY_BYTES = 16 * 1024;
+    private static final String REQUEST_START_ATTRIBUTE = "campusos.requestStartNanos";
+    private static final String REQUEST_RECORDED_ATTRIBUTE = "campusos.metricsRecorded";
     private static final Set<String> ISSUE_REPORTER_ROLES = Set.of("STUDENT", "FACULTY");
     private final int port;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -66,6 +69,15 @@ public class ApiServer {
     private final LoginAttemptStore loginAttempts;
     private HttpServer server;
     private ExecutorService executor;
+    private volatile long startedAtNanos;
+    private final LongAdder completedResponses = new LongAdder();
+    private final LongAdder clientErrorResponses = new LongAdder();
+    private final LongAdder serverErrorResponses = new LongAdder();
+    private final LongAdder totalResponseLatencyNanos = new LongAdder();
+    private final LongAdder[] responseLatencyBuckets = {
+            new LongAdder(), new LongAdder(), new LongAdder(), new LongAdder(),
+            new LongAdder(), new LongAdder(), new LongAdder()
+    };
 
     public ApiServer(int port) { this(port, new AccessTokenService()); }
 
@@ -134,6 +146,7 @@ public class ApiServer {
         server.createContext("/api/emergencies", this::handleEmergencies);
         server.createContext("/api/resources", this::handleResources);
         server.createContext("/api/bookings", this::handleBookings);
+        server.createContext("/api/admin/metrics", this::handleAdminMetrics);
         server.createContext("/api/admin", this::handleAdmin);
         int workerCount = configuredPositiveInt(
                 "CAMPUSOS_HTTP_WORKER_THREADS",
@@ -150,6 +163,7 @@ public class ApiServer {
                 new java.util.concurrent.ArrayBlockingQueue<>(queueCapacity),
                 new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         server.setExecutor(executor);
+        startedAtNanos = System.nanoTime();
         server.start();
         LOGGER.info("CAMPUSOS HTTP API started on port " + server.getAddress().getPort());
     }
@@ -440,6 +454,7 @@ public class ApiServer {
         prepare(exchange);
         try {
             if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                recordResponse(exchange, 204);
                 exchange.sendResponseHeaders(204, -1);
                 return;
             }
@@ -684,6 +699,92 @@ public class ApiServer {
     }
 
 
+    private void handleAdminMetrics(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if (handleOptionsOrMethod(exchange, "GET")) return;
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            if (!"ADMIN".equals(principal.role())) {
+                sendJson(exchange, 403, Map.of("success", false, "message", "Administrator access required"));
+                return;
+            }
+            sendJson(exchange, 200, operationalMetrics());
+        } finally {
+            exchange.close();
+        }
+    }
+
+    /**
+     * Bounded, process-local operational counters. These contain no account identifiers,
+     * credentials, SQL text, or connection URLs and are exposed only to authenticated admins.
+     */
+    private Map<String, Object> operationalMetrics() {
+        long responseCount = completedResponses.sum();
+        Map<String, Object> requestMetrics = new LinkedHashMap<>();
+        requestMetrics.put("completedResponses", responseCount);
+        requestMetrics.put("clientErrorResponses", clientErrorResponses.sum());
+        requestMetrics.put("serverErrorResponses", serverErrorResponses.sum());
+        requestMetrics.put("averageLatencyMs", responseCount == 0 ? 0.0
+                : totalResponseLatencyNanos.sum() / 1_000_000.0 / responseCount);
+        Map<String, Long> latencyBuckets = new LinkedHashMap<>();
+        latencyBuckets.put("le50ms", responseLatencyBuckets[0].sum());
+        latencyBuckets.put("le100ms", responseLatencyBuckets[1].sum());
+        latencyBuckets.put("le250ms", responseLatencyBuckets[2].sum());
+        latencyBuckets.put("le500ms", responseLatencyBuckets[3].sum());
+        latencyBuckets.put("le1000ms", responseLatencyBuckets[4].sum());
+        latencyBuckets.put("le2000ms", responseLatencyBuckets[5].sum());
+        latencyBuckets.put("gt2000ms", responseLatencyBuckets[6].sum());
+        requestMetrics.put("latencyBuckets", latencyBuckets);
+
+        Map<String, Object> httpMetrics = new LinkedHashMap<>();
+        if (executor instanceof java.util.concurrent.ThreadPoolExecutor pool) {
+            httpMetrics.put("workerCount", pool.getPoolSize());
+            httpMetrics.put("activeWorkers", pool.getActiveCount());
+            httpMetrics.put("queueSize", pool.getQueue().size());
+            httpMetrics.put("queueRemainingCapacity", pool.getQueue().remainingCapacity());
+            httpMetrics.put("completedTasks", pool.getCompletedTaskCount());
+            httpMetrics.put("submittedTasks", pool.getTaskCount());
+        } else {
+            httpMetrics.put("workerCount", 0);
+            httpMetrics.put("activeWorkers", 0);
+            httpMetrics.put("queueSize", 0);
+            httpMetrics.put("queueRemainingCapacity", 0);
+            httpMetrics.put("completedTasks", 0);
+            httpMetrics.put("submittedTasks", 0);
+        }
+
+        long uptimeSeconds = startedAtNanos == 0 ? 0
+                : java.util.concurrent.TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startedAtNanos);
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("scope", "this_instance");
+        metrics.put("uptimeSeconds", uptimeSeconds);
+        metrics.put("requests", requestMetrics);
+        metrics.put("http", httpMetrics);
+        metrics.put("database", DBConnection.poolMetrics());
+        return Map.of("success", true, "metrics", metrics);
+    }
+
+    private void recordResponse(HttpExchange exchange, int status) {
+        if (Boolean.TRUE.equals(exchange.getAttribute(REQUEST_RECORDED_ATTRIBUTE))) return;
+        exchange.setAttribute(REQUEST_RECORDED_ATTRIBUTE, Boolean.TRUE);
+        Object startValue = exchange.getAttribute(REQUEST_START_ATTRIBUTE);
+        if (!(startValue instanceof Long startedAt)) return;
+        long elapsedNanos = Math.max(0L, System.nanoTime() - startedAt);
+        completedResponses.increment();
+        totalResponseLatencyNanos.add(elapsedNanos);
+        if (status >= 400 && status < 500) clientErrorResponses.increment();
+        if (status >= 500) serverErrorResponses.increment();
+        long elapsedMillis = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(elapsedNanos);
+        int bucket = elapsedMillis <= 50 ? 0
+                : elapsedMillis <= 100 ? 1
+                : elapsedMillis <= 250 ? 2
+                : elapsedMillis <= 500 ? 3
+                : elapsedMillis <= 1_000 ? 4
+                : elapsedMillis <= 2_000 ? 5 : 6;
+        responseLatencyBuckets[bucket].increment();
+    }
+
     private void handleAdmin(HttpExchange exchange) throws IOException {
         prepare(exchange);
         try {
@@ -850,6 +951,7 @@ public class ApiServer {
     }
 
     private void prepare(HttpExchange exchange) {
+        exchange.setAttribute(REQUEST_START_ATTRIBUTE, System.nanoTime());
         String origin = exchange.getRequestHeaders().getFirst("Origin");
         if (origin != null && allowedOrigins().contains(origin)) {
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
@@ -871,6 +973,7 @@ public class ApiServer {
     private boolean handleOptionsOrMethod(HttpExchange exchange, String expectedMethod) throws IOException {
         String method = exchange.getRequestMethod();
         if ("OPTIONS".equalsIgnoreCase(method)) {
+            recordResponse(exchange, 204);
             exchange.sendResponseHeaders(204, -1);
             return true;
         }
@@ -944,6 +1047,7 @@ public class ApiServer {
     }
 
     private void send(HttpExchange exchange, int status, String body) throws IOException {
+        recordResponse(exchange, status);
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(status, bytes.length);
         try (OutputStream output = exchange.getResponseBody()) { output.write(bytes); }
