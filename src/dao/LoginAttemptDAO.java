@@ -83,13 +83,15 @@ public final class LoginAttemptDAO implements LoginAttemptStore {
                     + "VALUES (?, 1, CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP) "
                     + "ON DUPLICATE KEY UPDATE "
                     + "attempts = CASE WHEN blocked_until > CURRENT_TIMESTAMP THEN attempts "
-                    + "WHEN window_started_at <= CURRENT_TIMESTAMP - INTERVAL 15 MINUTE THEN 1 "
+                    + "WHEN window_started_at <= CURRENT_TIMESTAMP - INTERVAL " + WINDOW.toMinutes() + " MINUTE THEN 1 "
                     + "ELSE attempts + 1 END, "
-                    + "window_started_at = CASE WHEN window_started_at <= CURRENT_TIMESTAMP - INTERVAL 15 MINUTE "
+                    + "window_started_at = CASE WHEN blocked_until > CURRENT_TIMESTAMP THEN window_started_at "
+                    + "WHEN window_started_at <= CURRENT_TIMESTAMP - INTERVAL " + WINDOW.toMinutes() + " MINUTE "
                     + "THEN CURRENT_TIMESTAMP ELSE window_started_at END, "
                     + "blocked_until = CASE WHEN blocked_until > CURRENT_TIMESTAMP THEN blocked_until "
-                    + "WHEN window_started_at > CURRENT_TIMESTAMP - INTERVAL 15 MINUTE AND attempts > 5 "
-                    + "THEN CURRENT_TIMESTAMP + INTERVAL 15 MINUTE ELSE NULL END, "
+                    + "WHEN window_started_at > CURRENT_TIMESTAMP - INTERVAL " + WINDOW.toMinutes() + " MINUTE "
+                    + "AND attempts > " + MAX_ATTEMPTS + " THEN CURRENT_TIMESTAMP + INTERVAL "
+                    + BLOCK_DURATION.toMinutes() + " MINUTE ELSE NULL END, "
                     + "updated_at = CURRENT_TIMESTAMP";
         } else if (product.contains("postgresql")) {
             sql = "INSERT INTO login_attempt_limits "
@@ -98,16 +100,17 @@ public final class LoginAttemptDAO implements LoginAttemptStore {
                     + "ON CONFLICT (key_hash) DO UPDATE SET "
                     + "attempts = CASE WHEN login_attempt_limits.blocked_until > CURRENT_TIMESTAMP "
                     + "THEN login_attempt_limits.attempts "
-                    + "WHEN login_attempt_limits.window_started_at <= CURRENT_TIMESTAMP - INTERVAL '15 minutes' THEN 1 "
+                    + "WHEN login_attempt_limits.window_started_at <= CURRENT_TIMESTAMP - INTERVAL '" + WINDOW.toMinutes() + " minutes' THEN 1 "
                     + "ELSE login_attempt_limits.attempts + 1 END, "
-                    + "window_started_at = CASE WHEN login_attempt_limits.window_started_at "
-                    + "<= CURRENT_TIMESTAMP - INTERVAL '15 minutes' THEN CURRENT_TIMESTAMP "
-                    + "ELSE login_attempt_limits.window_started_at END, "
+                    + "window_started_at = CASE WHEN login_attempt_limits.blocked_until > CURRENT_TIMESTAMP "
+                    + "THEN login_attempt_limits.window_started_at "
+                    + "WHEN login_attempt_limits.window_started_at <= CURRENT_TIMESTAMP - INTERVAL '" + WINDOW.toMinutes() + " minutes' "
+                    + "THEN CURRENT_TIMESTAMP ELSE login_attempt_limits.window_started_at END, "
                     + "blocked_until = CASE WHEN login_attempt_limits.blocked_until > CURRENT_TIMESTAMP "
                     + "THEN login_attempt_limits.blocked_until "
-                    + "WHEN login_attempt_limits.window_started_at > CURRENT_TIMESTAMP - INTERVAL '15 minutes' "
-                    + "AND login_attempt_limits.attempts >= 5 THEN CURRENT_TIMESTAMP + INTERVAL '15 minutes' "
-                    + "ELSE NULL END, updated_at = CURRENT_TIMESTAMP";
+                    + "WHEN login_attempt_limits.window_started_at > CURRENT_TIMESTAMP - INTERVAL '" + WINDOW.toMinutes() + " minutes' "
+                    + "AND login_attempt_limits.attempts >= " + MAX_ATTEMPTS + " THEN CURRENT_TIMESTAMP + INTERVAL '"
+                    + BLOCK_DURATION.toMinutes() + " minutes' ELSE NULL END, updated_at = CURRENT_TIMESTAMP";
         } else {
             throw new SQLException("Shared login rate limiting supports MySQL and PostgreSQL only");
         }

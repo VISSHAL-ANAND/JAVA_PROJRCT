@@ -1446,3 +1446,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - The first cross-instance test correctly exposed a race in the initial design: checking shared state before authentication and recording attempts afterward allowed concurrent requests to pass the check before any failure was persisted. CI run [39059279811](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39059279811) failed the concurrency assertion (8 attempts admitted instead of 5); other jobs, including the 1,000-login burst, passed with 1,000 logins in 13.85 s on MySQL.
 - Reworked the store to atomically reserve an attempt with database-native MySQL/PostgreSQL upserts inside a transaction, then read the shared blocked state. This serializes attempts per account across API instances without holding a row lock during password hashing. Successful authentication clears the account row. The exact correction must pass both SQL engines and the full CI workflow before this is considered fixed.
+
+
+### 2026-10-18 — Preserve login lockout expiry under repeated blocked requests
+
+- Code review after the atomic-upsert CI run identified a lockout-expiry edge case: while an account was blocked, the SQL upsert could refresh its old attempt window. Requests arriving during the block could then keep the account blocked after the intended 15-minute window elapsed.
+- Updated both MySQL and PostgreSQL upsert expressions to preserve the original window while a block is active, and to derive SQL intervals/attempt thresholds from the configured constants. Added a cross-engine integration regression that simulates an expired attempt window, sends a blocked request, then verifies the account becomes eligible once the block expires.
+- Full CI verification is pending. No live database or hosting resource was touched.
