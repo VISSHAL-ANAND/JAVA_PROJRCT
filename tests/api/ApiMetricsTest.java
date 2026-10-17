@@ -60,7 +60,8 @@ class ApiMetricsTest {
             JsonNode metrics = JSON.readTree(first.body()).path("metrics");
             assertEquals("this_instance", metrics.path("scope").asText());
             assertTrue(metrics.path("uptimeSeconds").isNumber());
-            assertTrue(metrics.path("http").path("workerCount").asInt() >= 4);
+            assertTrue(metrics.path("http").path("workerCapacity").asInt() >= 4);
+            assertTrue(metrics.path("http").path("workerCount").asInt() >= 1);
             assertTrue(metrics.path("http").path("queueRemainingCapacity").asInt() >= 0);
             assertTrue(metrics.path("database").path("initialized").isBoolean());
             assertTrue(metrics.path("requests").path("latencyBuckets").path("gt2000ms").isNumber());

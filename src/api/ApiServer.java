@@ -740,6 +740,7 @@ public class ApiServer {
         Map<String, Object> httpMetrics = new LinkedHashMap<>();
         if (executor instanceof java.util.concurrent.ThreadPoolExecutor pool) {
             httpMetrics.put("workerCount", pool.getPoolSize());
+            httpMetrics.put("workerCapacity", pool.getCorePoolSize());
             httpMetrics.put("activeWorkers", pool.getActiveCount());
             httpMetrics.put("queueSize", pool.getQueue().size());
             httpMetrics.put("queueRemainingCapacity", pool.getQueue().remainingCapacity());
@@ -747,6 +748,7 @@ public class ApiServer {
             httpMetrics.put("submittedTasks", pool.getTaskCount());
         } else {
             httpMetrics.put("workerCount", 0);
+            httpMetrics.put("workerCapacity", 0);
             httpMetrics.put("activeWorkers", 0);
             httpMetrics.put("queueSize", 0);
             httpMetrics.put("queueRemainingCapacity", 0);

@@ -1500,3 +1500,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Added a pool-metrics snapshot to `DBConnection` that never opens a new connection, and an HTTP regression test covering anonymous denial, student denial, admin success, counter progression, and secret exclusion.
 - Updated README's API reference and operations section. This gives the team visibility into whether a 1,000-user load test is saturating HTTP workers or JDBC connections; it does not itself increase capacity and metrics are per-instance only.
 - This change includes the previous verified login-outage classification fix: CI run [39060609004](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060609004) passed all six jobs on commit `8671735fdaed7c7492e3da5405bf65a5b42e2e17`, including the dependency-free unit suite, MySQL/PostgreSQL integration suites, container build, and 1,000-request HTTP smoke test. Full CI for the metrics change is pending.
+
+
+### 2026-10-18 — Correct capacity-metrics assertion after CI exposed lazy worker creation
+
+- CI run [39060944733](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060944733) verified compilation and the HTTP load smoke test but failed the new metrics test on its assumption that all configured worker threads are eagerly created. `ThreadPoolExecutor` creates workers lazily, so actual live worker count can be below the configured capacity while idle.
+- Kept both useful values: `workerCapacity` reports the configured core pool size; `workerCount` reports current live threads. Updated the regression to assert capacity separately from at least one live worker. MySQL integration passed; Java, container, and PostgreSQL jobs shared the same failing assertion. The corrected full CI run is required before this metrics feature is verified.
