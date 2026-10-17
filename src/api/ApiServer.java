@@ -563,6 +563,7 @@ public class ApiServer {
         prepare(exchange);
         try {
             if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                recordResponse(exchange, 204);
                 exchange.sendResponseHeaders(204, -1);
                 return;
             }

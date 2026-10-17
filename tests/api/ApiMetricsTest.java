@@ -17,6 +17,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 import java.util.Map;
 import java.util.Optional;
 
@@ -68,13 +72,24 @@ class ApiMetricsTest {
             assertFalse(first.body().toLowerCase().contains("password"));
             assertFalse(first.body().toLowerCase().contains("jdbc:"));
 
+            URI health = URI.create("http://127.0.0.1:" + server.getPort() + "/api/health");
+            List<CompletableFuture<HttpResponse<String>>> concurrentHealthRequests = IntStream.range(0, 250)
+                    .mapToObj(i -> client.sendAsync(HttpRequest.newBuilder(health).GET().build(),
+                            HttpResponse.BodyHandlers.ofString()))
+                    .toList();
+            CompletableFuture.allOf(concurrentHealthRequests.toArray(CompletableFuture[]::new))
+                    .get(30, TimeUnit.SECONDS);
+            for (CompletableFuture<HttpResponse<String>> response : concurrentHealthRequests) {
+                assertEquals(200, response.get().statusCode());
+            }
+
             HttpResponse<String> second = client.send(HttpRequest.newBuilder(endpoint)
                             .header("Authorization", "Bearer " + adminToken).GET().build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, second.statusCode(), second.body());
             assertTrue(JSON.readTree(second.body()).path("metrics").path("requests")
-                    .path("completedResponses").asLong() >= 3,
-                    "Metrics should include the preceding anonymous, student, and admin requests");
+                    .path("completedResponses").asLong() >= 253,
+                    "Metrics should count the preceding anonymous, student, admin, and 250 concurrent health requests");
         } finally {
             server.stop();
         }

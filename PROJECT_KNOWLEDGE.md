@@ -1513,3 +1513,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - CI run [39061120924](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39061120924) exposed a metrics-counter test failure: request attributes were not reliably isolating the start/recorded state across sequential and concurrent HTTP exchanges, so the reported completed-response count missed prior requests.
 - Replaced the exchange-attribute bookkeeping with a per-exchange concurrent start-time map. A response removes its entry atomically, ensuring each exchange contributes at most once; every handler also removes its entry when closing the exchange so exceptions/disconnects do not leave unbounded metric state.
 - Kept the configured worker-capacity metric distinct from current live worker count. The correction must pass all CI jobs, including the admin-only metrics test and 1,000-request HTTP smoke.
+
+
+### 2026-10-18 — Verify per-exchange metrics under concurrent HTTP traffic
+
+- CI run [39061315107](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39061315107) passed all six jobs after replacing exchange-attribute metrics bookkeeping with per-exchange state; the admin metrics unit test, MySQL/PostgreSQL integration suites, container build, frontend build, and 1,000-request HTTP smoke all passed.
+- Added a further metrics regression that fires 250 concurrent health requests and asserts all 250 responses are counted, in addition to anonymous, student, and admin requests. Also instrumented the remaining direct admin OPTIONS response so preflight responses do not disappear from the counters.
+- This is a correctness test for instrumentation, not a substitute for the existing 1,000-user DB-backed soak or the guarded staging k6 run.
