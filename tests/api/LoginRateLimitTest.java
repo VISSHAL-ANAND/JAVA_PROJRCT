@@ -7,6 +7,8 @@ import model.User;
 import org.junit.jupiter.api.Test;
 import security.AccessTokenService;
 import security.RateLimiter;
+import security.TokenRevocationStore;
+import security.LoginAttemptStore;
 import service.AuthService;
 
 import java.io.IOException;
@@ -67,7 +69,7 @@ class LoginRateLimitTest {
         };
         ApiServer server = new ApiServer(0, new AccessTokenService(),
                 new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
-                new UserDAO(), authService);
+                new UserDAO(), authService, TokenRevocationStore.noOp(), LoginAttemptStore.noOp());
         server.start();
         try {
             for (int attempt = 1; attempt <= 5; attempt++) {
@@ -94,7 +96,7 @@ class LoginRateLimitTest {
         };
         ApiServer server = new ApiServer(0, new AccessTokenService(),
                 new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
-                new UserDAO(), authService);
+                new UserDAO(), authService, TokenRevocationStore.noOp(), LoginAttemptStore.noOp());
         server.start();
         return server;
     }

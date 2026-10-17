@@ -51,6 +51,12 @@ class SchemaContractTest {
                 .toLowerCase(java.util.Locale.ROOT).contains("token_revocations"));
         assertTrue(resource("migrations/postgres/002_token_revocations.sql")
                 .toLowerCase(java.util.Locale.ROOT).contains("token_revocations"));
+        assertTrue(mysql.contains("create table if not exists login_attempt_limits"));
+        assertTrue(postgres.contains("create table if not exists public.login_attempt_limits"));
+        assertTrue(resource("migrations/mysql/005_shared_login_rate_limits.sql")
+                .toLowerCase(java.util.Locale.ROOT).contains("login_attempt_limits"));
+        assertTrue(resource("migrations/postgres/004_shared_login_rate_limits.sql")
+                .toLowerCase(java.util.Locale.ROOT).contains("login_attempt_limits"));
     }
 
     @Test

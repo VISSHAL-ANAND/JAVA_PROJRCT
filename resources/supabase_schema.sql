@@ -100,6 +100,16 @@ create table if not exists public.token_revocations (
 );
 create index if not exists idx_token_revocations_expiry on public.token_revocations(expires_at);
 
+create table if not exists public.login_attempt_limits (
+    key_hash char(64) primary key,
+    attempts integer not null default 0,
+    window_started_at timestamptz not null,
+    blocked_until timestamptz,
+    updated_at timestamptz not null
+);
+create index if not exists idx_login_attempt_limits_updated
+    on public.login_attempt_limits(updated_at);
+
 create index if not exists idx_users_role_name_id on public.users(role, name, id);
 create index if not exists idx_users_role_available_name_id on public.users(role, available, name, id);
 create index if not exists idx_tickets_status on public.tickets(status);

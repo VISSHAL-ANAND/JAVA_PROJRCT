@@ -12,6 +12,7 @@ import dao.ResourceDAO;
 import dao.BookingDAO;
 import dao.AdminDAO;
 import dao.TokenRevocationDAO;
+import dao.LoginAttemptDAO;
 import database.DBConnection;
 import exception.AuthenticationException;
 import model.Issue;
@@ -20,6 +21,7 @@ import security.AccessTokenService;
 import security.PasswordHasher;
 import security.RateLimiter;
 import security.TokenRevocationStore;
+import security.LoginAttemptStore;
 import service.AuthService;
 import service.IssueService;
 import service.EmergencyService;
@@ -61,6 +63,7 @@ public class ApiServer {
     private final AccessTokenService tokens;
     private final RateLimiter loginRateLimiter;
     private final TokenRevocationStore tokenRevocations;
+    private final LoginAttemptStore loginAttempts;
     private HttpServer server;
     private ExecutorService executor;
 
@@ -94,12 +97,25 @@ public class ApiServer {
 
     ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter,
               UserDAO userDAO, AuthService authService, TokenRevocationStore tokenRevocations) {
+        this(port, tokens, loginRateLimiter, userDAO, authService, tokenRevocations, new LoginAttemptDAO());
+    }
+
+    ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter,
+              UserDAO userDAO, AuthService authService, TokenRevocationStore tokenRevocations,
+              LoginAttemptStore loginAttempts) {
         this.port = port;
         this.tokens = java.util.Objects.requireNonNull(tokens, "tokens");
         this.loginRateLimiter = java.util.Objects.requireNonNull(loginRateLimiter, "loginRateLimiter");
         this.userDAO = java.util.Objects.requireNonNull(userDAO, "userDAO");
         this.authService = java.util.Objects.requireNonNull(authService, "authService");
         this.tokenRevocations = java.util.Objects.requireNonNull(tokenRevocations, "tokenRevocations");
+        this.loginAttempts = java.util.Objects.requireNonNull(loginAttempts, "loginAttempts");
+    }
+
+    ApiServer(int port, AccessTokenService tokens, RateLimiter loginRateLimiter,
+              LoginAttemptStore loginAttempts) {
+        this(port, tokens, loginRateLimiter, new UserDAO(), new AuthService(new UserDAO()),
+                new TokenRevocationDAO(), loginAttempts);
     }
 
     public void start() throws IOException {
@@ -222,9 +238,41 @@ public class ApiServer {
                 sendJson(exchange, 429, Map.of("success", false, "message", "Too many login attempts. Try again in 15 minutes."));
                 return;
             }
-            User user = authService.authenticate(email, password);
-            // A successful authentication is not a failed login attempt; release only
-            // this account/address bucket, never other users sharing the same source IP.
+            try {
+                if (!loginAttempts.allowAttempt(email)) {
+                    exchange.getResponseHeaders().set("Retry-After", "900");
+                    sendJson(exchange, 429, Map.of("success", false, "message", "Too many login attempts. Try again in 15 minutes."));
+                    return;
+                }
+            } catch (SQLException e) {
+                LOGGER.log(Level.WARNING, "Shared login rate limiter unavailable");
+                sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
+                return;
+            }
+            User user;
+            try {
+                user = authService.authenticate(email, password);
+            } catch (AuthenticationException e) {
+                if (loginAttempts instanceof LoginAttemptDAO persistentStore) {
+                    try {
+                        persistentStore.recordFailure(email);
+                    } catch (SQLException rateLimitFailure) {
+                        LOGGER.log(Level.WARNING, "Unable to persist failed login attempt");
+                        sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
+                        return;
+                    }
+                }
+                throw e;
+            }
+            // A successful authentication clears shared account failures and only this
+            // source/account bucket, never other users behind the same campus proxy.
+            try {
+                loginAttempts.clear(email);
+            } catch (SQLException e) {
+                LOGGER.log(Level.WARNING, "Unable to clear successful login attempt history");
+                sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
+                return;
+            }
             loginRateLimiter.reset(rateLimitKey);
             Map<String, Object> userData = new LinkedHashMap<>();
             userData.put("id", user.getId());

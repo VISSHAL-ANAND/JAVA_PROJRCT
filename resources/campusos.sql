@@ -97,6 +97,15 @@ CREATE TABLE IF NOT EXISTS token_revocations (
     INDEX idx_token_revocations_expiry (expires_at)
 );
 
+CREATE TABLE IF NOT EXISTS login_attempt_limits (
+    key_hash CHAR(64) PRIMARY KEY,
+    attempts INT NOT NULL DEFAULT 0,
+    window_started_at TIMESTAMP NOT NULL,
+    blocked_until TIMESTAMP NULL,
+    updated_at TIMESTAMP NOT NULL,
+    INDEX idx_login_attempt_limits_updated (updated_at)
+);
+
 CREATE INDEX idx_users_role_name_id ON users(role, name, id);
 CREATE INDEX idx_users_role_available_name_id ON users(role, available, name, id);
 CREATE INDEX idx_tickets_status ON tickets(status);

@@ -27,6 +27,7 @@ GRANT SELECT, INSERT ON TABLE public.issues, public.ticket_history, public.emerg
 GRANT SELECT ON TABLE public.resources TO campusos_app;
 GRANT SELECT, INSERT, DELETE ON TABLE public.bookings TO campusos_app;
 GRANT SELECT, INSERT, DELETE ON TABLE public.token_revocations TO campusos_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.login_attempt_limits TO campusos_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO campusos_app;
 
 -- Future identity sequences are usable by the app. New tables intentionally receive no

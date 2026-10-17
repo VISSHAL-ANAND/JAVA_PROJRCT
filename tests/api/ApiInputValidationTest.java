@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import security.AccessTokenService;
 import security.TokenRevocationStore;
+import security.LoginAttemptStore;
 import security.RateLimiter;
 import java.time.Duration;
 
@@ -22,7 +23,7 @@ class ApiInputValidationTest {
     void loginRateLimitReturns429AfterConfiguredAttempts() throws Exception {
         AccessTokenService tokens = new AccessTokenService();
         RateLimiter limiter = new RateLimiter(1, Duration.ofMinutes(15), Duration.ofMinutes(15));
-        ApiServer server = new ApiServer(0, tokens, limiter);
+        ApiServer server = new ApiServer(0, tokens, limiter, LoginAttemptStore.noOp());
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();
