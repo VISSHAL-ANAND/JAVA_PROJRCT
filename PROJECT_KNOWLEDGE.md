@@ -1453,3 +1453,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Code review after the atomic-upsert CI run identified a lockout-expiry edge case: while an account was blocked, the SQL upsert could refresh its old attempt window. Requests arriving during the block could then keep the account blocked after the intended 15-minute window elapsed.
 - Updated both MySQL and PostgreSQL upsert expressions to preserve the original window while a block is active, and to derive SQL intervals/attempt thresholds from the configured constants. Added a cross-engine integration regression that simulates an expired attempt window, sends a blocked request, then verifies the account becomes eligible once the block expires.
 - Full CI verification is pending. No live database or hosting resource was touched.
+
+
+### 2026-10-18 — Verify atomic shared login throttling and expiry on both database engines
+
+- GitHub Actions run [39059680728](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39059680728) passed all six jobs on commit `33e200a5f71f3c6b99eb21bfcbbe25a06a1725d3`. The MySQL 8.4 and PostgreSQL 17 integration suites both passed the new three-test shared login store class: shared lockout across store instances, only five admitted concurrent attempts across two store instances, and recovery after the block expires even when requests arrive during lockout.
+- Cross-engine 1,000-login results with the shared limiter enabled: MySQL completed in 14,698 ms (p50 7,683 ms, p95 13,875 ms); PostgreSQL completed in 12,676 ms (p50 6,556 ms, p95 11,992 ms). Both are below the CI budget of 30 s total / 20 s p95, but the proposed staging p95 target of 10 s is not met in these shared-runner measurements. Preserve the PBKDF2 security cost; tune only after testing the intended host and database tier.
+- The preceding run caught and fixed a concurrent-admission race (8 of 10 attempts admitted instead of 5). A subsequent code review found and fixed a lockout-expiry edge case. The exact fix commit passed the complete CI suite; no live database or hosting configuration was changed.
