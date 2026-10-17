@@ -1480,3 +1480,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - CI run [39060211964](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060211964) caught a Java scope error: the new authentication-unavailable catch block referenced `email`, which had been declared inside the `try` body and was therefore not visible in the catch clauses. Java verification, container build, and the load-smoke job failed at compilation for this same root cause; the frontend job passed.
 - Moved the email variable declaration to the handler scope and assign it only after the JSON field is validated. This keeps malformed-login requests safe while making the validated account key available to the 503 cleanup path. Full CI must pass on this correction before continuing.
+
+
+### 2026-10-18 — Correct follow-up login handler reference caught by CI
+
+- CI run [39060325155](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060325155) found the first scope correction left a reference to a helper that had never been defined (`emailRateLimitKey`). All Java/container/load jobs failed at compilation for this same root cause; frontend build passed.
+- Replaced that call with the same source-address-plus-normalized-email key expression already used by the login handler. The complete CI run must pass on this exact correction before the outage-handling task is considered verified.

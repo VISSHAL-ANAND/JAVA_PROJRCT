@@ -273,7 +273,7 @@ public class ApiServer {
         } catch (exception.AuthenticationUnavailableException e) {
             // A database failure must not masquerade as invalid credentials or leave a
             // shared limiter entry behind after the failed infrastructure request.
-            loginRateLimiter.reset(emailRateLimitKey(exchange, email));
+            loginRateLimiter.reset(exchange.getRemoteAddress().getAddress().getHostAddress() + ":" + email);
             try {
                 loginAttempts.clear(email);
             } catch (SQLException cleanupFailure) {
