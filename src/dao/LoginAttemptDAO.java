@@ -34,13 +34,27 @@ public final class LoginAttemptDAO implements LoginAttemptStore {
         if (email == null || email.isBlank()) return true;
         String hash = fingerprint(email.trim().toLowerCase(Locale.ROOT));
         cleanupIfDue();
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(
-                     "SELECT blocked_until > CURRENT_TIMESTAMP AS is_blocked "
-                             + "FROM login_attempt_limits WHERE key_hash = ?")) {
-            statement.setString(1, hash);
-            try (ResultSet result = statement.executeQuery()) {
-                return !result.next() || !result.getBoolean("is_blocked");
+        try (Connection connection = DBConnection.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                recordAttemptAtomically(connection, hash);
+                boolean blocked;
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "SELECT blocked_until > CURRENT_TIMESTAMP AS is_blocked "
+                                + "FROM login_attempt_limits WHERE key_hash = ?")) {
+                    statement.setString(1, hash);
+                    try (ResultSet result = statement.executeQuery()) {
+                        if (!result.next()) throw new SQLException("Login attempt row missing after atomic update");
+                        blocked = result.getBoolean("is_blocked");
+                    }
+                }
+                connection.commit();
+                return !blocked;
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(true);
             }
         }
     }
@@ -57,83 +71,49 @@ public final class LoginAttemptDAO implements LoginAttemptStore {
         }
     }
 
-    /** Records a failed authentication. Called only after the credential check fails. */
-    public void recordFailure(String email) throws SQLException {
-        if (email == null || email.isBlank()) return;
-        String hash = fingerprint(email.trim().toLowerCase(Locale.ROOT));
-        try (Connection connection = DBConnection.getConnection()) {
-            connection.setAutoCommit(false);
-            try {
-                insertIfMissing(connection, hash);
-                int attempts;
-                Timestamp windowStarted;
-                Timestamp blockedUntil;
-                Timestamp databaseNow;
-                try (PreparedStatement select = connection.prepareStatement(
-                        "SELECT attempts, window_started_at, blocked_until, CURRENT_TIMESTAMP AS database_now "
-                                + "FROM login_attempt_limits WHERE key_hash = ? FOR UPDATE")) {
-                    select.setString(1, hash);
-                    try (ResultSet result = select.executeQuery()) {
-                        if (!result.next()) throw new SQLException("Login attempt row disappeared during update");
-                        attempts = result.getInt("attempts");
-                        windowStarted = result.getTimestamp("window_started_at");
-                        blockedUntil = result.getTimestamp("blocked_until");
-                        databaseNow = result.getTimestamp("database_now");
-                    }
-                }
-
-                if (blockedUntil != null && databaseNow.before(blockedUntil)) {
-                    connection.commit();
-                    return;
-                }
-                if (windowStarted == null
-                        || Duration.between(windowStarted.toInstant(), databaseNow.toInstant()).compareTo(WINDOW) >= 0) {
-                    attempts = 0;
-                    windowStarted = databaseNow;
-                }
-
-                attempts++;
-                Timestamp nextBlockedUntil = attempts >= MAX_ATTEMPTS
-                        ? Timestamp.from(databaseNow.toInstant().plus(BLOCK_DURATION))
-                        : null;
-                try (PreparedStatement update = connection.prepareStatement(
-                        "UPDATE login_attempt_limits SET attempts = ?, window_started_at = ?, "
-                                + "blocked_until = ?, updated_at = CURRENT_TIMESTAMP WHERE key_hash = ?")) {
-                    update.setInt(1, attempts);
-                    update.setTimestamp(2, windowStarted);
-                    update.setTimestamp(3, nextBlockedUntil);
-                    update.setString(4, hash);
-                    update.executeUpdate();
-                }
-                connection.commit();
-            } catch (SQLException | RuntimeException e) {
-                connection.rollback();
-                throw e;
-            } finally {
-                connection.setAutoCommit(true);
-            }
-        }
-    }
-
-    private void insertIfMissing(Connection connection, String hash) throws SQLException {
+    /** Performs an atomic upsert so concurrent API instances cannot all pass the same limit. */
+    private void recordAttemptAtomically(Connection connection, String hash) throws SQLException {
         String product = connection.getMetaData().getDatabaseProductName().toLowerCase(Locale.ROOT);
         String sql;
         if (product.contains("mysql")) {
+            // MySQL evaluates duplicate-key assignments left-to-right; the blocked check uses
+            // the incremented attempts value, blocking the sixth attempt after five are admitted.
             sql = "INSERT INTO login_attempt_limits "
                     + "(key_hash, attempts, window_started_at, blocked_until, updated_at) "
-                    + "VALUES (?, 0, CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP) "
-                    + "ON DUPLICATE KEY UPDATE key_hash = VALUES(key_hash)";
+                    + "VALUES (?, 1, CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP) "
+                    + "ON DUPLICATE KEY UPDATE "
+                    + "attempts = CASE WHEN blocked_until > CURRENT_TIMESTAMP THEN attempts "
+                    + "WHEN window_started_at <= CURRENT_TIMESTAMP - INTERVAL 15 MINUTE THEN 1 "
+                    + "ELSE attempts + 1 END, "
+                    + "window_started_at = CASE WHEN window_started_at <= CURRENT_TIMESTAMP - INTERVAL 15 MINUTE "
+                    + "THEN CURRENT_TIMESTAMP ELSE window_started_at END, "
+                    + "blocked_until = CASE WHEN blocked_until > CURRENT_TIMESTAMP THEN blocked_until "
+                    + "WHEN window_started_at > CURRENT_TIMESTAMP - INTERVAL 15 MINUTE AND attempts > 5 "
+                    + "THEN CURRENT_TIMESTAMP + INTERVAL 15 MINUTE ELSE NULL END, "
+                    + "updated_at = CURRENT_TIMESTAMP";
         } else if (product.contains("postgresql")) {
             sql = "INSERT INTO login_attempt_limits "
                     + "(key_hash, attempts, window_started_at, blocked_until, updated_at) "
-                    + "VALUES (?, 0, CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP) "
-                    + "ON CONFLICT (key_hash) DO NOTHING";
+                    + "VALUES (?, 1, CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP) "
+                    + "ON CONFLICT (key_hash) DO UPDATE SET "
+                    + "attempts = CASE WHEN login_attempt_limits.blocked_until > CURRENT_TIMESTAMP "
+                    + "THEN login_attempt_limits.attempts "
+                    + "WHEN login_attempt_limits.window_started_at <= CURRENT_TIMESTAMP - INTERVAL '15 minutes' THEN 1 "
+                    + "ELSE login_attempt_limits.attempts + 1 END, "
+                    + "window_started_at = CASE WHEN login_attempt_limits.window_started_at "
+                    + "<= CURRENT_TIMESTAMP - INTERVAL '15 minutes' THEN CURRENT_TIMESTAMP "
+                    + "ELSE login_attempt_limits.window_started_at END, "
+                    + "blocked_until = CASE WHEN login_attempt_limits.blocked_until > CURRENT_TIMESTAMP "
+                    + "THEN login_attempt_limits.blocked_until "
+                    + "WHEN login_attempt_limits.window_started_at > CURRENT_TIMESTAMP - INTERVAL '15 minutes' "
+                    + "AND login_attempt_limits.attempts >= 5 THEN CURRENT_TIMESTAMP + INTERVAL '15 minutes' "
+                    + "ELSE NULL END, updated_at = CURRENT_TIMESTAMP";
         } else {
             throw new SQLException("Shared login rate limiting supports MySQL and PostgreSQL only");
         }
-        try (PreparedStatement insert = connection.prepareStatement(sql)) {
-            insert.setString(1, hash);
-            insert.executeUpdate();
+        try (PreparedStatement upsert = connection.prepareStatement(sql)) {
+            upsert.setString(1, hash);
+            upsert.executeUpdate();
         }
     }
 

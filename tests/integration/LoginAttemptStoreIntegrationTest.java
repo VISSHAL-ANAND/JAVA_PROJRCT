@@ -28,8 +28,7 @@ class LoginAttemptStoreIntegrationTest {
         String email = "shared-login-" + UUID.randomUUID() + "@example.test";
         try {
             for (int attempt = 1; attempt <= 5; attempt++) {
-                assertTrue(firstInstance.allowAttempt(email), "Attempts before the fifth failure should be allowed");
-                firstInstance.recordFailure(email);
+                assertTrue(firstInstance.allowAttempt(email), "The first five attempts should be admitted");
             }
             assertFalse(secondInstance.allowAttempt(email),
                     "A second API-instance store must observe the shared account lockout");
@@ -53,10 +52,7 @@ class LoginAttemptStoreIntegrationTest {
             for (int i = 0; i < 10; i++) {
                 final LoginAttemptDAO store = i % 2 == 0 ? firstInstance : secondInstance;
                 attempts.add(() -> {
-                    if (store.allowAttempt(email)) {
-                        store.recordFailure(email);
-                        allowed.incrementAndGet();
-                    }
+                    if (store.allowAttempt(email)) allowed.incrementAndGet();
                     return null;
                 });
             }

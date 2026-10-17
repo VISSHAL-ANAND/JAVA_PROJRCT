@@ -249,21 +249,7 @@ public class ApiServer {
                 sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
                 return;
             }
-            User user;
-            try {
-                user = authService.authenticate(email, password);
-            } catch (AuthenticationException e) {
-                if (loginAttempts instanceof LoginAttemptDAO persistentStore) {
-                    try {
-                        persistentStore.recordFailure(email);
-                    } catch (SQLException rateLimitFailure) {
-                        LOGGER.log(Level.WARNING, "Unable to persist failed login attempt");
-                        sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
-                        return;
-                    }
-                }
-                throw e;
-            }
+            User user = authService.authenticate(email, password);
             // A successful authentication clears shared account failures and only this
             // source/account bucket, never other users behind the same campus proxy.
             try {

@@ -1440,3 +1440,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Added MySQL/PostgreSQL bootstrap schema, existing-database migrations, least-privilege Supabase app-role grants, and CI integration coverage across two store instances sharing the same database. Existing local per-source/account throttling remains as an additional fast guard.
 - The shared store records failed authentication attempts and clears the account's stored history after a successful login. Expired limiter records are pruned opportunistically; cleanup failure is deliberately non-fatal to authentication.
 - CI verification is pending. The 1,000-login tests may reveal the cost of shared database checks under the configured connection pool; measure actual latency and fix any regressions rather than weakening the budgets. No live database or hosting settings were changed.
+
+
+### 2026-10-18 — Correct shared login limiter concurrency race found in CI
+
+- The first cross-instance test correctly exposed a race in the initial design: checking shared state before authentication and recording attempts afterward allowed concurrent requests to pass the check before any failure was persisted. CI run [39059279811](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39059279811) failed the concurrency assertion (8 attempts admitted instead of 5); other jobs, including the 1,000-login burst, passed with 1,000 logins in 13.85 s on MySQL.
+- Reworked the store to atomically reserve an attempt with database-native MySQL/PostgreSQL upserts inside a transaction, then read the shared blocked state. This serializes attempts per account across API instances without holding a row lock during password hashing. Successful authentication clears the account row. The exact correction must pass both SQL engines and the full CI workflow before this is considered fixed.
