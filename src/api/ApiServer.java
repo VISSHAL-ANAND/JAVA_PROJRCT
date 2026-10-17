@@ -42,14 +42,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ApiServer {
     private static final Logger LOGGER = Logger.getLogger(ApiServer.class.getName());
     private static final int MAX_BODY_BYTES = 16 * 1024;
-    private static final String REQUEST_START_ATTRIBUTE = "campusos.requestStartNanos";
-    private static final String REQUEST_RECORDED_ATTRIBUTE = "campusos.metricsRecorded";
     private static final Set<String> ISSUE_REPORTER_ROLES = Set.of("STUDENT", "FACULTY");
     private final int port;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -78,6 +77,7 @@ public class ApiServer {
             new LongAdder(), new LongAdder(), new LongAdder(), new LongAdder(),
             new LongAdder(), new LongAdder(), new LongAdder()
     };
+    private final ConcurrentHashMap<HttpExchange, Long> requestStartTimes = new ConcurrentHashMap<>();
 
     public ApiServer(int port) { this(port, new AccessTokenService()); }
 
@@ -219,7 +219,10 @@ public class ApiServer {
                 LOGGER.log(Level.WARNING, "CAMPUSOS readiness check failed: database unavailable");
                 sendJson(exchange, 503, Map.of("success", false, "status", "not_ready", "database", "unavailable"));
             }
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private void handleHealth(HttpExchange exchange) throws IOException {
@@ -227,7 +230,10 @@ public class ApiServer {
         try {
             if (handleOptionsOrMethod(exchange, "GET")) return;
             sendJson(exchange, 200, Map.of("success", true, "status", "ok"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private void handleLogin(HttpExchange exchange) throws IOException {
@@ -299,7 +305,10 @@ public class ApiServer {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Login request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Server error"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
 
@@ -316,7 +325,10 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.WARNING, "Unable to revoke access token");
             sendJson(exchange, 503, Map.of("success", false, "message", "Sign-out service temporarily unavailable"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private void handleIssues(HttpExchange exchange) throws IOException {
@@ -355,7 +367,10 @@ public class ApiServer {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Issue submission failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to create issue"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private void handleReporterTickets(HttpExchange exchange) throws IOException {
@@ -419,7 +434,10 @@ public class ApiServer {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Ticket retrieval failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to retrieve tickets"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
 
@@ -447,7 +465,10 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Ticket history request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to load ticket history"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private void handleStaffTickets(HttpExchange exchange) throws IOException {
@@ -531,7 +552,10 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Staff ticket request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process ticket request"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
 
@@ -575,7 +599,10 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Notification request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to load notifications"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private void handleEmergencies(HttpExchange exchange) throws IOException {
@@ -618,7 +645,10 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Emergency request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process emergency request"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
 
@@ -632,7 +662,10 @@ public class ApiServer {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Resource inventory request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to load resources"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private void handleBookings(HttpExchange exchange) throws IOException {
@@ -695,7 +728,10 @@ public class ApiServer {
                 LOGGER.log(Level.SEVERE, "Booking request failed", e);
                 sendJson(exchange, 500, Map.of("success", false, "message", "Unable to create booking"));
             }
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
 
@@ -711,6 +747,7 @@ public class ApiServer {
             }
             sendJson(exchange, 200, operationalMetrics());
         } finally {
+            requestStartTimes.remove(exchange);
             exchange.close();
         }
     }
@@ -768,10 +805,10 @@ public class ApiServer {
     }
 
     private void recordResponse(HttpExchange exchange, int status) {
-        if (Boolean.TRUE.equals(exchange.getAttribute(REQUEST_RECORDED_ATTRIBUTE))) return;
-        exchange.setAttribute(REQUEST_RECORDED_ATTRIBUTE, Boolean.TRUE);
-        Object startValue = exchange.getAttribute(REQUEST_START_ATTRIBUTE);
-        if (!(startValue instanceof Long startedAt)) return;
+        // HttpExchange attributes may be backed by a shared context in some JDK implementations.
+        // Keep start times in a per-exchange map so concurrent requests never overwrite one another.
+        Long startedAt = requestStartTimes.remove(exchange);
+        if (startedAt == null) return;
         long elapsedNanos = Math.max(0L, System.nanoTime() - startedAt);
         completedResponses.increment();
         totalResponseLatencyNanos.add(elapsedNanos);
@@ -934,7 +971,10 @@ public class ApiServer {
             }
             LOGGER.log(Level.SEVERE, "Admin request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process administrator request"));
-        } finally { exchange.close(); }
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
     }
 
     private int queryInteger(HttpExchange exchange, String name, int defaultValue) throws BadRequestException {
@@ -953,7 +993,7 @@ public class ApiServer {
     }
 
     private void prepare(HttpExchange exchange) {
-        exchange.setAttribute(REQUEST_START_ATTRIBUTE, System.nanoTime());
+        requestStartTimes.put(exchange, System.nanoTime());
         String origin = exchange.getRequestHeaders().getFirst("Origin");
         if (origin != null && allowedOrigins().contains(origin)) {
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);

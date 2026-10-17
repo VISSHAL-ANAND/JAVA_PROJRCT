@@ -1506,3 +1506,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - CI run [39060944733](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060944733) verified compilation and the HTTP load smoke test but failed the new metrics test on its assumption that all configured worker threads are eagerly created. `ThreadPoolExecutor` creates workers lazily, so actual live worker count can be below the configured capacity while idle.
 - Kept both useful values: `workerCapacity` reports the configured core pool size; `workerCount` reports current live threads. Updated the regression to assert capacity separately from at least one live worker. MySQL integration passed; Java, container, and PostgreSQL jobs shared the same failing assertion. The corrected full CI run is required before this metrics feature is verified.
+
+
+### 2026-10-18 — Fix request metric accounting for concurrent exchanges
+
+- CI run [39061120924](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39061120924) exposed a metrics-counter test failure: request attributes were not reliably isolating the start/recorded state across sequential and concurrent HTTP exchanges, so the reported completed-response count missed prior requests.
+- Replaced the exchange-attribute bookkeeping with a per-exchange concurrent start-time map. A response removes its entry atomically, ensuring each exchange contributes at most once; every handler also removes its entry when closing the exchange so exceptions/disconnects do not leave unbounded metric state.
+- Kept the configured worker-capacity metric distinct from current live worker count. The correction must pass all CI jobs, including the admin-only metrics test and 1,000-request HTTP smoke.
