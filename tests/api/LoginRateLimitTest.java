@@ -2,6 +2,7 @@ package api;
 
 import dao.UserDAO;
 import exception.AuthenticationException;
+import exception.AuthenticationUnavailableException;
 import model.Student;
 import model.User;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,9 @@ import security.RateLimiter;
 import security.TokenRevocationStore;
 import security.LoginAttemptStore;
 import service.AuthService;
+import security.LoginAttemptStore;
+import security.TokenRevocationStore;
+import java.sql.SQLException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -79,6 +83,34 @@ class LoginRateLimitTest {
                     "The targeted account/address bucket should still be throttled");
             assertEquals(200, login(server, "other@example.test").statusCode(),
                     "Another account sharing the same apparent source IP must remain able to sign in");
+        } finally {
+            server.stop();
+        }
+    }
+
+    @Test
+    void databaseFailureReturns503AndDoesNotBecomeCredentialLockout() throws Exception {
+        UserDAO unavailable = new UserDAO() {
+            @Override
+            public java.util.Optional<model.AuthUser> findForAuthentication(String email) throws SQLException {
+                throw new SQLException("simulated database outage");
+            }
+        };
+        AuthService authService = new AuthService(unavailable,
+                new RateLimiter(5, Duration.ofMinutes(5), Duration.ofMinutes(10)));
+        ApiServer server = new ApiServer(0, new AccessTokenService(),
+                new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
+                unavailable, authService, TokenRevocationStore.noOp(), LoginAttemptStore.noOp());
+        server.start();
+        try {
+            for (int attempt = 0; attempt < 7; attempt++) {
+                HttpResponse<String> response = login(server, "database-outage@example.test");
+                assertEquals(503, response.statusCode(),
+                        "Database failures must be reported as unavailable, not invalid credentials or 429");
+                assertEquals("Authentication service temporarily unavailable",
+                        new com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body())
+                                .path("message").asText());
+            }
         } finally {
             server.stop();
         }

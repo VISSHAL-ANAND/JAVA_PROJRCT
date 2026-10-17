@@ -269,6 +269,16 @@ public class ApiServer {
                     "token", tokens.issue(user), "expiresIn", 7200, "user", userData));
         } catch (BadRequestException e) {
             sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage()));
+        } catch (exception.AuthenticationUnavailableException e) {
+            // A database failure must not masquerade as invalid credentials or leave a
+            // shared limiter entry behind after the failed infrastructure request.
+            loginRateLimiter.reset(emailRateLimitKey(exchange, email));
+            try {
+                loginAttempts.clear(email);
+            } catch (SQLException cleanupFailure) {
+                LOGGER.log(Level.WARNING, "Unable to clear login limiter after authentication service failure");
+            }
+            sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
         } catch (AuthenticationException e) {
             sendJson(exchange, 401, Map.of("success", false, "message", "Invalid email or password"));
         } catch (Exception e) {

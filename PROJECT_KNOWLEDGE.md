@@ -1467,3 +1467,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - GitHub Actions run [39059871307](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39059871307) completed successfully on commit `b71efcc39f2d26575dcc9dfb554ad312fb8b094c`; all six jobs passed, including MySQL 8.4 and PostgreSQL 17 shared-login integration tests and the 1,000-request HTTP smoke job.
 - The expiry regression passed on both database engines: a blocked request no longer refreshes an expired attempt window, and the account becomes eligible again after the 15-minute block expires. The 1,000-attempt concurrency regression continued to pass.
 - Final measured 1,000-login results for this run: MySQL total 13,720 ms / p95 12,961 ms; PostgreSQL total 13,712 ms / p95 12,890 ms. Both meet the CI budget but exceed the proposed staging login p95 target of 10 seconds. Do not claim sustained production capacity until the guarded 14-minute, 1,000-VU test is run on the intended host and database tier.
+
+
+### 2026-10-18 — Distinguish database outages from invalid login credentials
+
+- Code review found `AuthService.authenticate` converted SQL failures into the same exception as invalid credentials. During a transient database outage, users could receive HTTP 401 and consume local/shared login lockout attempts even though their passwords were never checked.
+- Added a distinct authentication-unavailable exception. The service resets its local account limiter on infrastructure failures; the HTTP layer returns 503, clears the shared attempt entry when possible, and resets the source/account bucket. Added a seven-request HTTP regression against a simulated database failure to prove the outage does not turn into a false 401/429 lockout.
+- Full CI verification is pending. No live database or hosting resource was changed.

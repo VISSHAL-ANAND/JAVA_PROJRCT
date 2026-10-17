@@ -28,7 +28,12 @@ public class AuthService {
             if(record.isEmpty()||!PasswordHasher.verify(password,record.get().passwordHash()))throw new AuthenticationException("Invalid email or password");
             loginLimiter.reset(email);
             return toUser(record.get());
-        }catch(SQLException|IllegalArgumentException e){throw new AuthenticationException("Authentication failed");}
+        } catch (SQLException | IllegalArgumentException e) {
+            // Infrastructure/schema errors are not bad credentials and must not consume
+            // the user's lockout budget while the database is unavailable.
+            loginLimiter.reset(email);
+            throw new exception.AuthenticationUnavailableException("Authentication service temporarily unavailable");
+        }
     }
     public boolean registerEmail(String email)throws AuthenticationException{
         if(email==null||email.isBlank())throw new AuthenticationException("Email is required");
