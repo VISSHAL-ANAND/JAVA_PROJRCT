@@ -1474,3 +1474,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Code review found `AuthService.authenticate` converted SQL failures into the same exception as invalid credentials. During a transient database outage, users could receive HTTP 401 and consume local/shared login lockout attempts even though their passwords were never checked.
 - Added a distinct authentication-unavailable exception. The service resets its local account limiter on infrastructure failures; the HTTP layer returns 503, clears the shared attempt entry when possible, and resets the source/account bucket. Added a seven-request HTTP regression against a simulated database failure to prove the outage does not turn into a false 401/429 lockout.
 - Full CI verification is pending. No live database or hosting resource was changed.
+
+
+### 2026-10-18 — Fix login outage handler compilation issue caught by CI
+
+- CI run [39060211964](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060211964) caught a Java scope error: the new authentication-unavailable catch block referenced `email`, which had been declared inside the `try` body and was therefore not visible in the catch clauses. Java verification, container build, and the load-smoke job failed at compilation for this same root cause; the frontend job passed.
+- Moved the email variable declaration to the handler scope and assign it only after the JSON field is validated. This keeps malformed-login requests safe while making the validated account key available to the 503 cleanup path. Full CI must pass on this correction before continuing.

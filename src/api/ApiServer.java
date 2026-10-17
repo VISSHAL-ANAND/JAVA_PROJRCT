@@ -218,6 +218,7 @@ public class ApiServer {
 
     private void handleLogin(HttpExchange exchange) throws IOException {
         prepare(exchange);
+        String email = "";
         try {
             if (handleOptionsOrMethod(exchange, "POST")) return;
             JsonNode body = readJson(exchange);
@@ -226,7 +227,7 @@ public class ApiServer {
             if (!emailNode.isTextual() || !passwordNode.isTextual()) {
                 throw new BadRequestException("Email and password must be strings");
             }
-            String email = emailNode.asText().trim().toLowerCase(java.util.Locale.ROOT);
+            email = emailNode.asText().trim().toLowerCase(java.util.Locale.ROOT);
             String password = passwordNode.asText();
             // Key this outer limiter by source address AND account. Many campuses and
             // reverse proxies share one apparent IP; one user's failures must not lock out
