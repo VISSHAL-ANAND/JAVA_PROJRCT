@@ -1486,3 +1486,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - CI run [39060325155](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060325155) found the first scope correction left a reference to a helper that had never been defined (`emailRateLimitKey`). All Java/container/load jobs failed at compilation for this same root cause; frontend build passed.
 - Replaced that call with the same source-address-plus-normalized-email key expression already used by the login handler. The complete CI run must pass on this exact correction before the outage-handling task is considered verified.
+
+
+### 2026-10-18 — Fix login-rate-limit unit test isolation after 503 semantics change
+
+- CI run [39060437669](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39060437669) confirmed the production handler now compiles and the outage regression passes, but the dependency-free Java unit job failed because `ApiInputValidationTest.loginRateLimitReturns429AfterConfiguredAttempts` still relied on a real database-less `UserDAO`. With the corrected behavior, that fake environment returns 503 rather than the test's intended invalid-credentials 401.
+- Updated the rate-limit unit test to inject an `AuthService` fake that deterministically returns invalid credentials and no-op persistence adapters. The test now isolates the behavior it intends to verify: first invalid login gets 401, the next request gets 429. Full CI must pass on this correction.

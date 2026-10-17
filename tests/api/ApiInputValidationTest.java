@@ -2,6 +2,8 @@ package api;
 
 import model.Student;
 import dao.UserDAO;
+import exception.AuthenticationException;
+import service.AuthService;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import security.AccessTokenService;
@@ -23,7 +25,15 @@ class ApiInputValidationTest {
     void loginRateLimitReturns429AfterConfiguredAttempts() throws Exception {
         AccessTokenService tokens = new AccessTokenService();
         RateLimiter limiter = new RateLimiter(1, Duration.ofMinutes(15), Duration.ofMinutes(15));
-        ApiServer server = new ApiServer(0, tokens, limiter, LoginAttemptStore.noOp());
+        UserDAO users = new UserDAO();
+        AuthService invalidCredentials = new AuthService(users) {
+            @Override
+            public model.User authenticate(String email, String password) throws AuthenticationException {
+                throw new AuthenticationException("Invalid email or password");
+            }
+        };
+        ApiServer server = new ApiServer(0, tokens, limiter, users, invalidCredentials,
+                TokenRevocationStore.noOp(), LoginAttemptStore.noOp());
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();
