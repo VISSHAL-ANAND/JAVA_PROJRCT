@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class SchemaContractTest {
     @Test
@@ -73,6 +74,22 @@ class SchemaContractTest {
                 .toLowerCase(java.util.Locale.ROOT).contains("idx_tickets_created_id"));
         assertTrue(resource("migrations/postgres/003_large_campus_query_indexes.sql")
                 .toLowerCase(java.util.Locale.ROOT).contains("idx_tickets_created_id"));
+    }
+
+    @Test
+    void genericPostgresHostingSchemaAndAppRoleDoNotRequireSupabaseRoles() throws IOException {
+        String schema = resource("postgres_schema.sql").toLowerCase(java.util.Locale.ROOT);
+        String appRole = resource("postgres_app_role.sql.example").toLowerCase(java.util.Locale.ROOT);
+
+        assertTrue(schema.contains("create table if not exists public.users"));
+        assertTrue(schema.contains("create table if not exists public.token_revocations"));
+        assertTrue(schema.contains("create table if not exists public.login_attempt_limits"));
+        assertFalse(schema.contains("from anon, authenticated"),
+                "Generic PostgreSQL bootstrap must not depend on Supabase-only roles");
+        assertTrue(appRole.contains("grant connect on database campusos to campusos_app"));
+        assertTrue(appRole.contains("grant select, insert, delete on table public.token_revocations"));
+        assertTrue(appRole.contains("grant select, insert, update, delete on table public.login_attempt_limits"));
+        assertTrue(appRole.contains("grant update (available) on table public.users"));
     }
 
     private String resource(String name) throws IOException {

@@ -194,6 +194,25 @@ jobs:
           cache: maven
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+      - name: Verify generic managed-PostgreSQL schema and least-privilege role
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 -c "CREATE DATABASE campusos_generic;"
+          psql -h localhost -U postgres -d campusos_generic -v ON_ERROR_STOP=1 --file=resources/postgres_schema.sql
+          table_count="$(psql -h localhost -U postgres -d campusos_generic -At -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name IN ('users','issues','tickets','ticket_history','resources','bookings','notifications','emergencies','token_revocations','login_attempt_limits')")"
+          test "$table_count" = "10"
+          sed -e 's/campusos_app/campusos_app_generic/g' -e 's/REPLACE_WITH_A_LONG_RANDOM_PASSWORD/CiOnly-Generic-Postgres-Password-2026-NotASecret/g' -e 's/ON DATABASE campusos TO/ON DATABASE campusos_generic TO/' resources/postgres_app_role.sql.example \
+            | psql -h localhost -U postgres -d campusos_generic -v ON_ERROR_STOP=1
+          PGPASSWORD='CiOnly-Generic-Postgres-Password-2026-NotASecret' psql -h localhost -U campusos_app_generic -d campusos_generic -v ON_ERROR_STOP=1 -c "SELECT id FROM public.users LIMIT 0"
+          if PGPASSWORD='CiOnly-Generic-Postgres-Password-2026-NotASecret' psql -h localhost -U campusos_app_generic -d campusos_generic -v ON_ERROR_STOP=1 -c "DELETE FROM public.users WHERE false"; then
+            echo "::error::generic campusos_app unexpectedly has DELETE privilege on users"
+            exit 1
+          else
+            echo "Confirmed generic campusos_app cannot DELETE from users."
+          fi
       - name: Prepare Supabase roles and schema
         env:
           PGPASSWORD: postgres

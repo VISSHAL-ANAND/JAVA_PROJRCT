@@ -4,7 +4,7 @@
 
 CAMPUSOS is a campus operations project designed to bring maintenance issue reporting, ticket tracking, technician assignment, resource booking, notifications, emergency records and administrative workflows into one platform.
 
-The project uses a **React frontend**, a **Java backend**, and supports **MySQL for local development** plus **PostgreSQL/Supabase** as the planned hosted database. The Java API remains a separate service; Vercel is intended for the frontend only. It also retains a Java socket-server foundation for networking exercises and future integrations.
+The project uses a **React frontend**, a **Java backend**, and supports **MySQL for local development** plus PostgreSQL-compatible managed databases for hosting. The Java API is a separate container service; Vercel is intended for the frontend only. Use `resources/postgres_schema.sql` plus `resources/postgres_app_role.sql.example` on non-Supabase managed PostgreSQL, or the `supabase_*` scripts on a dedicated Supabase project. It also retains a Java socket-server foundation for networking exercises and future integrations.
 
 > **Project status:** Active academic project. React login, issue submission, automatic priority calculation, ticket creation/assignment logic, and a student's own ticket list are implemented. Other areas shown in navigation or represented by backend classes may still be incomplete. See [Feature Status](#feature-status) before treating a workflow as complete.
 
@@ -27,6 +27,7 @@ The project uses a **React frontend**, a **Java backend**, and supports **MySQL 
 - [Issue priority and assignment](#issue-priority-and-assignment)
 - [Database tables](#database-tables)
 - [Security notes](#security-notes)
+- [Production deployment and load testing](#production-deployment-and-load-testing)
 - [Testing and verification](#testing-and-verification)
 - [Troubleshooting](#troubleshooting)
 - [Development roadmap](#development-roadmap)
@@ -498,6 +499,8 @@ This is a keyword-based rule system, not an AI classifier. The current assignmen
 | `notifications` | User notification records |
 | `emergencies` | Emergency messages and creator information |
 | `ticket_history` | Ticket status transitions and audit timestamps |
+| `token_revocations` | Server-side bearer-token logout/revocation, indexed by expiry |
+| `login_attempt_limits` | Database-shared per-account login throttling across API replicas |
 
 ## Security notes
 
@@ -509,6 +512,26 @@ The API also has a CI regression test for the default CORS allowlist and securit
 - **Role and access-control classes:** Role checks are represented in the security layer.
 
 These foundations do **not** mean the web application is production-secure. The React client stores a signed bearer token in `sessionStorage`, which is accessible to same-origin JavaScript and increases the impact of any cross-site scripting (XSS) flaw. The API verifies tokens, checks current database roles plus route-specific ownership/role rules, supports persistent server-side token revocation on logout, and shares account-level failed-login lockouts across API instances through the database. Production TLS/CORS configuration, an audit trail, a complete security review, and verification against a dedicated live Supabase project remain outstanding. The API now drains in-flight HTTP exchanges for up to five seconds during shutdown, and the HTTP regression test holds an authenticated request inside the handler while shutdown begins and verifies the response completes. CI run [38738611266](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/38738611266) passed all six jobs, including this test; configure the hosting platform's termination grace period to at least 15 seconds so the process can finish draining and close the JDBC pool. Do not expose this development server to the public internet with real campus or personal data.
+
+## Production deployment and load testing
+
+**Deployment architecture:** deploy the React/Vite frontend to Vercel (the repository-root `vercel.json` builds `frontend/dist`), and deploy the Java API as a long-running Docker web service using the root `Dockerfile`. Vercel does not host the Java `HttpServer` process. Use a dedicated managed PostgreSQL database; do not connect CAMPUSOS to another product's database.
+
+### Required services and configuration
+
+1. Create a dedicated empty database named `campusos`. For generic managed PostgreSQL, apply `resources/postgres_schema.sql` as the database owner, then run `resources/postgres_app_role.sql.example` once after replacing its password placeholder. For Supabase, use `resources/supabase_schema.sql` and `resources/supabase_app_role.sql.example` instead. For an existing database, review and apply each relevant migration under `resources/migrations/postgres/`—do not re-run a bootstrap on production data.
+2. Create an API web service from this repository using the Dockerfile at repository root. Configure `CAMPUSOS_ENV=production`, `PORT` (use the port assigned by the host), `CAMPUSOS_AUTH_SECRET` (a stable, unique secret of at least 32 characters), `CAMPUSOS_DB_URL=jdbc:postgresql://<db-host>:<port>/campusos?sslmode=require`, `CAMPUSOS_DB_USERNAME`, `CAMPUSOS_DB_PASSWORD`, `CAMPUSOS_DB_POOL_SIZE`, and `CAMPUSOS_CORS_ORIGINS`. Never place API/database secrets in frontend variables. The container intentionally refuses to start in production without a valid auth secret.
+3. Configure the backend JDBC pool against the selected database's connection budget. Begin conservatively (for example 5–10 connections per API replica); account for the sum across replicas and reserve connections for administration/maintenance. Tune from observed pool wait times and database metrics, not by simply setting every pool/thread value to its maximum. `CAMPUSOS_DB_POOL_SIZE` accepts 1–30, `CAMPUSOS_HTTP_WORKER_THREADS` accepts 4–128, and `CAMPUSOS_HTTP_QUEUE_CAPACITY` accepts 64–10,000. The defaults are starting values, not provider-independent guarantees.
+4. Deploy the frontend separately. Set Vercel build-time variable `VITE_API_BASE_URL` to the API's HTTPS origin (no trailing slash), and set API variable `CAMPUSOS_CORS_ORIGINS` to the exact frontend origin (for example `https://campusos.example.com`). Deploy the backend first, then build the frontend so the Vite variable is embedded in the output.
+5. Configure the host's health check to `GET /api/health/ready` and give the container at least a 15-second termination grace period; the API drains in-flight requests for up to five seconds before the JVM closes the JDBC pool. `GET /api/admin/metrics` provides per-instance request latency buckets, queue/worker counters, and JDBC pool metrics to an authenticated administrator.
+
+### Verified CI load results and limits
+
+GitHub Actions run [39061495349](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/39061495349) passed all six jobs on commit `016fefd8a22c9aa36708541a6454c5993b11e708`. Its disposable CI environment completed 1,000 simultaneous liveness requests with p95 855 ms; a 1,000-concurrent authenticated PostgreSQL read workload (five rounds, 5,000 total requests) reported p95 284 ms; the analogous MySQL run reported p95 580 ms. The mixed workload also exercised 1,000 concurrent users over five rounds with ticket reads, notification reads, and issue writes. In the separate 1,000-simultaneous-login burst, p95 was about 8.2 seconds on CI PostgreSQL and 13.1 seconds on CI MySQL. All requests succeeded, but the MySQL login burst is slower than the proposed 10-second staging target and needs host-specific retesting/tuning.
+
+These numbers demonstrate CI stress-test coverage—not a guarantee of capacity on a future hosting plan. Before calling production ready, deploy a dedicated staging environment and run the 14-minute 100-to-1,000 virtual-user k6 profile in [`load/README.md`](load/README.md). It explicitly refuses to run without a staging approval flag, HTTPS URL/host match, and disposable test-account credentials. Do not run it against production or real campus data. Save the full k6 output and host CPU/memory, queue, JDBC pool, database connection/lock, and error metrics. Require under 1% failed requests, p95 API latency below 2 seconds, and login p95 below 10 seconds; fix any failures instead of weakening targets.
+
+**Deployment status:** this repository has CI-tested container and frontend builds, but those tests do not create a live site. A dedicated CAMPUSOS frontend project, API service, database, secret set, and the staging load run are required before production release.
 
 ## Testing and verification
 
