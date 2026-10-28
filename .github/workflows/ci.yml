@@ -196,7 +196,6 @@ jobs:
       CAMPUSOS_DB_USERNAME: root
       CAMPUSOS_DB_PASSWORD: root
       CAMPUSOS_DB_POOL_SIZE: "5"
-      CAMPUSOS_HTTP_WORKER_THREADS: "8"
       CAMPUSOS_AUTH_SECRET: campusos-ci-auth-secret-value-at-least-32-characters
       CAMPUSOS_DB_LOAD_TEST_ENABLED: "true"
       CAMPUSOS_TOKEN_REVOCATION_LOAD_TEST_ENABLED: "true"
@@ -266,7 +265,6 @@ jobs:
       CAMPUSOS_DB_USERNAME: postgres
       CAMPUSOS_DB_PASSWORD: postgres
       CAMPUSOS_DB_POOL_SIZE: "5"
-      CAMPUSOS_HTTP_WORKER_THREADS: "8"
       CAMPUSOS_AUTH_SECRET: campusos-ci-auth-secret-value-at-least-32-characters
       CAMPUSOS_IT_ENABLED: "true"
       CAMPUSOS_DB_LOAD_TEST_ENABLED: "true"

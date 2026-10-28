@@ -80,14 +80,36 @@ class PostgresWorkflowTest {
                 .filter(ticket -> ((Number) ticket.get("id")).intValue() == criticalTicketId)
                 .findFirst().orElseThrow().get("status"));
 
-        users.setStaffAvailability(technicianId, false);
-        Issue unassignedIssue = new Issue(0, "Broken chair", "Chair is not working", "Furniture",
-                "Room 101", null, null);
-        int unassignedTicketId = new IssueService().submit(unassignedIssue, studentId);
-        assertEquals("OPEN", tickets.findByReporter(studentId).stream()
-                .filter(ticket -> ((Number) ticket.get("id")).intValue() == unassignedTicketId)
-                .findFirst().orElseThrow().get("status"));
-        assertTrue(users.setStaffAvailability(technicianId, true));
+        assertTrue(users.setStaffAvailability(technicianId, false));
+
+        // Other integration tests may have left staff fixtures in this disposable database.
+        // Snapshot and temporarily disable only staff who were available, so this assertion
+        // truly exercises the no-available-technician branch regardless of test order.
+        List<Integer> previouslyAvailableStaff = new ArrayList<>();
+        try (Connection connection = openFixtureConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT id FROM users WHERE role IN ('MAINTENANCE','TECHNICIAN') AND available=TRUE");
+             ResultSet result = statement.executeQuery()) {
+            while (result.next()) previouslyAvailableStaff.add(result.getInt("id"));
+        }
+        for (int availableStaffId : previouslyAvailableStaff) {
+            assertTrue(users.setStaffAvailability(availableStaffId, false));
+        }
+
+        int unassignedTicketId;
+        try {
+            Issue unassignedIssue = new Issue(0, "Broken chair", "Chair is not working", "Furniture",
+                    "Room 101", null, null);
+            unassignedTicketId = new IssueService().submit(unassignedIssue, studentId);
+            assertEquals("OPEN", tickets.findByReporter(studentId).stream()
+                    .filter(ticket -> ((Number) ticket.get("id")).intValue() == unassignedTicketId)
+                    .findFirst().orElseThrow().get("status"));
+        } finally {
+            for (int availableStaffId : previouslyAvailableStaff) {
+                assertTrue(users.setStaffAvailability(availableStaffId, true));
+            }
+            assertTrue(users.setStaffAvailability(technicianId, true));
+        }
         tickets.assignTicketToStaff(unassignedTicketId, technicianId, adminId);
         assertEquals("ASSIGNED", tickets.findByReporter(studentId).stream()
                 .filter(ticket -> ((Number) ticket.get("id")).intValue() == unassignedTicketId)
