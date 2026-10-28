@@ -45,7 +45,7 @@ FOR EACH ROW EXECUTE FUNCTION public.campusos_touch_updated_at();
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'campusos_app') THEN
-        EXECUTE 'GRANT SELECT, INSERT, UPDATE ON TABLE public.faculty_work_invitations TO campusos_app';
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.faculty_work_invitations TO campusos_app';
         EXECUTE 'GRANT SELECT, INSERT, UPDATE ON TABLE public.faculty_work_assignments TO campusos_app';
         EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE public.faculty_work_invitations_id_seq TO campusos_app';
         EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE public.faculty_work_assignments_id_seq TO campusos_app';
