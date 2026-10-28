@@ -81,6 +81,98 @@ jobs:
           echo "Container correctly fails closed without CAMPUSOS_AUTH_SECRET."
 
 
+
+  container-runtime-smoke:
+    name: Production container runtime and database readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: campusos
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d campusos"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+      - name: Initialize disposable PostgreSQL schema and least-privilege app role
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 -c "CREATE ROLE anon; CREATE ROLE authenticated;"
+          psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 --file=resources/supabase_schema.sql
+          sed 's/REPLACE_WITH_A_LONG_RANDOM_PASSWORD/CiOnly-Runtime-Smoke-Password-2026-NotASecret/g' resources/supabase_app_role.sql.example \
+            | psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1
+      - name: Build production API image
+        run: docker build --tag campusos-api:runtime-ci .
+      - name: Start container and verify live readiness and authentication boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name campusos-api-runtime-ci --network host \
+            --env CAMPUSOS_ENV=production \
+            --env PORT=18080 \
+            --env CAMPUSOS_AUTH_SECRET=campusos-ci-runtime-secret-at-least-32-characters \
+            --env CAMPUSOS_DB_URL='jdbc:postgresql://127.0.0.1:5432/campusos?sslmode=disable' \
+            --env CAMPUSOS_DB_USERNAME=campusos_app \
+            --env CAMPUSOS_DB_PASSWORD=CiOnly-Runtime-Smoke-Password-2026-NotASecret \
+            --env CAMPUSOS_DB_POOL_SIZE=5 \
+            --env CAMPUSOS_CORS_ORIGINS=https://campusos.example.test \
+            campusos-api:runtime-ci
+          cleanup() {
+            docker logs campusos-api-runtime-ci 2>/dev/null || true
+            docker rm -f campusos-api-runtime-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            status="$(curl --silent --show-error --output /tmp/campusos-ready.json --write-out '%{http_code}' http://127.0.0.1:18080/api/health/ready || true)"
+            if [ "$status" = "200" ]; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/campusos-ready.json 2>/dev/null || true
+            echo "::error::Production container did not become database-ready within 60 seconds."
+            exit 1
+          fi
+          grep -q '"status":"ready"' /tmp/campusos-ready.json
+          grep -q '"database":"connected"' /tmp/campusos-ready.json
+
+          auth_status="$(curl --silent --show-error --output /tmp/campusos-auth.json --write-out '%{http_code}' \
+            http://127.0.0.1:18080/api/tickets/reporter/1)"
+          if [ "$auth_status" != "401" ]; then
+            cat /tmp/campusos-auth.json
+            echo "::error::Unauthenticated protected route returned HTTP $auth_status instead of 401."
+            exit 1
+          fi
+
+          login_status="$(curl --silent --show-error --output /tmp/campusos-login.json --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' \
+            --data '{"email":"runtime-smoke@example.test","password":"InvalidPassword!2026"}' \
+            http://127.0.0.1:18080/api/auth/login)"
+          if [ "$login_status" != "401" ]; then
+            cat /tmp/campusos-login.json
+            echo "::error::Invalid login did not return HTTP 401; database-backed auth may not be working."
+            exit 1
+          fi
+          echo "Production image started with a least-privilege DB role; readiness, shared login-limit DB access, and protected-route auth checks passed."
+
   mysql-integration:
     name: MySQL booking integration tests
     runs-on: ubuntu-latest
