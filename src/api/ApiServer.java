@@ -955,7 +955,7 @@ public class ApiServer {
                     }
                     LOGGER.log(Level.WARNING, "Faculty invitation email could not be sent", mailError);
                     sendJson(exchange, 503, Map.of("success", false, "message",
-                            "Invitation email could not be sent. Check the backend SMTP configuration and try again."));
+                            "Invitation email could not be sent. Check the Resend API configuration and verified sender email."));
                     return;
                 } finally {
                     java.util.Arrays.fill(randomToken, (byte) 0);
