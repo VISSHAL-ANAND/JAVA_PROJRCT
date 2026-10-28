@@ -338,3 +338,42 @@ h1 { font-size: clamp(25px, 2.2vw, 32px); }
   .profile { border: 0; box-shadow: none; background: transparent; }
   .login-card { box-shadow: 4px 4px 0 #dce5f3; }
 }
+
+
+/* HOD / faculty work management */
+.work-stats { margin-bottom: 2px; }
+.work-forms { align-items: start; gap: 20px; }
+.work-forms > * { min-width: 0; }
+.field-hint { margin: 0; color: #64748b; font-size: 0.85rem; line-height: 1.5; }
+.work-list { display: grid; gap: 14px; }
+.work-card { min-width: 0; padding: 18px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+.work-card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.work-card-heading > div { display: grid; gap: 5px; min-width: 0; }
+.work-card-heading strong { color: #111827; font-size: 1rem; overflow-wrap: anywhere; }
+.work-card-heading span:not(.badge) { color: #64748b; font-size: 0.85rem; overflow-wrap: anywhere; }
+.work-card > p { color: #475569; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.work-progress-label { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 16px 0 8px; color: #475569; font-size: 0.88rem; }
+.work-progress-label strong { color: #172554; }
+.progress-track { width: 100%; height: 10px; overflow: hidden; border-radius: 999px; background: #e8eef8; }
+.progress-track > span { display: block; height: 100%; border-radius: inherit; background: #2457d6; transition: width 180ms ease; }
+.work-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; color: #64748b; font-size: 0.82rem; flex-wrap: wrap; }
+.overdue-label { color: #b42318; font-weight: 700; }
+.work-note { margin-bottom: 0; padding: 10px 12px; border-left: 3px solid #2457d6; background: #f3f7ff; font-size: 0.9rem; }
+.work-summary { padding-top: 14px; color: #64748b; font-size: 0.85rem; }
+.faculty-progress-form { display: grid; grid-template-columns: minmax(140px, 0.7fr) minmax(160px, 1fr); gap: 14px; margin-top: 18px; align-items: end; }
+.faculty-progress-form label { display: grid; gap: 7px; color: #334155; font-size: 0.88rem; font-weight: 600; min-width: 0; }
+.faculty-progress-form label:nth-child(3) { grid-column: 1 / -1; }
+.faculty-progress-form input[type="range"] { width: 100%; accent-color: #2457d6; }
+.faculty-progress-form .primary-button { justify-self: start; }
+.badge.success { background: #edfdf3; color: #166534; }
+.badge.active { background: #eff6ff; color: #1d4ed8; }
+@media (max-width: 800px) {
+  .work-forms { grid-template-columns: minmax(0, 1fr); }
+  .faculty-progress-form { grid-template-columns: minmax(0, 1fr); }
+  .faculty-progress-form label:nth-child(3) { grid-column: auto; }
+}
+@media (max-width: 480px) {
+  .work-card { padding: 14px; }
+  .work-card-heading { align-items: flex-start; flex-direction: column; }
+  .work-card-footer { flex-direction: column; }
+}
