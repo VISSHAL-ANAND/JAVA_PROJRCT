@@ -34,28 +34,26 @@ public final class LoginAttemptDAO implements LoginAttemptStore {
         if (email == null || email.isBlank()) return true;
         String hash = fingerprint(email.trim().toLowerCase(Locale.ROOT));
         cleanupIfDue();
-        try (Connection connection = DBConnection.getConnection()) {
-            connection.setAutoCommit(false);
-            try {
-                recordAttemptAtomically(connection, hash);
-                boolean blocked;
-                try (PreparedStatement statement = connection.prepareStatement(
-                        "SELECT blocked_until > CURRENT_TIMESTAMP AS is_blocked "
-                                + "FROM login_attempt_limits WHERE key_hash = ?")) {
-                    statement.setString(1, hash);
-                    try (ResultSet result = statement.executeQuery()) {
-                        if (!result.next()) throw new SQLException("Login attempt row missing after atomic update");
-                        blocked = result.getBoolean("is_blocked");
-                    }
-                }
-                connection.commit();
-                return !blocked;
-            } catch (SQLException | RuntimeException e) {
-                connection.rollback();
-                throw e;
-            } finally {
-                connection.setAutoCommit(true);
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT blocked_until > CURRENT_TIMESTAMP AS is_blocked "
+                             + "FROM login_attempt_limits WHERE key_hash = ?")) {
+            statement.setString(1, hash);
+            try (ResultSet result = statement.executeQuery()) {
+                // No row means no recorded failed credentials for this account.
+                return !result.next() || !result.getBoolean("is_blocked");
             }
+        }
+    }
+
+    @Override
+    public void recordFailure(String email) throws SQLException {
+        if (email == null || email.isBlank()) return;
+        String hash = fingerprint(email.trim().toLowerCase(Locale.ROOT));
+        cleanupIfDue();
+        try (Connection connection = DBConnection.getConnection()) {
+            // A single atomic upsert serializes failures for this account across API replicas.
+            recordAttemptAtomically(connection, hash);
         }
     }
 
@@ -90,7 +88,7 @@ public final class LoginAttemptDAO implements LoginAttemptStore {
                     + "THEN CURRENT_TIMESTAMP ELSE window_started_at END, "
                     + "blocked_until = CASE WHEN blocked_until > CURRENT_TIMESTAMP THEN blocked_until "
                     + "WHEN window_started_at > CURRENT_TIMESTAMP - INTERVAL " + WINDOW.toMinutes() + " MINUTE "
-                    + "AND attempts > " + MAX_ATTEMPTS + " THEN CURRENT_TIMESTAMP + INTERVAL "
+                    + "AND attempts >= " + MAX_ATTEMPTS + " THEN CURRENT_TIMESTAMP + INTERVAL "
                     + BLOCK_DURATION.toMinutes() + " MINUTE ELSE NULL END, "
                     + "updated_at = CURRENT_TIMESTAMP";
         } else if (product.contains("postgresql")) {
@@ -109,7 +107,7 @@ public final class LoginAttemptDAO implements LoginAttemptStore {
                     + "blocked_until = CASE WHEN login_attempt_limits.blocked_until > CURRENT_TIMESTAMP "
                     + "THEN login_attempt_limits.blocked_until "
                     + "WHEN login_attempt_limits.window_started_at > CURRENT_TIMESTAMP - INTERVAL '" + WINDOW.toMinutes() + " minutes' "
-                    + "AND login_attempt_limits.attempts >= " + MAX_ATTEMPTS + " THEN CURRENT_TIMESTAMP + INTERVAL '"
+                    + "AND login_attempt_limits.attempts >= " + (MAX_ATTEMPTS - 1) + " THEN CURRENT_TIMESTAMP + INTERVAL '"
                     + BLOCK_DURATION.toMinutes() + " minutes' ELSE NULL END, updated_at = CURRENT_TIMESTAMP";
         } else {
             throw new SQLException("Shared login rate limiting supports MySQL and PostgreSQL only");
