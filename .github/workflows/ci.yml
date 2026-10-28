@@ -156,6 +156,18 @@ jobs:
 
           CAMPUSOS_LOAD_TEST_URL=http://127.0.0.1:18080 node load/container-readiness-smoke.mjs
 
+          CAMPUSOS_CONTAINER_LOAD_TEST_ENABLED=true \
+          CAMPUSOS_CONTAINER_BASE_URL=http://127.0.0.1:18080 \
+          CAMPUSOS_DB_URL='jdbc:postgresql://127.0.0.1:5432/campusos?sslmode=disable' \
+          CAMPUSOS_DB_USERNAME=campusos_app \
+          CAMPUSOS_DB_PASSWORD=CiOnly-Runtime-Smoke-Password-2026-NotASecret \
+          CAMPUSOS_DB_POOL_SIZE=5 \
+          CAMPUSOS_AUTH_SECRET=campusos-ci-runtime-secret-at-least-32-characters \
+          CAMPUSOS_IT_ADMIN_DB_URL='jdbc:postgresql://127.0.0.1:5432/campusos?sslmode=disable' \
+          CAMPUSOS_IT_ADMIN_DB_USERNAME=postgres \
+          CAMPUSOS_IT_ADMIN_DB_PASSWORD=postgres \
+          mvn --batch-mode --no-transfer-progress -Dtest=ContainerApiLoadTest test
+
           auth_status="$(curl --silent --show-error --output /tmp/campusos-auth.json --write-out '%{http_code}' \
             http://127.0.0.1:18080/api/tickets/reporter/1)"
           if [ "$auth_status" != "401" ]; then

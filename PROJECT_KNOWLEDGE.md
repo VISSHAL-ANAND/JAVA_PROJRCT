@@ -1595,3 +1595,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - The 10-connection pool experiment [40660503809](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40660503809) did not pass all CI jobs. It improved DB-read p95 to 321 ms on MySQL and 350 ms on PostgreSQL, but the 1,000-login p95 regressed to 17.90 s on MySQL and 11.56 s on PostgreSQL. The pool is reverted to five connections; do not recommend pool size from read-only microbenchmarks alone.
 - PostgreSQL exposed a second order-dependent integration fixture: when asserting that a Plumbing ticket is assigned to the test's own Plumbing technician, other available Plumbing technicians left by other fixtures could win the same query. The test now temporarily isolates availability so the intended technician is the only available candidate, then restores the prior availability state in a `finally` block.
 - A fresh full CI run must confirm the five-connection configuration and both staff-availability assertions. Login p95 remains inconsistent on shared CI runners; retain the 10-second staging target and measure on the actual chosen host.
+
+
+### 2026-10-28 — Add authenticated 1,000-user load through the actual production container
+
+- The readiness stress gate verifies 1,000 database-backed health requests but does not authenticate users or execute protected application queries. Added a second CI integration test that seeds 1,000 disposable student accounts, issues signed tokens using the same CI-only secret as the running production container, and concurrently calls the protected reporter-ticket endpoint through the actual Docker image.
+- The test refuses non-local target hosts, verifies all 1,000 HTTP 200 responses and response bodies, records p50/p95/max latency, enforces bounded CI latency, and removes only its run-specific test accounts using a dedicated disposable-database admin connection.
+- CI runs this test only in the production-container runtime job after the container passes database readiness. It is skipped in ordinary Maven/container builds unless explicitly enabled. The new test is not verified until all CI jobs pass for this commit.
