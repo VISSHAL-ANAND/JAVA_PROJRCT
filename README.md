@@ -620,15 +620,17 @@ Run `git status` and review the affected files. Do not use `git restore` on `res
 
 ## HOD and faculty work management
 
-The next planned milestone extends CAMPUSOS beyond maintenance tickets into department work tracking:
+The HOD/faculty workflow is implemented on the feature branch and is awaiting CI review, database migration, SMTP configuration, and end-to-end verification before production use.
 
-- **HOD (`ADMIN`):** invite professors, review faculty accounts, create assignments with descriptions and due dates, assign/reassign work, and monitor all faculty progress.
-- **Professor (`FACULTY`):** accept an invitation and set a password, view only their own assignments, update status and percentage complete, and add progress notes.
-- **Monitoring:** show overall completion, pending/in-progress/completed/overdue counts, and a progress bar for each assignment and professor.
-- **Security:** only the HOD can create invitations and assign work; professors can update only their own assignments. The Java API must enforce these rules on every request.
-- **Data and rollout:** initial versioned PostgreSQL/Supabase and MySQL migrations are present; next add the invitation and assignment APIs, frontend pages, authorization tests, frontend build checks, and update this README as each part is implemented. Do not treat a UI-only mockup as a completed feature.
+- **HOD (`ADMIN`):** invite professors by email, create assignments with descriptions and optional deadlines, and monitor all faculty assignments, status, progress bars, and overdue work.
+- **Professor (`FACULTY`):** accept a single-use invitation and set their own password, view only their own assignments, update status and percentage complete, and add progress notes.
+- **Roles:** the academic workflow uses `STUDENT`, `FACULTY`, and `ADMIN` (HOD). Existing `MAINTENANCE` and `TECHNICIAN` roles remain for campus operations.
+- **Backend access control:** the HOD-only endpoints require the `ADMIN` role. Faculty assignment queries and progress updates are scoped to the signed-in faculty user's ID on the server.
+- **Migrations:** review and apply `resources/migrations/postgres/005_hod_faculty_work.sql` to Supabase, or `resources/migrations/mysql/006_hod_faculty_work.sql` to MySQL. Do not apply a migration twice without reviewing its effects.
+- **Invitation email:** configure these Render environment variables before using invitations: `CAMPUSOS_SMTP_HOST`, `CAMPUSOS_SMTP_PORT` (usually `587`), `CAMPUSOS_SMTP_USERNAME`, `CAMPUSOS_SMTP_PASSWORD`, optional `CAMPUSOS_SMTP_FROM`, and optional `CAMPUSOS_FRONTEND_URL` (defaults to the CAMPUSOS Vercel frontend). Never commit SMTP credentials.
+- **Release status:** this branch has not been merged or deployed. Do not treat the feature as production-ready until CI passes and invitation expiry/single-use, role boundaries, assignment updates, and responsive UI have been verified.
 
-This feature is **planned/in progress**, not yet live. Existing maintenance-ticket assignment is separate and should remain working.
+Existing maintenance-ticket assignment remains separate and unchanged.
 
 ## Development roadmap
 
