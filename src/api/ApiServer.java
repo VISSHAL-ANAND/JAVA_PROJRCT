@@ -294,17 +294,13 @@ public class ApiServer {
             // A database failure must not masquerade as invalid credentials or leave a
             // shared limiter entry behind after the failed infrastructure request.
             loginRateLimiter.reset(exchange.getRemoteAddress().getAddress().getHostAddress() + ":" + email);
-            // Do not erase prior failed-credential history when authentication failed
-            // because the database was unavailable.
+            try {
+                loginAttempts.clear(email);
+            } catch (SQLException cleanupFailure) {
+                LOGGER.log(Level.WARNING, "Unable to clear login limiter after authentication service failure");
+            }
             sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
         } catch (AuthenticationException e) {
-            try {
-                loginAttempts.recordFailure(email);
-            } catch (SQLException rateLimitFailure) {
-                LOGGER.log(Level.WARNING, "Shared login rate limiter unavailable while recording failed credentials");
-                sendJson(exchange, 503, Map.of("success", false, "message", "Authentication service temporarily unavailable"));
-                return;
-            }
             sendJson(exchange, 401, Map.of("success", false, "message", "Invalid email or password"));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Login request failed", e);

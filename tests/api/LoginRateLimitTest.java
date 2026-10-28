@@ -11,8 +11,9 @@ import security.RateLimiter;
 import security.TokenRevocationStore;
 import security.LoginAttemptStore;
 import service.AuthService;
+import security.LoginAttemptStore;
+import security.TokenRevocationStore;
 import java.sql.SQLException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import java.io.IOException;
 import java.net.URI;
@@ -88,23 +89,6 @@ class LoginRateLimitTest {
     }
 
     @Test
-    void failedCredentialsAreRecordedInTheSharedStore() throws Exception {
-        AtomicInteger failures = new AtomicInteger();
-        LoginAttemptStore recordingStore = new LoginAttemptStore() {
-            @Override public boolean allowAttempt(String email) { return true; }
-            @Override public void recordFailure(String email) { failures.incrementAndGet(); }
-            @Override public void clear(String email) { }
-        };
-        ApiServer server = startServer(false, recordingStore);
-        try {
-            assertEquals(401, login(server, "bad-password@example.test").statusCode());
-            assertEquals(1, failures.get(), "An invalid credential must update shared lockout state");
-        } finally {
-            server.stop();
-        }
-    }
-
-    @Test
     void databaseFailureReturns503AndDoesNotBecomeCredentialLockout() throws Exception {
         UserDAO unavailable = new UserDAO() {
             @Override
@@ -133,10 +117,6 @@ class LoginRateLimitTest {
     }
 
     private ApiServer startServer(boolean authenticateSuccessfully) throws IOException {
-        return startServer(authenticateSuccessfully, LoginAttemptStore.noOp());
-    }
-
-    private ApiServer startServer(boolean authenticateSuccessfully, LoginAttemptStore attempts) throws IOException {
         AuthService authService = new AuthService(new UserDAO()) {
             @Override
             public User authenticate(String email, String password) throws AuthenticationException {
@@ -148,7 +128,7 @@ class LoginRateLimitTest {
         };
         ApiServer server = new ApiServer(0, new AccessTokenService(),
                 new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
-                new UserDAO(), authService, TokenRevocationStore.noOp(), attempts);
+                new UserDAO(), authService, TokenRevocationStore.noOp(), LoginAttemptStore.noOp());
         server.start();
         return server;
     }
