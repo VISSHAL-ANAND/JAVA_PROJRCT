@@ -72,7 +72,7 @@ class LoginRateLimitTest {
         };
         ApiServer server = new ApiServer(0, new AccessTokenService(),
                 new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
-                new UserDAO(), authService, TokenRevocationStore.noOp(), attempts);
+                new UserDAO(), authService, TokenRevocationStore.noOp(), LoginAttemptStore.noOp());
         server.start();
         try {
             for (int attempt = 1; attempt <= 5; attempt++) {
@@ -148,7 +148,7 @@ class LoginRateLimitTest {
         };
         ApiServer server = new ApiServer(0, new AccessTokenService(),
                 new RateLimiter(5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
-                new UserDAO(), authService, TokenRevocationStore.noOp(), LoginAttemptStore.noOp());
+                new UserDAO(), authService, TokenRevocationStore.noOp(), attempts);
         server.start();
         return server;
     }
