@@ -238,6 +238,7 @@ function FacultyInvitationAcceptance() {
       const r=await apiFetch(`${API_BASE_URL}/api/faculty-invitations/accept`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:invitationToken,password})});
       const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||"Unable to accept invitation");
       setSuccess(true);setPassword("");setConfirm("");
+      sessionStorage.removeItem("campusos.user");sessionStorage.removeItem("campusos.token");
       window.history.replaceState({},document.title,window.location.pathname);
     } catch(e) {setError(e.message||"Unable to accept invitation");}
     finally {setBusy(false);}
