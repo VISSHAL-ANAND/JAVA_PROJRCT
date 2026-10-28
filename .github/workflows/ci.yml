@@ -233,6 +233,10 @@ jobs:
         run: mysql --host=127.0.0.1 --user=root --password=root < resources/campusos.sql
       - name: Run MySQL booking, broadcast, pagination and mixed-load integration tests
         run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,ApiDatabaseLoadTest,TokenRevocationLoadTest,LoginAttemptStoreIntegrationTest,EmergencyBroadcastScaleTest,ApiWriteLoadTest,ApiLoginLoadTest,AdminUserPaginationTest,StaffTicketPaginationTest,MixedWorkloadScaleTest,BookingHttpScaleTest test
+      - name: Benchmark 1,000 simultaneous logins with eight HTTP workers
+        env:
+          CAMPUSOS_HTTP_WORKER_THREADS: "8"
+        run: mvn --batch-mode --no-transfer-progress -Dtest=ApiLoginLoadTest test
 
   load-smoke:
     name: 1,000-concurrent-request HTTP load smoke test
