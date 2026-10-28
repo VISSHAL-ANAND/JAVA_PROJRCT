@@ -279,6 +279,10 @@ CAMPUSOS_DB_POOL_SIZE=5
 
 The JDBC connection pool is bounded to protect the database. Keep the pool size small enough for the Supabase project's connection limit and the number of Java API instances.
 
+### Latest production-container login load result (2026-10-28)
+
+GitHub Actions run [40665505208](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40665505208) passed all seven jobs. In the production container with a disposable PostgreSQL 17 database and least-privilege application role, 1,000 simultaneous authenticated protected-route requests completed with 1,000/1,000 successes, zero failures, 1.369 s total, and 627 ms p95. A separate burst of 1,000 simultaneous database-backed logins completed with 1,000/1,000 successes, zero failures, 13.474 s total, and 12.543 s p95. The login burst passes correctness but is above the proposed 10-second staging p95 target on shared CI runners; capacity sign-off still requires a dedicated staging run and monitoring against the actual hosting/database sizes.
+
 ### Sustained staging load test
 
 See [`load/README.md`](load/README.md) and [`load/staging-k6.mjs`](load/staging-k6.mjs) for a guarded, manual 14-minute k6 profile that ramps to 1,000 virtual users against a dedicated HTTPS staging host. It is not run against production or automatically against a live service.
