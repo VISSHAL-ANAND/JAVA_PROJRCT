@@ -119,11 +119,29 @@ class PostgresWorkflowTest {
         int otherTechnicianId = users.createUser("IT Other Technician " + suffix,
                 "other-tech-" + suffix + "@example.test", PasswordHasher.hash(password),
                 "TECHNICIAN", null, "CSE", "Plumbing");
-        assertTrue(users.setStaffAvailability(technicianId, false));
-        Issue otherStaffIssue = new Issue(0, "Leaking pipe", "Water leaking near the lab",
-                "Plumbing", "Block B", null, null);
-        int otherStaffTicketId = new IssueService().submit(otherStaffIssue, studentId);
-        assertTrue(users.setStaffAvailability(technicianId, true));
+        // Isolate this ownership check from available staff fixtures created by other tests.
+        List<Integer> availableBeforeOtherStaffIssue = new ArrayList<>();
+        try (Connection connection = openFixtureConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT id FROM users WHERE role IN ('MAINTENANCE','TECHNICIAN') AND available=TRUE");
+             ResultSet result = statement.executeQuery()) {
+            while (result.next()) availableBeforeOtherStaffIssue.add(result.getInt("id"));
+        }
+        for (int availableStaffId : availableBeforeOtherStaffIssue) {
+            assertTrue(users.setStaffAvailability(availableStaffId, false));
+        }
+        assertTrue(users.setStaffAvailability(otherTechnicianId, true));
+
+        int otherStaffTicketId;
+        try {
+            Issue otherStaffIssue = new Issue(0, "Leaking pipe", "Water leaking near the lab",
+                    "Plumbing", "Block B", null, null);
+            otherStaffTicketId = new IssueService().submit(otherStaffIssue, studentId);
+        } finally {
+            for (int availableStaffId : availableBeforeOtherStaffIssue) {
+                assertTrue(users.setStaffAvailability(availableStaffId, true));
+            }
+        }
         assertEquals(otherTechnicianId, tickets.findAssignedTo(otherTechnicianId, false).stream()
                 .filter(ticket -> ((Number) ticket.get("id")).intValue() == otherStaffTicketId)
                 .map(ticket -> ((Number) ticket.get("assignedTechnicianId")).intValue())

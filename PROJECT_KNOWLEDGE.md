@@ -1588,3 +1588,10 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Production container readiness: 1,000 concurrent database-backed requests, 0 failures, 326 ms total (p95 275 ms) on the ephemeral PostgreSQL container. DB-backed read tests reported p95 638 ms on MySQL and 447 ms on PostgreSQL.
 - The 1,000-successful-login p95 was 12.23 s on MySQL and 12.32 s on PostgreSQL in this run, while the previous run measured 9.17 s and 7.67 s. Since the CI shared-runner measurements vary, do not claim the proposed <10 s staging login target is consistently met.
 - Starting a controlled experiment by changing only the MySQL/PostgreSQL integration-job pool from 5 to 10 connections, keeping HTTP worker defaults unchanged. Compare login p95, authenticated read p95, and mixed workload before deciding whether to retain the CI profile; this is not a production recommendation without staging database connection-budget measurements.
+
+
+### 2026-10-28 — Reject 10-connection pool tuning and isolate second staff assignment fixture
+
+- The 10-connection pool experiment [40660503809](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40660503809) did not pass all CI jobs. It improved DB-read p95 to 321 ms on MySQL and 350 ms on PostgreSQL, but the 1,000-login p95 regressed to 17.90 s on MySQL and 11.56 s on PostgreSQL. The pool is reverted to five connections; do not recommend pool size from read-only microbenchmarks alone.
+- PostgreSQL exposed a second order-dependent integration fixture: when asserting that a Plumbing ticket is assigned to the test's own Plumbing technician, other available Plumbing technicians left by other fixtures could win the same query. The test now temporarily isolates availability so the intended technician is the only available candidate, then restores the prior availability state in a `finally` block.
+- A fresh full CI run must confirm the five-connection configuration and both staff-availability assertions. Login p95 remains inconsistent on shared CI runners; retain the 10-second staging target and measure on the actual chosen host.
