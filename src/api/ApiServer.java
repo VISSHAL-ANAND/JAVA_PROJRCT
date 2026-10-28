@@ -13,6 +13,8 @@ import dao.BookingDAO;
 import dao.AdminDAO;
 import dao.TokenRevocationDAO;
 import dao.LoginAttemptDAO;
+import dao.FacultyWorkDAO;
+import service.FacultyInvitationMailer;
 import database.DBConnection;
 import exception.AuthenticationException;
 import model.Issue;
@@ -148,6 +150,8 @@ public class ApiServer {
         server.createContext("/api/bookings", this::handleBookings);
         server.createContext("/api/admin/metrics", this::handleAdminMetrics);
         server.createContext("/api/admin", this::handleAdmin);
+        server.createContext("/api/faculty/work-assignments", this::handleFacultyWork);
+        server.createContext("/api/faculty-invitations/accept", this::handleAcceptFacultyInvitation);
         int workerCount = configuredPositiveInt(
                 "CAMPUSOS_HTTP_WORKER_THREADS",
                 Math.max(4, Math.min(64, Runtime.getRuntime().availableProcessors() * 2)),
@@ -914,6 +918,82 @@ public class ApiServer {
                 sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
                 return;
             }
+
+            if ("/api/admin/faculty".equals(path) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 200, Map.of("success", true, "faculty", new FacultyWorkDAO().listFaculty()));
+                return;
+            }
+            if ("/api/admin/faculty-invitations".equals(path)) {
+                if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                JsonNode body = readJson(exchange);
+                String name = body.path("name").asText("").trim();
+                String email = body.path("email").asText("").trim().toLowerCase(java.util.Locale.ROOT);
+                String department = body.path("department").asText("").trim();
+                if (name.isBlank() || name.length() > 100 ||
+                        !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$") || email.length() > 150 ||
+                        department.length() > 100) {
+                    throw new BadRequestException("Enter a valid name, email, and department");
+                }
+                if (new UserDAO().existsByEmail(email)) {
+                    sendJson(exchange, 409, Map.of("success", false, "message", "An account already exists for this email"));
+                    return;
+                }
+                byte[] randomToken = new byte[32];
+                new java.security.SecureRandom().nextBytes(randomToken);
+                String rawToken = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomToken);
+                String tokenHash = sha256Hex(rawToken);
+                FacultyWorkDAO dao = new FacultyWorkDAO();
+                dao.createInvitation(name, email, department.isBlank() ? null : department, tokenHash, principal.userId());
+                try {
+                    FacultyInvitationMailer.send(email, name, rawToken);
+                } catch (Exception mailError) {
+                    try { dao.deleteInvitation(tokenHash); } catch (SQLException cleanupError) {
+                        mailError.addSuppressed(cleanupError);
+                    }
+                    LOGGER.log(Level.WARNING, "Faculty invitation email could not be sent", mailError);
+                    sendJson(exchange, 503, Map.of("success", false, "message",
+                            "Invitation email could not be sent. Check the backend SMTP configuration and try again."));
+                    return;
+                } finally {
+                    java.util.Arrays.fill(randomToken, (byte) 0);
+                }
+                sendJson(exchange, 201, Map.of("success", true, "message", "Invitation email sent. The link expires in 72 hours."));
+                return;
+            }
+            if ("/api/admin/work-assignments".equals(path)) {
+                FacultyWorkDAO dao = new FacultyWorkDAO();
+                if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 200, Map.of("success", true, "assignments", dao.listAssignments(null)));
+                    return;
+                }
+                if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                JsonNode body = readJson(exchange);
+                String title = body.path("title").asText("").trim();
+                String description = body.path("description").asText("").trim();
+                JsonNode assignedToNode = body.path("assignedTo");
+                if (title.isBlank() || title.length() > 200 || description.isBlank() || description.length() > 5000 ||
+                        !assignedToNode.isIntegralNumber() || !assignedToNode.canConvertToInt() || assignedToNode.asInt() <= 0) {
+                    throw new BadRequestException("Enter a title, description, and valid faculty member");
+                }
+                java.sql.Timestamp dueAt = null;
+                String dueAtText = body.path("dueAt").asText("").trim();
+                if (!dueAtText.isBlank()) {
+                    try {
+                        dueAt = java.sql.Timestamp.from(java.time.Instant.parse(dueAtText));
+                    } catch (java.time.format.DateTimeParseException ex) {
+                        throw new BadRequestException("Deadline must be a valid ISO date-time");
+                    }
+                }
+                int id = dao.createAssignment(title, description, assignedToNode.asInt(), principal.userId(), dueAt);
+                sendJson(exchange, 201, Map.of("success", true, "assignmentId", id, "message", "Work assigned"));
+                return;
+            }
             java.util.regex.Matcher availabilityMatcher = java.util.regex.Pattern
                     .compile("^/api/admin/users/(\\d+)/availability$").matcher(path);
             if (availabilityMatcher.matches()) {
@@ -1025,6 +1105,111 @@ public class ApiServer {
             return true;
         }
         return false;
+    }
+
+
+    private void handleFacultyWork(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            AccessTokenService.Principal principal = requirePrincipal(exchange);
+            if (principal == null) return;
+            if (!"FACULTY".equals(principal.role())) {
+                sendJson(exchange, 403, Map.of("success", false, "message", "Faculty access required"));
+                return;
+            }
+            String path = exchange.getRequestURI().getPath();
+            if ("/api/faculty/work-assignments".equals(path) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 200, Map.of("success", true,
+                        "assignments", new FacultyWorkDAO().listAssignments(principal.userId())));
+                return;
+            }
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("^/api/faculty/work-assignments/(\\d+)/progress$").matcher(path);
+            if (!matcher.matches()) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                return;
+            }
+            JsonNode body = readJson(exchange);
+            String status = body.path("status").asText("IN_PROGRESS").trim().toUpperCase(java.util.Locale.ROOT);
+            JsonNode progressNode = body.path("progressPercent");
+            int progress = progressNode.isIntegralNumber() ? progressNode.asInt(-1) : -1;
+            String note = body.path("progressNote").asText("").trim();
+            if (!Set.of("PENDING", "IN_PROGRESS", "COMPLETED").contains(status) || progress < 0 || progress > 100 || note.length() > 2000) {
+                throw new BadRequestException("Choose a valid status, progress from 0 to 100, and a note under 2000 characters");
+            }
+            if ("COMPLETED".equals(status)) progress = 100;
+            boolean updated = new FacultyWorkDAO().updateProgress(Integer.parseInt(matcher.group(1)),
+                    principal.userId(), status, progress, note.isBlank() ? null : note);
+            if (!updated) {
+                sendJson(exchange, 404, Map.of("success", false, "message", "Assignment not found for this faculty account"));
+                return;
+            }
+            sendJson(exchange, 200, Map.of("success", true, "message", "Progress updated"));
+        } catch (BadRequestException | IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage() == null ? "Invalid request" : e.getMessage()));
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Faculty work request failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process faculty work request"));
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
+    }
+
+    private void handleAcceptFacultyInvitation(HttpExchange exchange) throws IOException {
+        prepare(exchange);
+        try {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                return;
+            }
+            JsonNode body = readJson(exchange);
+            String token = body.path("token").asText("").trim();
+            String password = body.path("password").asText("");
+            if (token.length() < 32 || token.length() > 128 || password.length() < 12 || password.length() > 128) {
+                throw new BadRequestException("A valid invitation token and password of 12–128 characters are required");
+            }
+            int userId = new FacultyWorkDAO().acceptInvitation(sha256Hex(token), PasswordHasher.hash(password));
+            sendJson(exchange, 201, Map.of("success", true, "userId", userId,
+                    "message", "Faculty account created. You can now sign in."));
+        } catch (BadRequestException | IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage() == null ? "Invalid invitation" : e.getMessage()));
+        } catch (SQLException e) {
+            if ("23505".equals(e.getSQLState()) || "23000".equals(e.getSQLState())) {
+                sendJson(exchange, 409, Map.of("success", false, "message", "This invitation has already been used or the account already exists"));
+                return;
+            }
+            LOGGER.log(Level.SEVERE, "Faculty invitation acceptance failed", e);
+            sendJson(exchange, 500, Map.of("success", false, "message", "Unable to accept faculty invitation"));
+        } finally {
+            requestStartTimes.remove(exchange);
+            exchange.close();
+        }
+    }
+
+    private static String sha256Hex(String value) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder out = new StringBuilder(digest.length * 2);
+            for (byte b : digest) out.append(String.format(java.util.Locale.ROOT, "%02x", b));
+            java.util.Arrays.fill(digest, (byte) 0);
+            return out.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable", e);
+        }
     }
 
     private AccessTokenService.Principal requirePrincipal(HttpExchange exchange) throws IOException {

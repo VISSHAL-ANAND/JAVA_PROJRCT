@@ -54,7 +54,7 @@ An available technician may be assigned
 Ticket is visible in the student's ticket list
 ```
 
-The longer-term workflow includes technician status updates, resource reservations, notifications, emergency broadcasts and administration.
+The longer-term workflow includes technician status updates, resource reservations, notifications, emergency broadcasts and administration. The next planned milestone is an HOD-led faculty work-management workflow: the HOD invites professors to set their own passwords, assigns work with deadlines, and monitors progress; professors update the status and progress of their own assignments.
 
 ## Architecture
 
@@ -123,12 +123,12 @@ CAMPUSOS defines the following user roles:
 | Role | Intended responsibility |
 |---|---|
 | `STUDENT` | Report campus issues and track submitted tickets |
-| `FACULTY` | Report and track campus issues |
+| `FACULTY` | Report and track campus issues; planned faculty workspace will show assigned academic/department work and allow progress updates |
 | `MAINTENANCE` | Handle maintenance work |
 | `TECHNICIAN` | Handle assigned technical tickets |
-| `ADMIN` | Oversee tickets and campus operations |
+| `ADMIN` | HOD/administrator: oversee campus operations, manage accounts and assignments; faculty-work monitoring is planned for the next milestone |
 
-Role-specific workflows are being developed incrementally. Do not assume every role already has a complete, independently authorized web dashboard.
+**HOD is represented by the existing `ADMIN` role**; there is no separate `HOD` database role at present. The existing schema also includes `MAINTENANCE` and `TECHNICIAN` for campus operations. The requested academic workflow is limited to `STUDENT`, `FACULTY`, and `ADMIN` (used by the HOD). For professor onboarding, the selected design is invitation-based: the HOD creates an invitation and the professor sets their own password. Initial PostgreSQL and MySQL schema migrations have been added at `resources/migrations/postgres/005_hod_faculty_work.sql` and `resources/migrations/mysql/006_hod_faculty_work.sql`. They define expiring, one-use invitation records and faculty work assignments with status, due date, progress percentage, and progress notes. The invitation API, task API, UI, and authorization tests are still in progress; do not apply these migrations to production until the full feature is reviewed and ready. Role-specific API authorization must be enforced on the backend.
 
 ## Repository structure
 
@@ -617,6 +617,20 @@ If you change the HTTP API port, update the frontend API URLs as well.
 ### Git warns about local changes
 
 Run `git status` and review the affected files. Do not use `git restore` on `resources/config.properties` unless you have saved your local credentials elsewhere.
+
+## HOD and faculty work management
+
+The HOD/faculty workflow is implemented on the feature branch and is awaiting CI review, database migration, SMTP configuration, and end-to-end verification before production use.
+
+- **HOD (`ADMIN`):** invite professors by email, create assignments with descriptions and optional deadlines, and monitor all faculty assignments, status, progress bars, and overdue work.
+- **Professor (`FACULTY`):** accept a single-use invitation and set their own password, view only their own assignments, update status and percentage complete, and add progress notes.
+- **Roles:** the academic workflow uses `STUDENT`, `FACULTY`, and `ADMIN` (HOD). Existing `MAINTENANCE` and `TECHNICIAN` roles remain for campus operations.
+- **Backend access control:** the HOD-only endpoints require the `ADMIN` role. Faculty assignment queries and progress updates are scoped to the signed-in faculty user's ID on the server.
+- **Migrations:** review and apply `resources/migrations/postgres/005_hod_faculty_work.sql` to Supabase, or `resources/migrations/mysql/006_hod_faculty_work.sql` to MySQL. Do not apply a migration twice without reviewing its effects.
+- **Invitation email:** configure these Render environment variables before using invitations: `CAMPUSOS_SMTP_HOST`, `CAMPUSOS_SMTP_PORT` (usually `587`), `CAMPUSOS_SMTP_USERNAME`, `CAMPUSOS_SMTP_PASSWORD`, optional `CAMPUSOS_SMTP_FROM`, and optional `CAMPUSOS_FRONTEND_URL` (defaults to the CAMPUSOS Vercel frontend). Never commit SMTP credentials.
+- **Release status:** this branch has not been merged or deployed. Do not treat the feature as production-ready until CI passes and invitation expiry/single-use, role boundaries, assignment updates, and responsive UI have been verified.
+
+Existing maintenance-ticket assignment remains separate and unchanged.
 
 ## Development roadmap
 
