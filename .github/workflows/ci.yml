@@ -237,10 +237,6 @@ jobs:
         env:
           CAMPUSOS_HTTP_WORKER_THREADS: "8"
         run: mvn --batch-mode --no-transfer-progress -Dtest=ApiLoginLoadTest test
-      - name: Compare 1,000 simultaneous logins with twelve HTTP workers
-        env:
-          CAMPUSOS_HTTP_WORKER_THREADS: "12"
-        run: mvn --batch-mode --no-transfer-progress -Dtest=ApiLoginLoadTest test
 
   load-smoke:
     name: 1,000-concurrent-request HTTP load smoke test

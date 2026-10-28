@@ -39,7 +39,8 @@ class ContainerApiLoadTest {
         assertTrue(List.of("127.0.0.1", "localhost", "::1").contains(baseUri.getHost()),
                 "Refusing to run this test against a remote API");
         String prefix = "container-load-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12) + "-";
-        String passwordHash = PasswordHasher.hash("ContainerLoad-Test-Only-2026");
+        String plainPassword = "ContainerLoad-Test-Only-2026";
+        String passwordHash = PasswordHasher.hash(plainPassword);
         UserDAO users = new UserDAO();
         AccessTokenService tokenService = new AccessTokenService();
         List<Integer> userIds = new ArrayList<>(CONCURRENT_USERS);
@@ -94,6 +95,55 @@ class ContainerApiLoadTest {
             assertTrue(failures.isEmpty(), "Authenticated container requests failed: " + failures.stream().limit(10).toList());
             assertTrue(totalMs < 30_000, "1,000 authenticated container requests exceeded the 30-second CI budget");
             assertTrue(p95 < 15_000, "Authenticated container request p95 exceeded the 15-second CI smoke budget");
+
+            // Exercise real database-backed authentication through the same production container,
+            // not only signed-token generation in the test process.
+            List<Long> loginLatencies = Collections.synchronizedList(new ArrayList<>(CONCURRENT_USERS));
+            List<String> loginFailures = Collections.synchronizedList(new ArrayList<>());
+            List<CompletableFuture<Void>> loginPending = new ArrayList<>(CONCURRENT_USERS);
+            URI loginEndpoint = URI.create(base + "/api/auth/login");
+            long loginStarted = System.nanoTime();
+            for (int i = 0; i < CONCURRENT_USERS; i++) {
+                final int index = i;
+                String email = prefix + i + "@example.test";
+                String body = "{\\"email\\":\\"" + email + "\\",\\"password\\":\\"" + plainPassword + "\\"}";
+                HttpRequest request = HttpRequest.newBuilder(loginEndpoint)
+                        .timeout(Duration.ofSeconds(30))
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
+                long requestStarted = System.nanoTime();
+                loginPending.add(client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                        .thenAccept(response -> {
+                            loginLatencies.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - requestStarted));
+                            if (response.statusCode() != 200
+                                    || !response.body().contains("\\"success\\":true")
+                                    || !response.body().contains("\\"token\\"")) {
+                                loginFailures.add("userIndex=" + index + " HTTP " + response.statusCode()
+                                        + " body=" + response.body().substring(0, Math.min(160, response.body().length())));
+                            }
+                        }));
+            }
+            CompletableFuture.allOf(loginPending.toArray(CompletableFuture[]::new))
+                    .get(60, TimeUnit.SECONDS);
+            long loginTotalMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - loginStarted);
+            List<Long> sortedLoginLatencies = new ArrayList<>(loginLatencies);
+            Collections.sort(sortedLoginLatencies);
+            long loginP50 = percentile(sortedLoginLatencies, 50);
+            long loginP95 = percentile(sortedLoginLatencies, 95);
+            long loginMax = sortedLoginLatencies.isEmpty()
+                    ? Long.MAX_VALUE : sortedLoginLatencies.get(sortedLoginLatencies.size() - 1);
+            System.out.printf("CAMPUSOS production-container login load: users=%d requests=%d succeeded=%d failed=%d totalMs=%d p50Ms=%d p95Ms=%d maxMs=%d%n",
+                    CONCURRENT_USERS, sortedLoginLatencies.size(),
+                    sortedLoginLatencies.size() - loginFailures.size(), loginFailures.size(),
+                    loginTotalMs, loginP50, loginP95, loginMax);
+
+            assertEquals(CONCURRENT_USERS, sortedLoginLatencies.size(), "Every container login must complete");
+            assertTrue(loginFailures.isEmpty(),
+                    "Production-container logins failed: " + loginFailures.stream().limit(10).toList());
+            assertTrue(loginTotalMs < 30_000, "1,000 simultaneous container logins exceeded the 30-second CI budget");
+            assertTrue(loginP95 < 20_000, "Production-container login p95 exceeded the 20-second CI smoke budget");
         } finally {
             try {
                 String adminUrl = System.getenv("CAMPUSOS_IT_ADMIN_DB_URL");
