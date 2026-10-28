@@ -106,7 +106,7 @@ class ContainerApiLoadTest {
             for (int i = 0; i < CONCURRENT_USERS; i++) {
                 final int index = i;
                 String email = prefix + i + "@example.test";
-                String body = "{\\"email\\":\\"" + email + "\\",\\"password\\":\\"" + plainPassword + "\\"}";
+                String body = "{\"email\":\"" + email + "\",\"password\":\"" + plainPassword + "\"}";
                 HttpRequest request = HttpRequest.newBuilder(loginEndpoint)
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
@@ -118,8 +118,8 @@ class ContainerApiLoadTest {
                         .thenAccept(response -> {
                             loginLatencies.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - requestStarted));
                             if (response.statusCode() != 200
-                                    || !response.body().contains("\\"success\\":true")
-                                    || !response.body().contains("\\"token\\"")) {
+                                    || !response.body().contains("\"success\":true")
+                                    || !response.body().contains("\"token\"")) {
                                 loginFailures.add("userIndex=" + index + " HTTP " + response.statusCode()
                                         + " body=" + response.body().substring(0, Math.min(160, response.body().length())));
                             }
