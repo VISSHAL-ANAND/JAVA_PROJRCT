@@ -1572,3 +1572,11 @@ The older phase checklist below is a historical roadmap and includes items that 
 - Fixed the test precondition: it now snapshots currently available staff, temporarily disables those accounts only while asserting that an issue stays OPEN with no technician available, and restores their prior availability in a `finally` block. This prevents unrelated test fixtures from changing the expected result.
 - The eight-worker experiment's MySQL job passed; PostgreSQL failed only on the unisolated `OPEN` versus `ASSIGNED` expectation. The reverted default and test-isolation fix must pass a new full CI run before verification is restored.
 - Login performance remains a real staging gate: do not lower PBKDF2 iterations or relax the 10-second staging target to make a test green. Measure the target hosting CPU and consider replica sizing only after real staging results.
+
+
+### 2026-10-28 — Re-verify capacity after test-isolation fix
+
+- CI run [40659771901](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40659771901) completed successfully on commit `3e708d65750580ffed1908ef1184c011fa59a6e1`: all seven jobs passed, including the PostgreSQL staff-availability integration test after isolating its precondition.
+- The production Docker image passed 1,000 concurrent database-backed readiness requests with 0 failures in 584 ms (p50 388 ms, p95 494 ms, max 518 ms). The standalone HTTP smoke passed 1,000 concurrent requests. MySQL passed five rounds of 1,000 authenticated DB reads (5,000 total; p95 482 ms) and mixed read/write rounds of 740–1,283 ms. PostgreSQL passed five rounds of 1,000 authenticated DB reads (5,000 total; p95 305 ms) and mixed read/write rounds of 481–932 ms.
+- The 1,000-concurrent-login p95 was 9.17 s on MySQL and 7.67 s on PostgreSQL in this run. Earlier CI runs measured above 10 s; do not treat one faster shared-runner run as a production guarantee. Keep PBKDF2 settings unchanged and retain the guarded staging target of API p95 <2 s and login p95 <10 s.
+- The eight-worker tuning experiment was reverted because it did not reliably improve login latency and increased DB-read latency in one run. CI returned to the CPU-aware default. No deployment or live database changes were made.
