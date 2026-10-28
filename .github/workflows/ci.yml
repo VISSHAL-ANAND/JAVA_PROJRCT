@@ -154,15 +154,8 @@ jobs:
           grep -q '"status":"ready"' /tmp/campusos-ready.json
           grep -q '"database":"connected"' /tmp/campusos-ready.json
 
-      - name: Stress production container with 1,000 concurrent database-readiness requests
-        env:
-          CAMPUSOS_LOAD_TEST_URL: http://127.0.0.1:18080
-        run: node load/container-readiness-smoke.mjs
+          CAMPUSOS_LOAD_TEST_URL=http://127.0.0.1:18080 node load/container-readiness-smoke.mjs
 
-      - name: Verify authentication boundary and invalid-login handling
-        shell: bash
-        run: |
-          set -euo pipefail
           auth_status="$(curl --silent --show-error --output /tmp/campusos-auth.json --write-out '%{http_code}' \
             http://127.0.0.1:18080/api/tickets/reporter/1)"
           if [ "$auth_status" != "401" ]; then
