@@ -121,6 +121,7 @@ jobs:
           psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 --file=resources/supabase_schema.sql
           sed 's/REPLACE_WITH_A_LONG_RANDOM_PASSWORD/CiOnly-Runtime-Smoke-Password-2026-NotASecret/g' resources/supabase_app_role.sql.example \
             | psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1
+          psql -h localhost -U postgres -d campusos -v ON_ERROR_STOP=1 --file=resources/migrations/postgres/005_hod_faculty_work.sql
       - name: Build production API image
         run: docker build --tag campusos-api:runtime-ci .
       - name: Start container and verify live readiness and authentication boundary
@@ -225,6 +226,8 @@ jobs:
           cache: maven
       - name: Initialize MySQL schema
         run: mysql --host=127.0.0.1 --user=root --password=root < resources/campusos.sql
+      - name: Apply HOD and faculty work migration
+        run: mysql --host=127.0.0.1 --user=root --password=root < resources/migrations/mysql/006_hod_faculty_work.sql
       - name: Run MySQL booking, broadcast, pagination and mixed-load integration tests
         run: mvn --batch-mode --no-transfer-progress -Dtest=MySqlBookingIntegrationTest,ApiDatabaseLoadTest,TokenRevocationLoadTest,LoginAttemptStoreIntegrationTest,EmergencyBroadcastScaleTest,ApiWriteLoadTest,ApiLoginLoadTest,AdminUserPaginationTest,StaffTicketPaginationTest,MixedWorkloadScaleTest,BookingHttpScaleTest test
 
