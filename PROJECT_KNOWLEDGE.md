@@ -1580,3 +1580,11 @@ The older phase checklist below is a historical roadmap and includes items that 
 - The production Docker image passed 1,000 concurrent database-backed readiness requests with 0 failures in 584 ms (p50 388 ms, p95 494 ms, max 518 ms). The standalone HTTP smoke passed 1,000 concurrent requests. MySQL passed five rounds of 1,000 authenticated DB reads (5,000 total; p95 482 ms) and mixed read/write rounds of 740–1,283 ms. PostgreSQL passed five rounds of 1,000 authenticated DB reads (5,000 total; p95 305 ms) and mixed read/write rounds of 481–932 ms.
 - The 1,000-concurrent-login p95 was 9.17 s on MySQL and 7.67 s on PostgreSQL in this run. Earlier CI runs measured above 10 s; do not treat one faster shared-runner run as a production guarantee. Keep PBKDF2 settings unchanged and retain the guarded staging target of API p95 <2 s and login p95 <10 s.
 - The eight-worker tuning experiment was reverted because it did not reliably improve login latency and increased DB-read latency in one run. CI returned to the CPU-aware default. No deployment or live database changes were made.
+
+
+### 2026-10-28 — Start controlled JDBC pool sizing experiment
+
+- CI run [40660159142](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40660159142) passed all seven jobs, including the new production-container readiness load gate and the PostgreSQL staff-fixture isolation fix.
+- Production container readiness: 1,000 concurrent database-backed requests, 0 failures, 326 ms total (p95 275 ms) on the ephemeral PostgreSQL container. DB-backed read tests reported p95 638 ms on MySQL and 447 ms on PostgreSQL.
+- The 1,000-successful-login p95 was 12.23 s on MySQL and 12.32 s on PostgreSQL in this run, while the previous run measured 9.17 s and 7.67 s. Since the CI shared-runner measurements vary, do not claim the proposed <10 s staging login target is consistently met.
+- Starting a controlled experiment by changing only the MySQL/PostgreSQL integration-job pool from 5 to 10 connections, keeping HTTP worker defaults unchanged. Compare login p95, authenticated read p95, and mixed workload before deciding whether to retain the CI profile; this is not a production recommendation without staging database connection-budget measurements.
