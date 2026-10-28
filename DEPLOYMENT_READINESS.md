@@ -2,8 +2,8 @@
 
 Last reviewed: 2026-10-28  
 Repository: `VISSHAL-ANAND/JAVA_PROJRCT`  
-Latest verified main commit: `b55dd1e984588ac815aa8993035765a28c3c099e`  
-Latest CI: [run 40666235021](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40666235021) — **7/7 jobs passed**
+Latest verified main commit: `df15c529e0af3dfbc9ecfd16e3373ec8d22b05cf`  
+Latest CI: [run 40668206379](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40668206379) — **7/7 jobs passed**
 
 ## Decision
 
@@ -13,9 +13,9 @@ Latest CI: [run 40666235021](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actio
 
 | Scenario | Result | Status |
 | --- | --- | --- |
-| 1,000 concurrent authenticated protected-route requests | 1,000/1,000 success; p95 911 ms; max 1.015 s | Passes CI burst gate |
-| 1,000 concurrent database-backed readiness requests | 1,000/1,000 success; p95 538 ms | Passes CI burst gate |
-| 1,000 simultaneous database-backed successful logins | 1,000/1,000 success; p95 12.773 s; max 13.359 s | Correctness passes; proposed staging p95 <10 s target not met |
+| 1,000 concurrent authenticated protected-route requests | 1,000/1,000 success; p95 920 ms; max 984 ms | Passes CI burst gate |
+| 1,000 concurrent database-backed readiness requests | 1,000/1,000 success; p95 400 ms | Passes CI burst gate |
+| 1,000 simultaneous database-backed successful logins | 1,000/1,000 success; p95 12.441 s; max 12.995 s | Correctness passes; proposed staging p95 <10 s target not met |
 | MySQL 8.4 and PostgreSQL 17 integration/load suites | Booking contention, 1,000 issue writes, 1,000-user emergency fan-out, token revocation, pagination, login limiting, 5,000 authenticated reads, and five-round mixed workloads passed | Passes CI |
 | Frontend audit/tests/build, Java verification, container build/runtime | All passed in latest CI | Passes CI |
 
