@@ -93,6 +93,158 @@ function EmergencyPage({token,user}) {
 }
 
 
+
+function FacultyWorkManagement({token}) {
+  const [faculty,setFaculty]=useState([]);
+  const [assignments,setAssignments]=useState([]);
+  const [invite,setInvite]=useState({name:"",email:"",department:""});
+  const [task,setTask]=useState({title:"",description:"",assignedTo:"",dueAt:""});
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const [notice,setNotice]=useState("");
+  async function load() {
+    setLoading(true); setError("");
+    try {
+      const headers={Authorization:`Bearer ${token}`};
+      const [fr,ar]=await Promise.all([
+        apiFetch(`${API_BASE_URL}/api/admin/faculty`,{headers}),
+        apiFetch(`${API_BASE_URL}/api/admin/work-assignments`,{headers})
+      ]);
+      const [fd,ad]=await Promise.all([fr.json(),ar.json()]);
+      if(!fr.ok||!fd.success) throw new Error(fd.message||"Unable to load faculty");
+      if(!ar.ok||!ad.success) throw new Error(ad.message||"Unable to load assignments");
+      setFaculty(fd.faculty||[]); setAssignments(ad.assignments||[]);
+      setTask(old=>({...old,assignedTo:old.assignedTo||String((fd.faculty||[]).find(x=>x.available)?.id||"")}));
+    } catch(e) { setError(e.message||"Unable to load faculty work"); }
+    finally { setLoading(false); }
+  }
+  useEffect(()=>{load();},[token]);
+  async function sendInvite(e) {
+    e.preventDefault(); setBusy(true); setError(""); setNotice("");
+    try {
+      const r=await apiFetch(`${API_BASE_URL}/api/admin/faculty-invitations`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(invite)});
+      const d=await r.json(); if(!r.ok||!d.success) throw new Error(d.message||"Unable to send invitation");
+      setNotice("Invitation email sent. The professor has 72 hours to set a password.");
+      setInvite({name:"",email:"",department:""}); await load();
+    } catch(e) { setError(e.message||"Unable to send invitation"); }
+    finally { setBusy(false); }
+  }
+  async function createTask(e) {
+    e.preventDefault(); setBusy(true); setError(""); setNotice("");
+    try {
+      const payload={...task,assignedTo:Number(task.assignedTo),dueAt:task.dueAt?new Date(task.dueAt).toISOString():""};
+      const r=await apiFetch(`${API_BASE_URL}/api/admin/work-assignments`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(payload)});
+      const d=await r.json(); if(!r.ok||!d.success) throw new Error(d.message||"Unable to assign work");
+      setNotice("Work assigned successfully."); setTask(old=>({...old,title:"",description:"",dueAt:""})); await load();
+    } catch(e) { setError(e.message||"Unable to assign work"); }
+    finally { setBusy(false); }
+  }
+  const completed=assignments.filter(a=>a.status==="COMPLETED").length;
+  const inProgress=assignments.filter(a=>a.status==="IN_PROGRESS").length;
+  const overdue=assignments.filter(a=>a.status!=="COMPLETED"&&a.dueAt&&new Date(a.dueAt)<new Date()).length;
+  return <div className="page-stack">
+    <section className="stats-grid work-stats">
+      <article className="stat-card"><span>Faculty</span><strong>{faculty.length}</strong><small>Professor accounts</small></article>
+      <article className="stat-card"><span>Total assignments</span><strong>{assignments.length}</strong><small>All faculty work</small></article>
+      <article className="stat-card"><span>In progress</span><strong>{inProgress}</strong><small>Currently active</small></article>
+      <article className="stat-card"><span>Overdue</span><strong>{overdue}</strong><small>Past deadline</small></article>
+    </section>
+    {error&&<div className="error-message">{error}</div>}{notice&&<div className="success-message">{notice}</div>}
+    <div className="content-grid work-forms">
+      <section className="form-panel"><div className="panel-heading"><div><p className="eyebrow">FACULTY ONBOARDING</p><h3>Invite a professor</h3></div></div>
+        <form className="issue-form" onSubmit={sendInvite}>
+          <label>Professor name<input value={invite.name} onChange={e=>setInvite({...invite,name:e.target.value})} maxLength="100" required placeholder="Full name"/></label>
+          <label>Professor email<input type="email" value={invite.email} onChange={e=>setInvite({...invite,email:e.target.value})} maxLength="150" required placeholder="professor@college.edu"/></label>
+          <label>Department<input value={invite.department} onChange={e=>setInvite({...invite,department:e.target.value})} maxLength="100" placeholder="Department (optional)"/></label>
+          <p className="field-hint">An email invitation is sent. The link expires after 72 hours, and the professor creates their own password.</p>
+          <button className="primary-button" disabled={busy}>{busy?"Sending...":"Send invitation"}</button>
+        </form>
+      </section>
+      <section className="form-panel"><div className="panel-heading"><div><p className="eyebrow">WORK ALLOCATION</p><h3>Assign work</h3></div></div>
+        <form className="issue-form" onSubmit={createTask}>
+          <label>Work title<input value={task.title} onChange={e=>setTask({...task,title:e.target.value})} maxLength="200" required placeholder="e.g. Submit department report"/></label>
+          <label>Assign to<select value={task.assignedTo} onChange={e=>setTask({...task,assignedTo:e.target.value})} required><option value="">Choose professor</option>{faculty.filter(f=>f.available).map(f=><option key={f.id} value={f.id}>{f.name} · {f.department||"No department"}</option>)}</select></label>
+          <label>Deadline<input type="datetime-local" value={task.dueAt} onChange={e=>setTask({...task,dueAt:e.target.value})}/></label>
+          <label>Description<textarea value={task.description} onChange={e=>setTask({...task,description:e.target.value})} maxLength="5000" rows="3" required placeholder="Describe the expected outcome"/></label>
+          <button className="primary-button" disabled={busy||faculty.filter(f=>f.available).length===0}>{busy?"Saving...":"Assign work"}</button>
+        </form>
+      </section>
+    </div>
+    <section className="panel"><div className="panel-heading"><div><p className="eyebrow">FACULTY OVERSIGHT</p><h3>Work progress</h3></div><button className="text-button" onClick={load} disabled={loading}>Refresh</button></div>
+      {loading?<div className="empty-state">Loading assignments...</div>:assignments.length===0?<div className="empty-state"><strong>No work assigned yet</strong><span>Invite a professor and assign the first task.</span></div>:<div className="work-list">{assignments.map(a=><article className="work-card" key={a.id}>
+        <div className="work-card-heading"><div><strong>{a.title}</strong><span>{a.facultyName} · {a.facultyEmail}</span></div><span className={`badge ${a.status==="COMPLETED"?"success":a.status==="IN_PROGRESS"?"active":"neutral"}`}>{a.status.replace("_"," ")}</span></div>
+        <p>{a.description}</p>
+        <div className="work-progress-label"><span>Progress</span><strong>{a.progressPercent}%</strong></div>
+        <div className="progress-track" role="progressbar" aria-valuenow={a.progressPercent} aria-valuemin="0" aria-valuemax="100" aria-label={`Progress for ${a.title}`}><span style={{width:`${a.progressPercent}%`}}/></div>
+        <div className="work-card-footer"><span>{a.dueAt?`Due ${new Date(a.dueAt).toLocaleString()}`:"No deadline"}</span>{a.dueAt&&a.status!=="COMPLETED"&&new Date(a.dueAt)<new Date()&&<span className="overdue-label">Overdue</span>}</div>
+        {a.progressNote&&<p className="work-note">Update: {a.progressNote}</p>}
+      </article>)}</div>}
+      <div className="work-summary">{completed} completed · {inProgress} in progress · {assignments.length-completed-inProgress} pending</div>
+    </section>
+  </div>;
+}
+
+function FacultyWorkPage({token}) {
+  const [assignments,setAssignments]=useState([]);
+  const [drafts,setDrafts]=useState({});
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(0);
+  const [error,setError]=useState("");
+  const [notice,setNotice]=useState("");
+  async function load() {
+    setLoading(true);setError("");
+    try {
+      const r=await apiFetch(`${API_BASE_URL}/api/faculty/work-assignments`,{headers:{Authorization:`Bearer ${token}`}});
+      const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||"Unable to load your work");
+      setAssignments(d.assignments||[]);
+      setDrafts(old=>Object.fromEntries((d.assignments||[]).map(a=>[a.id,old[a.id]||{status:a.status,progressPercent:String(a.progressPercent),progressNote:a.progressNote||""}])));
+    } catch(e) {setError(e.message||"Unable to load your work");}
+    finally {setLoading(false);}
+  }
+  useEffect(()=>{load();},[token]);
+  async function save(id) {
+    const draft=drafts[id];setBusy(id);setError("");setNotice("");
+    try {
+      const r=await apiFetch(`${API_BASE_URL}/api/faculty/work-assignments/${id}/progress`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({...draft,progressPercent:Number(draft.progressPercent)})});
+      const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||"Unable to update progress");
+      setNotice("Progress saved.");await load();
+    } catch(e) {setError(e.message||"Unable to update progress");}
+    finally {setBusy(0);}
+  }
+  return <section className="panel"><div className="panel-heading"><div><p className="eyebrow">MY RESPONSIBILITIES</p><h3>Assigned work</h3></div><button className="text-button" onClick={load} disabled={loading}>Refresh</button></div>
+    {error&&<div className="error-message">{error}</div>}{notice&&<div className="success-message">{notice}</div>}
+    {loading?<div className="empty-state">Loading assigned work...</div>:assignments.length===0?<div className="empty-state"><strong>No work assigned</strong><span>New assignments from the HOD will appear here.</span></div>:<div className="work-list">{assignments.map(a=>{const draft=drafts[a.id]||{status:a.status,progressPercent:String(a.progressPercent),progressNote:a.progressNote||""};return <article className="work-card faculty-work-card" key={a.id}>
+      <div className="work-card-heading"><div><strong>{a.title}</strong><span>{a.dueAt?`Due ${new Date(a.dueAt).toLocaleString()}`:"No deadline"}</span></div><span className={`badge ${a.status==="COMPLETED"?"success":a.status==="IN_PROGRESS"?"active":"neutral"}`}>{a.status.replace("_"," ")}</span></div>
+      <p>{a.description}</p><div className="work-progress-label"><span>Current progress</span><strong>{a.progressPercent}%</strong></div><div className="progress-track" role="progressbar" aria-valuenow={a.progressPercent} aria-valuemin="0" aria-valuemax="100"><span style={{width:`${a.progressPercent}%`}}/></div>
+      <div className="faculty-progress-form"><label>Status<select value={draft.status} onChange={e=>setDrafts(old=>({...old,[a.id]:{...draft,status:e.target.value,progressPercent:e.target.value==="COMPLETED"?"100":draft.progressPercent}}))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In progress</option><option value="COMPLETED">Completed</option></select></label><label>Progress: {draft.progressPercent}%<input type="range" min="0" max="100" step="5" value={draft.progressPercent} onChange={e=>setDrafts(old=>({...old,[a.id]:{...draft,progressPercent:e.target.value,status:Number(e.target.value)===100?"COMPLETED":draft.status==="COMPLETED"?"IN_PROGRESS":draft.status}}))}/></label><label>Progress note<textarea rows="2" maxLength="2000" value={draft.progressNote} onChange={e=>setDrafts(old=>({...old,[a.id]:{...draft,progressNote:e.target.value}}))} placeholder="Brief update for the HOD"/></label><button className="primary-button" disabled={busy===a.id} onClick={()=>save(a.id)}>{busy===a.id?"Saving...":"Save progress"}</button></div>
+    </article>})}</div>}
+  </section>;
+}
+
+function FacultyInvitationAcceptance() {
+  const invitationToken=new URLSearchParams(window.location.search).get("facultyInvite")||"";
+  const [password,setPassword]=useState("");
+  const [confirm,setConfirm]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const [success,setSuccess]=useState(false);
+  async function submit(e) {
+    e.preventDefault();setError("");
+    if(password!==confirm){setError("Passwords do not match.");return;}
+    if(password.length<12){setError("Use at least 12 characters for your password.");return;}
+    setBusy(true);
+    try {
+      const r=await apiFetch(`${API_BASE_URL}/api/faculty-invitations/accept`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:invitationToken,password})});
+      const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||"Unable to accept invitation");
+      setSuccess(true);setPassword("");setConfirm("");
+      window.history.replaceState({},document.title,window.location.pathname);
+    } catch(e) {setError(e.message||"Unable to accept invitation");}
+    finally {setBusy(false);}
+  }
+  return <div className="login-shell"><div className="login-card"><div className="brand login-brand"><div className="brand-mark">C</div><div><strong>CAMPUSOS</strong><span>Faculty access</span></div></div>{success?<><p className="eyebrow">ACCOUNT READY</p><h1>You're all set.</h1><p className="login-copy">Your faculty account has been created. Sign in with the invited email and your new password.</p><button className="primary-button login-button" onClick={()=>{window.location.href="/";}}>Go to sign in</button></>:<><p className="eyebrow">FACULTY INVITATION</p><h1>Set your password.</h1><p className="login-copy">Choose a strong password with at least 12 characters. This invitation expires after 72 hours.</p>{!invitationToken?<div className="error-message">This invitation link is missing its token. Please open the full link from your email.</div>:<form className="login-form" onSubmit={submit}><label>New password<input type="password" autoComplete="new-password" minLength="12" maxLength="128" value={password} onChange={e=>setPassword(e.target.value)} required/></label><label>Confirm password<input type="password" autoComplete="new-password" minLength="12" maxLength="128" value={confirm} onChange={e=>setConfirm(e.target.value)} required/></label>{error&&<div className="error-message">{error}</div>}<button className="primary-button login-button" disabled={busy}>{busy?"Creating account...":"Create faculty account"}</button></form>}</>}</div></div>;
+}
+
 function AdminOverview({token}) {
   const [data,setData]=useState(null); const [error,setError]=useState(""); const [loading,setLoading]=useState(true); const [exporting,setExporting]=useState(false);
   async function load(){setLoading(true);setError("");try{const r=await apiFetch(`${API_BASE_URL}/api/admin/overview`,{headers:{"Authorization":`Bearer ${token}`}});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||"Unable to load admin overview");setData(d.overview);}catch(e){setError(e.message||"Unable to load admin overview");}finally{setLoading(false);}}
@@ -117,10 +269,14 @@ function Dashboard({user,token,onLogout}){
   const [active,setActive]=useState("Overview"); const [tickets,setTickets]=useState([]); const [loadingTickets,setLoadingTickets]=useState(false); const [ticketError,setTicketError]=useState(""); const [ticketPage,setTicketPage]=useState(1); const [ticketSummary,setTicketSummary]=useState({total:0,openCount:0,resolvedCount:0});
   async function loadTickets(page=1){setLoadingTickets(true);setTicketError("");try{const r=await apiFetch(`${API_BASE_URL}/api/tickets/reporter/${user.id}?page=${page}`,{headers:{"Authorization":`Bearer ${token}`}});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||"Unable to load tickets");setTickets(d.tickets||[]);setTicketPage(d.page||page);setTicketSummary({total:d.total||0,openCount:d.openCount||0,resolvedCount:d.resolvedCount||0});}catch(err){setTicketError(err.message||"Unable to connect to CAMPUSOS");}finally{setLoadingTickets(false);}}
   useEffect(()=>{if(["STUDENT","FACULTY"].includes(user.role)) loadTickets(1);},[user.id,user.role,token]);
-  const visibleNavItems = user.role === "ADMIN" ? [["Overview","⌂"],["Tickets","✓"],["Users","♙"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]] : ["MAINTENANCE","TECHNICIAN"].includes(user.role) ? [["Overview","⌂"],["Tickets","✓"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]] : navItems;
+  const visibleNavItems = user.role === "ADMIN" ? [["Overview","⌂"],["HOD Work","▤"],["Tickets","✓"],["Users","♙"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]] : user.role === "FACULTY" ? [["Overview","⌂"],["My Work","▤"],["Tickets","✓"],["Report Issue","+"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]] : ["MAINTENANCE","TECHNICIAN"].includes(user.role) ? [["Overview","⌂"],["Tickets","✓"],["Resources","▣"],["Notifications","◌"],["Emergency","!"]] : navItems;
   const open=ticketSummary.openCount;
   const resolved=ticketSummary.resolvedCount;
-  const page = active === "Users" && user.role === "ADMIN"
+  const page = active === "HOD Work" && user.role === "ADMIN"
+    ? <FacultyWorkManagement token={token}/>
+    : active === "My Work" && user.role === "FACULTY"
+      ? <FacultyWorkPage token={token}/>
+      : active === "Users" && user.role === "ADMIN"
     ? <AdminUsers token={token}/>
     : active === "Overview" && user.role === "ADMIN"
       ? <AdminOverview token={token}/>
@@ -140,4 +296,4 @@ function Dashboard({user,token,onLogout}){
   return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand-mark">C</div><div><strong>CAMPUSOS</strong><span>Campus Operations</span></div></div><nav className="nav-list">{visibleNavItems.map(([label,icon])=><button key={label} className={active===label?"nav-item active":"nav-item"} onClick={()=>setActive(label)}><span className="nav-icon">{icon}</span><span>{label}</span></button>)}</nav><div className="sidebar-footer"><span className="status-dot"/> Campus system online</div></aside><main className="main-content"><header className="topbar"><div><p className="eyebrow">Campus Operations</p><h1>{active}</h1></div><div className="profile"><div className="avatar">{user.name.split(" ").map(x=>x[0]).slice(0,2).join("")}</div><div><strong>{user.name}</strong><span>{user.role}</span></div><button className="text-button" onClick={onLogout}>Logout</button></div></header>{active==="Overview"&&<section className="hero-card"><div><p className="eyebrow">CAMPUSOS CONTROL CENTER</p><h2>Everything happening on campus, in one place.</h2><p className="hero-copy">Report issues, track tickets, manage resources and stay informed about campus operations.</p></div><div className="hero-orb"><span/><span/><span/></div></section>}{page}</main></div>;
 }
 
-export default function App(){const [user,setUser]=useState(()=>{try{return JSON.parse(sessionStorage.getItem("campusos.user")||"null")}catch{return null}});const [token,setToken]=useState(()=>sessionStorage.getItem("campusos.token")||"");function handleLogin(nextUser,nextToken){sessionStorage.setItem("campusos.user",JSON.stringify(nextUser));sessionStorage.setItem("campusos.token",nextToken);setUser(nextUser);setToken(nextToken)}async function logout(){const activeToken=token;try{if(activeToken)await apiFetch(`${API_BASE_URL}/api/auth/logout`,{method:"POST",headers:{"Authorization":`Bearer ${activeToken}`}})}catch{}finally{sessionStorage.removeItem("campusos.user");sessionStorage.removeItem("campusos.token");setUser(null);setToken("")}}return user&&token?<Dashboard user={user} token={token} onLogout={logout}/>:<Login onLogin={handleLogin}/>;}
+export default function App(){const [user,setUser]=useState(()=>{try{return JSON.parse(sessionStorage.getItem("campusos.user")||"null")}catch{return null}});const [token,setToken]=useState(()=>sessionStorage.getItem("campusos.token")||"");function handleLogin(nextUser,nextToken){sessionStorage.setItem("campusos.user",JSON.stringify(nextUser));sessionStorage.setItem("campusos.token",nextToken);setUser(nextUser);setToken(nextToken)}async function logout(){const activeToken=token;try{if(activeToken)await apiFetch(`${API_BASE_URL}/api/auth/logout`,{method:"POST",headers:{"Authorization":`Bearer ${activeToken}`}})}catch{}finally{sessionStorage.removeItem("campusos.user");sessionStorage.removeItem("campusos.token");setUser(null);setToken("")}}if(new URLSearchParams(window.location.search).has("facultyInvite")) return <FacultyInvitationAcceptance/>;return user&&token?<Dashboard user={user} token={token} onLogout={logout}/>:<Login onLogin={handleLogin}/>;}
