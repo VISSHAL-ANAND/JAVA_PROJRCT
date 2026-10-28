@@ -1608,3 +1608,11 @@ The older phase checklist below is a historical roadmap and includes items that 
 
 - The first run of the new authenticated-container test failed immediately before creating any fixture data: Java's `URI.getScheme()` returns `http`, not `http:`. The database-readiness stress test itself passed 1,000/1,000 requests (p95 576 ms); the authenticated-user test did not reach setup or send requests.
 - Corrected the test's local-HTTP scheme assertion. The complete CI run for this fix must pass before this new 1,000-user production-container test is considered verified.
+
+
+### 2026-10-28 — Verified 1,000 authenticated users through the production Docker image
+
+- CI run [40661606767](https://github.com/VISSHAL-ANAND/JAVA_PROJRCT/actions/runs/40661606767) completed successfully on commit `947f93e2b852aba99beed56aea874d0c8caf3b29`; all seven jobs passed.
+- The new production-container integration test seeded 1,000 disposable student accounts, issued signed bearer tokens using the same CI-only secret as the running container, and sent 1,000 concurrent authenticated GET requests to the protected reporter-ticket endpoint through the actual Docker image. Result: 1,000/1,000 HTTP 200 responses, zero failures, total 1.699 s, p50 726 ms, p95 925 ms, max 943 ms. Test fixture users were removed with the disposable database's admin connection afterward.
+- The container also passed 1,000 concurrent DB-backed readiness requests: 1,000/1,000 succeeded, p95 482 ms. The standalone HTTP smoke passed 1,000 concurrent requests, and both MySQL and PostgreSQL suites passed their 1,000-request mixed workloads and 5,000 authenticated-read workloads.
+- This is the strongest current CI capacity evidence, but it is a burst test against ephemeral CI PostgreSQL, not a long-duration production certification. A guarded 14-minute 1,000-VU test against the chosen staging host is still required. The 1,000-simultaneous-login burst is a separate CPU-bound case whose p95 has varied above/below 10 seconds on shared runners; don't claim that threshold is consistently met until staging confirms it.
