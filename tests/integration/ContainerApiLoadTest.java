@@ -35,7 +35,7 @@ class ContainerApiLoadTest {
     void productionContainerServesOneThousandAuthenticatedDatabaseBackedUsers() throws Exception {
         String base = System.getenv("CAMPUSOS_CONTAINER_BASE_URL");
         URI baseUri = URI.create(base == null ? "" : base);
-        assertEquals("http:", baseUri.getScheme(), "CI container target must use local HTTP");
+        assertEquals("http", baseUri.getScheme(), "CI container target must use local HTTP");
         assertTrue(List.of("127.0.0.1", "localhost", "::1").contains(baseUri.getHost()),
                 "Refusing to run this test against a remote API");
         String prefix = "container-load-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12) + "-";

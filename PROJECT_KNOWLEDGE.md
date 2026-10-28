@@ -1602,3 +1602,9 @@ The older phase checklist below is a historical roadmap and includes items that 
 - The readiness stress gate verifies 1,000 database-backed health requests but does not authenticate users or execute protected application queries. Added a second CI integration test that seeds 1,000 disposable student accounts, issues signed tokens using the same CI-only secret as the running production container, and concurrently calls the protected reporter-ticket endpoint through the actual Docker image.
 - The test refuses non-local target hosts, verifies all 1,000 HTTP 200 responses and response bodies, records p50/p95/max latency, enforces bounded CI latency, and removes only its run-specific test accounts using a dedicated disposable-database admin connection.
 - CI runs this test only in the production-container runtime job after the container passes database readiness. It is skipped in ordinary Maven/container builds unless explicitly enabled. The new test is not verified until all CI jobs pass for this commit.
+
+
+### 2026-10-28 — Fix local URL scheme assertion in production-container load test
+
+- The first run of the new authenticated-container test failed immediately before creating any fixture data: Java's `URI.getScheme()` returns `http`, not `http:`. The database-readiness stress test itself passed 1,000/1,000 requests (p95 576 ms); the authenticated-user test did not reach setup or send requests.
+- Corrected the test's local-HTTP scheme assertion. The complete CI run for this fix must pass before this new 1,000-user production-container test is considered verified.
