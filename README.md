@@ -54,7 +54,7 @@ An available technician may be assigned
 Ticket is visible in the student's ticket list
 ```
 
-The longer-term workflow includes technician status updates, resource reservations, notifications, emergency broadcasts and administration.
+The longer-term workflow includes technician status updates, resource reservations, notifications, emergency broadcasts and administration. The next planned milestone is an HOD-led faculty work-management workflow: the HOD invites professors to set their own passwords, assigns work with deadlines, and monitors progress; professors update the status and progress of their own assignments.
 
 ## Architecture
 
@@ -123,12 +123,12 @@ CAMPUSOS defines the following user roles:
 | Role | Intended responsibility |
 |---|---|
 | `STUDENT` | Report campus issues and track submitted tickets |
-| `FACULTY` | Report and track campus issues |
+| `FACULTY` | Report and track campus issues; planned faculty workspace will show assigned academic/department work and allow progress updates |
 | `MAINTENANCE` | Handle maintenance work |
 | `TECHNICIAN` | Handle assigned technical tickets |
-| `ADMIN` | Oversee tickets and campus operations |
+| `ADMIN` | HOD/administrator: oversee campus operations, manage accounts and assignments; faculty-work monitoring is planned for the next milestone |
 
-Role-specific workflows are being developed incrementally. Do not assume every role already has a complete, independently authorized web dashboard.
+**HOD is represented by the existing `ADMIN` role**; there is no separate `HOD` database role at present. The existing schema also includes `MAINTENANCE` and `TECHNICIAN` for campus operations. The requested academic workflow is limited to `STUDENT`, `FACULTY`, and `ADMIN` (used by the HOD). For professor onboarding, the selected design is invitation-based: the HOD creates an invitation and the professor sets their own password. The invitation flow, task assignment, per-professor progress reporting, progress bars, and HOD monitoring are planned work—not yet implemented. Role-specific API authorization must be enforced on the backend.
 
 ## Repository structure
 
@@ -617,6 +617,18 @@ If you change the HTTP API port, update the frontend API URLs as well.
 ### Git warns about local changes
 
 Run `git status` and review the affected files. Do not use `git restore` on `resources/config.properties` unless you have saved your local credentials elsewhere.
+
+## HOD and faculty work management
+
+The next planned milestone extends CAMPUSOS beyond maintenance tickets into department work tracking:
+
+- **HOD (`ADMIN`):** invite professors, review faculty accounts, create assignments with descriptions and due dates, assign/reassign work, and monitor all faculty progress.
+- **Professor (`FACULTY`):** accept an invitation and set a password, view only their own assignments, update status and percentage complete, and add progress notes.
+- **Monitoring:** show overall completion, pending/in-progress/completed/overdue counts, and a progress bar for each assignment and professor.
+- **Security:** only the HOD can create invitations and assign work; professors can update only their own assignments. The Java API must enforce these rules on every request.
+- **Data and rollout:** add a versioned PostgreSQL/Supabase migration (and matching MySQL schema/migration where supported), API tests, frontend tests/build checks, and update this README as each part is implemented. Do not treat a UI-only mockup as a completed feature.
+
+This feature is **planned/in progress**, not yet live. Existing maintenance-ticket assignment is separate and should remain working.
 
 ## Development roadmap
 
