@@ -1128,7 +1128,7 @@ public class ApiServer {
                 return;
             }
             java.util.regex.Matcher matcher = java.util.regex.Pattern
-                    .compile("^/api/faculty/work-assignments/(\\\\d+)/progress$").matcher(path);
+                    .compile("^/api/faculty/work-assignments/(\\d+)/progress$").matcher(path);
             if (!matcher.matches()) {
                 sendJson(exchange, 404, Map.of("success", false, "message", "Route not found"));
                 return;
@@ -1159,7 +1159,8 @@ public class ApiServer {
             LOGGER.log(Level.SEVERE, "Faculty work request failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to process faculty work request"));
         } finally {
-            finish(exchange);
+            requestStartTimes.remove(exchange);
+            exchange.close();
         }
     }
 
@@ -1193,7 +1194,8 @@ public class ApiServer {
             LOGGER.log(Level.SEVERE, "Faculty invitation acceptance failed", e);
             sendJson(exchange, 500, Map.of("success", false, "message", "Unable to accept faculty invitation"));
         } finally {
-            finish(exchange);
+            requestStartTimes.remove(exchange);
+            exchange.close();
         }
     }
 
