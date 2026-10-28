@@ -128,7 +128,7 @@ CAMPUSOS defines the following user roles:
 | `TECHNICIAN` | Handle assigned technical tickets |
 | `ADMIN` | HOD/administrator: oversee campus operations, manage accounts and assignments; faculty-work monitoring is planned for the next milestone |
 
-**HOD is represented by the existing `ADMIN` role**; there is no separate `HOD` database role at present. The existing schema also includes `MAINTENANCE` and `TECHNICIAN` for campus operations. The requested academic workflow is limited to `STUDENT`, `FACULTY`, and `ADMIN` (used by the HOD). For professor onboarding, the selected design is invitation-based: the HOD creates an invitation and the professor sets their own password. The invitation flow, task assignment, per-professor progress reporting, progress bars, and HOD monitoring are planned work—not yet implemented. Role-specific API authorization must be enforced on the backend.
+**HOD is represented by the existing `ADMIN` role**; there is no separate `HOD` database role at present. The existing schema also includes `MAINTENANCE` and `TECHNICIAN` for campus operations. The requested academic workflow is limited to `STUDENT`, `FACULTY`, and `ADMIN` (used by the HOD). For professor onboarding, the selected design is invitation-based: the HOD creates an invitation and the professor sets their own password. Initial PostgreSQL and MySQL schema migrations have been added at `resources/migrations/postgres/005_hod_faculty_work.sql` and `resources/migrations/mysql/006_hod_faculty_work.sql`. They define expiring, one-use invitation records and faculty work assignments with status, due date, progress percentage, and progress notes. The invitation API, task API, UI, and authorization tests are still in progress; do not apply these migrations to production until the full feature is reviewed and ready. Role-specific API authorization must be enforced on the backend.
 
 ## Repository structure
 
@@ -626,7 +626,7 @@ The next planned milestone extends CAMPUSOS beyond maintenance tickets into depa
 - **Professor (`FACULTY`):** accept an invitation and set a password, view only their own assignments, update status and percentage complete, and add progress notes.
 - **Monitoring:** show overall completion, pending/in-progress/completed/overdue counts, and a progress bar for each assignment and professor.
 - **Security:** only the HOD can create invitations and assign work; professors can update only their own assignments. The Java API must enforce these rules on every request.
-- **Data and rollout:** add a versioned PostgreSQL/Supabase migration (and matching MySQL schema/migration where supported), API tests, frontend tests/build checks, and update this README as each part is implemented. Do not treat a UI-only mockup as a completed feature.
+- **Data and rollout:** initial versioned PostgreSQL/Supabase and MySQL migrations are present; next add the invitation and assignment APIs, frontend pages, authorization tests, frontend build checks, and update this README as each part is implemented. Do not treat a UI-only mockup as a completed feature.
 
 This feature is **planned/in progress**, not yet live. Existing maintenance-ticket assignment is separate and should remain working.
 
