@@ -857,6 +857,33 @@ public class ApiServer {
                 sendJson(exchange, 200, Map.of("success", true, "overview", new AdminDAO().getOverview()));
                 return;
             }
+            java.util.regex.Matcher accessMatcher = java.util.regex.Pattern
+                    .compile("^/api/admin/users/(\\d+)/access$").matcher(path);
+            if (accessMatcher.matches()) {
+                if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
+                    return;
+                }
+                int targetUserId;
+                try {
+                    targetUserId = Integer.parseInt(accessMatcher.group(1));
+                } catch (NumberFormatException invalidId) {
+                    throw new BadRequestException("Invalid user ID");
+                }
+                JsonNode body = readJson(exchange);
+                if (!body.path("active").isBoolean()) {
+                    throw new BadRequestException("The active field must be true or false");
+                }
+                boolean active = body.path("active").asBoolean();
+                if (!new UserDAO().setStudentFacultyAccess(targetUserId, active)) {
+                    sendJson(exchange, 404, Map.of("success", false, "message", "Student or faculty account not found"));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of("success", true,
+                        "message", active ? "Account access restored" : "Account access removed",
+                        "userId", targetUserId, "active", active));
+                return;
+            }
             if ("/api/admin/users".equals(path) && "GET".equalsIgnoreCase(exchange.getRequestMethod())) {
                 int page = queryInteger(exchange, "page", 1);
                 int pageSize = queryInteger(exchange, "pageSize", 50);
