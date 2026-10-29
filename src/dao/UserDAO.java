@@ -103,6 +103,17 @@ public class UserDAO {
             return rs.getInt(1);
         }
     }
+    
+    public boolean setStudentFacultyAccess(int userId, boolean active) throws SQLException {
+        String sql = "UPDATE users SET available = ? WHERE id = ? AND role IN ('STUDENT','FACULTY')";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setBoolean(1, active);
+            statement.setInt(2, userId);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
 
     public boolean setStaffAvailability(int userId, boolean available) throws SQLException {
         String sql = "UPDATE users SET available = ? WHERE id = ? AND role IN ('MAINTENANCE','TECHNICIAN')";
