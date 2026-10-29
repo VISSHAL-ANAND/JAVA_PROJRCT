@@ -26,6 +26,9 @@ public class AuthService {
         try{
             Optional<AuthUser> record=userDAO.findForAuthentication(email);
             if(record.isEmpty()||!PasswordHasher.verify(password,record.get().passwordHash()))throw new AuthenticationException("Invalid email or password");
+            if ((record.get().role() == Role.STUDENT || record.get().role() == Role.FACULTY) && !record.get().available()) {
+                throw new AuthenticationException("This account has been deactivated. Contact the campus administrator.");
+            }
             loginLimiter.reset(email);
             return toUser(record.get());
         } catch (SQLException | IllegalArgumentException e) {
